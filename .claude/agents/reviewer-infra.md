@@ -57,10 +57,6 @@ You review the repository's tooling. Follow `.claude/agents/review-protocol.md`;
 
 **Release sweep only** — end with `## CI improvement opportunities`: two to five proposals (build time, cost, observability, release, DX), each what, why and how.
 
-## Run from a copy
-
-`review.yml` runs the base branch's `scripts/review-lanes.sh` from a temp folder. A change that makes that script source or call a sibling file is a 🔴 unless the same diff adds the file to the list `review.yml` copies: the failure shows only on the pull requests that follow the merge (PR #183).
-
 ## Not a finding
 
 - A step `if:` with no status function (`success()`, `failure()`, `always()`, `cancelled()`) — GitHub adds `success() &&` to it, so the step is skipped once an earlier step failed. Only an `if:` that names a status function drops that guard.

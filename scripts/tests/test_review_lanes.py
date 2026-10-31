@@ -1,11 +1,8 @@
 """Tests for scripts/review-lanes.sh — run with `just test-scripts`."""
 
 import json
-import os
 import re
-import shutil
 import subprocess
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -18,37 +15,41 @@ def lanes(*paths, as_json=False):
     return json.loads(out) if as_json else out.split()
 
 
-class RunFromACopy(unittest.TestCase):
-    """CI runs the base branch's lane map from a temp folder (review.yml): it must hold all the script needs."""
+class ReviewWorkflow(unittest.TestCase):
+    """review.yml: what grades a pull request comes from the pinned release and the base branch, never from it."""
 
-    def test_the_lane_map_runs_from_the_files_the_review_workflow_copies(self):
+    def test_the_reviewers_and_their_helpers_come_from_the_pinned_daneel_release(self):
         workflow = (SCRIPT.parents[1] / ".github" / "workflows" / "review.yml").read_text(encoding="utf-8")
-        copied = re.search(r"for file in ([\w. -]+); do", workflow)
-        self.assertIsNotNone(copied, "review.yml no longer lists the files it copies beside the lane map")
-        with tempfile.TemporaryDirectory() as folder:
-            for name in copied.group(1).split():
-                shutil.copy(SCRIPT.parent / name, Path(folder) / name)
-            result = subprocess.run(
-                ["bash", str(Path(folder) / "review-lanes.sh"), "--json"],
-                input="justfile\n", capture_output=True, text=True, env=os.environ | {"USAGE_LOG": "off"},
-            )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stderr, "", "a file the lane map needs is not in the list review.yml copies")
-        self.assertTrue(json.loads(result.stdout)["infra"])
+        self.assertRegex(workflow, r"DANEEL_REF: app--v\d+\.\d+\.\d+\n")
+        self.assertEqual(workflow.count("ref: ${{ env.DANEEL_REF }}"), 2, "the lanes job and the review job")
+        self.assertIn("Read `.daneel/plugins/app/agents/${{ matrix.agent }}.md`", workflow)
+        self.assertNotRegex(workflow, r"\bbash scripts/(branch|review-path|review-lanes)\.sh", "a helper the pull request can edit")
+        self.assertIn('git show "origin/$BASE:.claude/daneel.json" > .claude/daneel.json', workflow, "a pull request could switch its lanes off")
+        self.assertIn('.claude/daneel.json .claude/agents; do', workflow, "a pull request could change the rules its lanes read")
+        self.assertIn('echo ".daneel/" >> .git/info/exclude', workflow, "branch.sh would list the release as changed files")
 
+    def test_every_lane_of_the_plugin_has_its_job_and_its_required_check(self):
+        root = SCRIPT.parents[1]
+        workflow = (root / ".github" / "workflows" / "review.yml").read_text(encoding="utf-8")
+        jobs = re.findall(r"- \{ reviewer: (\w+), agent: ([\w-]+) \}", workflow)
+        self.assertEqual(
+            {reviewer for reviewer, _ in jobs},
+            {"backend", "frontend", "arch", "sql", "infra", "security", "e2e", "spec", "contract", "adr", "guides"},
+        )
+        required = json.loads((root / "required-checks.json").read_text(encoding="utf-8"))["checks"]
+        for reviewer, agent in jobs:
+            self.assertIn(f"reviewer-{reviewer}", required)
+            self.assertIn(agent, (f"reviewer-{reviewer}", f"{reviewer}-reviewer"))
 
-class TrustedHelpers(unittest.TestCase):
-    """The reviewer session runs helpers taken from the base branch (review.yml): so must be what they source."""
-
-    def test_every_file_a_trusted_helper_sources_is_taken_from_the_base_branch_too(self):
+    def test_a_critical_fails_the_check_in_either_report_shape(self):
+        """The lanes open on `🔴 N critical`; the spec, contract and ADR reviewers close on
+        `Review complete: N critical`. A report the count misses would pass with its criticals."""
         workflow = (SCRIPT.parents[1] / ".github" / "workflows" / "review.yml").read_text(encoding="utf-8")
-        trusted = re.search(r'git checkout "origin/\$BASE" -- ([^\n]+)', workflow)
-        self.assertIsNotNone(trusted, "review.yml no longer takes its helpers from the base branch")
-        paths = trusted.group(1).split()
-        for path in paths:
-            if path.endswith(".sh") and "usage-log.sh" in (SCRIPT.parents[1] / path).read_text(encoding="utf-8"):
-                self.assertIn("scripts/usage-log.sh", paths, f"{path} sources it")
-                self.assertIn("scripts/usage_log.py", paths, "usage-log.sh runs it")
+        pattern = re.search(r"grep -Eo '([^']+critical)' \"\$report\"", workflow)
+        self.assertIsNotNone(pattern, "review.yml no longer counts the criticals of a report")
+        for line in ("🔴 2 critical, 🟡 0 warning(s)", "Review complete: 2 critical, 1 warning(s), 0 suggestion(s)."):
+            self.assertRegex(line, pattern.group(1))
+        self.assertNotRegex("Ready for its contract: no — blocked by 2 critical finding(s).", pattern.group(1))
 
     def test_flow_052_the_session_settings_and_hooks_are_the_base_branch_s(self):
         """The pinned action loads the checked-out project's settings and runs its hooks (v1.0.251,

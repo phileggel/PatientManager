@@ -1,9 +1,9 @@
 name: Review
 
-# The reviewer prompts under .claude/agents/ run on every pull request, one job
-# per lane the diff touches (scripts/review-lanes.sh — the same map the agent
-# uses locally before opening the PR). Each posts its report as a lane
-# comment and fails the check on any 🔴 critical. Runs on the owner's Claude
+# The reviewers of `app@daneel`, checked out at the pinned tag (DANEEL_REF), run on
+# every pull request, one job per lane the diff touches (the plugin's
+# review-lanes.sh, with the base branch's .claude/daneel.json). Each posts its report
+# as a lane comment and fails the check on any 🔴 critical. Runs on the owner's Claude
 # subscription through the CLAUDE_CODE_OAUTH_TOKEN repository secret (minted
 # with `claude setup-token`); the check fails closed without it rather than
 # reporting a review that did not happen. Dependabot PRs get no repository
@@ -44,6 +44,9 @@ env:
   # reviewers on main do not know yet (as PR #121 did), then set it back to
   # "true" in the next PR.
   REVIEW_BLOCKING: "true"
+  # The daneel release the reviewers, their protocol and helpers come from. A pull
+  # request moves it; the prompts of that pull request's own review are then the new ones.
+  DANEEL_REF: app--v0.1.0
 
 jobs:
   lanes:
@@ -60,9 +63,15 @@ jobs:
           persist-credentials: false
       # reviewer-infra FP (CI run on PR #121): both actions really are v7.0.1 —
       # checked with `git ls-remote --tags` on 2026-09-27; newer than its training data.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: phileggel/daneel
+          ref: ${{ env.DANEEL_REF }}
+          path: .daneel
+          persist-credentials: false
       - name: Map changed files to reviewer lanes
-        # The lane map comes from the base branch when it has one, so a pull
-        # request cannot switch its own reviewers off by editing the script.
+        # The lane map is the pinned release's and its settings the base branch's, so a
+        # pull request cannot switch its own reviewers off.
         id: detect
         shell: bash
         env:
@@ -73,17 +82,8 @@ jobs:
           if [[ "$ACTOR" == "dependabot[bot]" ]]; then
             lanes='{}'  # a missing lane reads as false: every lane skipped
           else
-            # The lane map and every file it sources: the copy runs outside scripts/
-            # (scripts/tests/test_review_lanes.py runs it from exactly this list).
-            for file in review-lanes.sh usage-log.sh usage_log.py; do
-              if [[ -z "$(git ls-tree --name-only "origin/$BASE" -- "scripts/$file")" ]]; then
-                # Only while the base branch does not have the file yet (the PR adding it).
-                cp "scripts/$file" "$RUNNER_TEMP/$file"
-              else
-                git show "origin/$BASE:scripts/$file" > "$RUNNER_TEMP/$file"
-              fi
-            done
-            lanes=$(git diff --name-only "origin/$BASE...HEAD" | bash "$RUNNER_TEMP/review-lanes.sh" --json)
+            git show "origin/$BASE:.claude/daneel.json" > .claude/daneel.json
+            lanes=$(git diff --name-only "origin/$BASE...HEAD" | bash .daneel/plugins/app/scripts/review-lanes.sh --json)
           fi
           echo "lanes=$lanes" >> "$GITHUB_OUTPUT"
           echo "$lanes"
@@ -106,20 +106,23 @@ jobs:
       # What both tries of a reviewer are given (the second runs only when the
       # first wrote no report).
       REVIEW_PROMPT: |
-        You are the `reviewer-${{ matrix.reviewer }}` agent of this repository.
-        Read `.claude/agents/reviewer-${{ matrix.reviewer }}.md` and follow it
+        You are the `${{ matrix.agent }}` reviewer of this repository.
+        Read `.daneel/plugins/app/agents/${{ matrix.agent }}.md` and follow it
         exactly, in its default diff-scoped mode, against the current branch
-        (the pull request's merge commit; `bash scripts/branch.sh files` and
-        `bash scripts/branch.sh diff <path> [<path> ...]` give the changed set and
-        the whole diff in one call).
-        The working directory's `CLAUDE.md`, `.claude/` and helper scripts are
-        the base branch's: your instructions, not what you review. Read, grep
+        (the pull request's merge commit; `bash .daneel/plugins/app/scripts/branch.sh
+        files` and `bash .daneel/plugins/app/scripts/branch.sh diff <path> [<path> ...]`
+        give the changed set and the whole diff in one call).
+        `${CLAUDE_PLUGIN_ROOT}` in it is `.daneel/plugins/app`.
+        The working directory's `CLAUDE.md` and `.claude/` are the base branch's,
+        `.daneel/` is the pinned release: your instructions, not what you review. Read, grep
         and glob the pull request's files, and the documents you check them
         against, in `/home/runner/work/_temp/branch/`: the branch's tree as
-        pushed, the same paths.
+        pushed, the same paths; where a prompt says `git show HEAD:<path>`, read the
+        file there. Nobody answers a question here: a prompt that wants a document to
+        review gets every file of its lane `branch.sh files` lists.
         Include `docs/ubiquitous-language.md` in your term checks. Save the
-        full report where the agent file says (`bash scripts/review-path.sh
-        reviewer-${{ matrix.reviewer }}`). Do not post comments or reviews
+        full report where the protocol says (`bash .daneel/plugins/app/scripts/review-path.sh
+        ${{ matrix.agent }}`). Do not post comments or reviews
         on GitHub yourself; the workflow does that from the saved file.
         Be concise: one line per finding (location, claim, fix); no
         restating of the diff, no narrative, no unrequested alternatives.
@@ -127,13 +130,24 @@ jobs:
       REVIEW_ARGS: |
         --model claude-sonnet-5
         --max-turns 60
-        --allowedTools "Read" "Grep" "Glob" "Edit(.review/**)" "Bash(bash scripts/branch.sh *)" "Bash(bash scripts/review-path.sh *)" "Bash(git status)" "Bash(git rev-parse *)" "Bash(git ls-files)" "Bash(git ls-files *)" "Bash(grep *)" "Bash(ls *)" "Bash(wc *)" "Bash(shellcheck *)"
+        --allowedTools "Read" "Grep" "Glob" "Edit(.review/**)" "Bash(bash .daneel/plugins/app/scripts/branch.sh *)" "Bash(bash .daneel/plugins/app/scripts/review-path.sh *)" "Bash(git status)" "Bash(git cat-file *)" "Bash(git rev-parse *)" "Bash(git ls-files)" "Bash(git ls-files *)" "Bash(grep *)" "Bash(ls *)" "Bash(wc *)" "Bash(shellcheck *)"
         --disallowedTools "WebFetch" "WebSearch" "Skill"
         --add-dir /home/runner/work/_temp/branch
     strategy:
       fail-fast: false
       matrix:
-        reviewer: [backend, arch, frontend, sql, infra, security, e2e, guides]
+        include:
+          - { reviewer: backend, agent: reviewer-backend }
+          - { reviewer: arch, agent: reviewer-arch }
+          - { reviewer: frontend, agent: reviewer-frontend }
+          - { reviewer: sql, agent: reviewer-sql }
+          - { reviewer: infra, agent: reviewer-infra }
+          - { reviewer: security, agent: reviewer-security }
+          - { reviewer: e2e, agent: reviewer-e2e }
+          - { reviewer: guides, agent: reviewer-guides }
+          - { reviewer: spec, agent: spec-reviewer }
+          - { reviewer: contract, agent: contract-reviewer }
+          - { reviewer: adr, agent: adr-reviewer }
     steps:
       - name: Skip lanes the diff does not touch
         id: gate
@@ -171,15 +185,21 @@ jobs:
           # checkout's AUTHORIZATION header shape).
           persist-credentials: false
 
-      - name: Give the branch helper a local main, trusted prompts and helpers, and the branch's tree
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        if: steps.gate.outputs.run == 'true'
+        with:
+          repository: phileggel/daneel
+          ref: ${{ env.DANEEL_REF }}
+          path: .daneel
+          persist-credentials: false
+
+      - name: Give the branch helper a local main, the base branch's settings, and the branch's tree
         id: trusted
-        # scripts/branch.sh resolves the diff base as merge-base(HEAD, main).
-        # The reviewer prompts, the two helpers the session runs and the files
-        # those helpers source come from the
-        # base branch, not from the pull request, so a PR can neither soften the
-        # criteria that grade it nor change what the reviewer runs; a PR that
-        # edits them still has that edit in its diff, and the new prompt applies
-        # once merged.
+        # The plugin's branch.sh resolves the diff base as merge-base(HEAD, main), and
+        # lists untracked files: `.daneel/` is kept out of what it reports. The reviewer
+        # prompts and helpers come from the pinned release, their settings from the base
+        # branch, so a PR can neither soften the criteria that grade it nor change what
+        # the reviewer runs; a PR that edits them still has that edit in its diff.
         if: steps.gate.outputs.run == 'true'
         shell: bash
         env:
@@ -187,12 +207,12 @@ jobs:
         run: |
           set -euo pipefail
           git branch -f main "origin/$BASE"
+          echo ".daneel/" >> .git/info/exclude
           # The branch's tree as pushed, for the session to read (ticket #490): this
           # step, and the action itself (restore-config.ts at v1.0.251), put the
           # base branch's prompts and settings over the pull request's in the workspace.
           # Its `.claude/skills/` may load as the session's skills: the `Skill` tool is refused.
           git worktree add --detach /home/runner/work/_temp/branch HEAD
-          git checkout "origin/$BASE" -- .claude/agents scripts/branch.sh scripts/review-path.sh scripts/usage-log.sh scripts/usage_log.py
           # The stop-reason helper runs beside a token (last step): the base
           # branch's copy, or none at all on the pull request that adds it.
           if git cat-file -e "origin/$BASE:scripts/review-stop-reason.py" 2>/dev/null; then
@@ -204,8 +224,9 @@ jobs:
           # action loads the checked-out project's settings (setting sources user,
           # project, local in base-action/src/parse-sdk-options.ts at v1.0.251) and
           # Claude Code runs the hooks they name, beside the subscription token. A
-          # hook the pull request adds is removed; the log says what then differs.
-          for path in .claude/settings.json .claude/hooks; do
+          # hook the pull request adds is removed; the log says what then differs. The
+          # plugin's lanes read their rules list from `.claude/daneel.json`.
+          for path in .claude/settings.json .claude/hooks .claude/daneel.json .claude/agents; do
             rm -rf "$path"
             if git cat-file -e "origin/$BASE:$path" 2>/dev/null; then
               git checkout "origin/$BASE" -- "$path"
@@ -251,10 +272,11 @@ jobs:
         if: ${{ steps.gate.outputs.run == 'true' && steps.trusted.outcome == 'success' && !cancelled() }}
         shell: bash
         env:
+          AGENT: ${{ matrix.agent }}
           REVIEWER: ${{ matrix.reviewer }}
         run: |
           set -euo pipefail
-          if compgen -G ".review/reviewer-$REVIEWER-*.md" > /dev/null; then
+          if compgen -G ".review/$AGENT-*.md" > /dev/null; then
             echo "needed=false" >> "$GITHUB_OUTPUT"
           else
             echo "needed=true" >> "$GITHUB_OUTPUT"
@@ -297,7 +319,7 @@ jobs:
                   d = d.replace(t, "[redacted-token]")
           sys.stdout.write(d)'; }
           scrub() { literal | sed -E 's/sk-ant-[A-Za-z0-9_-]{8,}/[redacted-token]/g; s/gh[pousr]_[A-Za-z0-9]{20,}/[redacted-token]/g; s/(ANTHROPIC_API_KEY|CLAUDE_CODE_OAUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|CODECOV_TOKEN)=[^ "]+/\1=[redacted]/g'; }
-          for f in .review/reviewer-*.md; do [[ -e "$f" ]] && { scrub < "$f" > "$f.tmp" && mv "$f.tmp" "$f"; }; done
+          for f in .review/*.md; do [[ -e "$f" ]] && { scrub < "$f" > "$f.tmp" && mv "$f.tmp" "$f"; }; done
           if [[ -f "$SESSION_LOG" ]]; then
             scrub < "$SESSION_LOG" > review-session.json
           else
@@ -322,12 +344,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+          AGENT: ${{ matrix.agent }}
           REVIEWER: ${{ matrix.reviewer }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TRUSTED: ${{ steps.trusted.outcome }}
         run: |
           set -euo pipefail
-          report=$(ls -t .review/reviewer-"$REVIEWER"-*.md 2>/dev/null | head -n 1 || true)
+          report=$(ls -t .review/"$AGENT"-*.md 2>/dev/null | head -n 1 || true)
           MARKER="<!-- review:$REVIEWER -->"
           if [[ -z "$report" ]]; then
             last=$(jq -r 'if type=="array" then .[] else . end | select(.type=="result") | .result // empty' \
@@ -341,7 +364,8 @@ jobs:
               "$MARKER" "$REVIEWER" "$RUN_URL" "$why" "${last:-(no final message)}")
             criticals=1
           else
-            criticals=$( { grep -Eo '🔴 [0-9]+ critical' "$report" || true; } | grep -Eo '[0-9]+' | head -n 1 || true)
+            # The lanes' headline, or the spec, contract and ADR reviewers' closing line.
+            criticals=$( { grep -Eo '(🔴 |Review complete: )[0-9]+ critical' "$report" || true; } | grep -Eo '[0-9]+' | head -n 1 || true)
             criticals=${criticals:-0}
             # GitHub caps a comment at 65 536 characters; keep the head of a long report.
             body=$(printf '%s\n%s\n\n[run](%s)\n' "$MARKER" "$(head -c 60000 "$report")" "$RUN_URL")

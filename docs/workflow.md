@@ -245,7 +245,7 @@ Before the PR, run exactly the lanes
 that are not guides), and again on every fix before the first push, a warning's included,
 until no 🔴 remains.
 Once pushed, a fix is a `fixup!` commit pushed as is: CI runs the same lanes on every
-push, prompts from `main`, and a green CI needs no local run (owner, 2026-10-19). A local
+push, prompts from the daneel tag `review.yml` pins, and a green CI needs no local run (owner, 2026-10-19). A local
 reviewer gets the branch, the spec and the vocabulary, never a description of the change.
 Also: `spec-reviewer` / `contract-reviewer` / `adr-reviewer` when those documents change,
 `spec-checker` before closing an issue with spec rules; `reviewer-guides` for guides (§ 5).
