@@ -69,7 +69,6 @@ tmp/
 # Frontend visual proof — temporary per-task preview files (see docs/visual-proof-rules.md)
 preview.html
 src/__preview__/
-.visual-proof-capture.mjs
 screenshots/**/.console-errors.json
 
 # E2E failure screenshots — written by wdio.conf.ts afterTest hook, uploaded as

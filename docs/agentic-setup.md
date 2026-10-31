@@ -35,9 +35,9 @@ reads each generic piece against its line. A piece is a list item opened by its 
 
 ### Plugins
 
-- The pinned `flow@daneel` and `app@daneel`: every skill, reviewer prompt and
-  flow script (`merge.py`, `watch-pr.py`, `branch.sh`, `review-lanes.sh`, `flow-audit.py`) comes from
-  them, with what each must never do in its own file; `.claude/daneel.json` holds this project's settings.
+- The pinned `flow@daneel` and `app@daneel`: every skill, reviewer prompt and flow script
+  comes from them (`CLAUDE.md` § Commands says where), with what each must never do in its
+  own file; `.claude/daneel.json` holds this project's settings.
 
 ### Scripts
 

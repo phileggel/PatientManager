@@ -55,7 +55,7 @@ A question only the human can answer is never guessed: headless, it goes on the 
 ## Commands
 
 - `just dev` · `just harness [--coverage]` (CI's gate locally, scoped to the touched layers; coverage before a first push) · `just check` · `just check-full` · `just format` · `just generate-types`.
-- In the `app` plugin's `skills/run-entry/scripts/`: `watch-pr.py [NN]` (waits for a pull request's checks; exit 0 green) · `merge.py` (refuses until every check is green; folds `fixup!` commits).
+- In `~/.claude/plugins/cache/daneel/app/<version>/` — `skills/run-entry/scripts/`: `watch-pr.py [NN]` (waits for a pull request's checks; exit 0 green) · `merge.py` (refuses until every check is green; folds `fixup!` commits); `scripts/`: `branch.sh` · `review-lanes.sh` · `review-path.sh`; `skills/run-batch/scripts/`: `batch-end.sh`, `release.py`.
 - `just arch-check` (A1–A8, B18, B24; `--write-allowlist` only lowers the frozen debt) · `just rule-homes` (the doc map, the guide ceilings; `--lower-ceilings` only lowers) · `just coverage-gate` · `just privacy-check` · `just test-scripts`.
 - Ending a batch: `docs/workflow.md` § 3 — the release or the `batch-end.sh` of `/app:run-batch`; then `/flow:flow-audit`.
 
