@@ -81,7 +81,7 @@ reads each generic piece against its line. A piece is a list item opened by its 
   tests, coverage or a build.
 - `scripts/check.py` — the quality checks of each layer, fast or full. Never: fixes
   what it reports unless asked to format.
-- `scripts/harness.sh` — the merge gate of CI, locally, scoped to what moved. Never: a
+- `scripts/harness.sh` — the merge gate of CI, locally, scoped to what moved; coverage with `--coverage`. Never: a
   gate CI does not have.
 - `scripts/coverage-gate.py` — fails when coverage of the code that carries logic
   drops under its floor. Never: lowers a floor.

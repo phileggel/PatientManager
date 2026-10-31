@@ -63,9 +63,9 @@ stat: (_used "stat")
     cloc . --vcs=git
 
 # CI's merge gate, locally, scoped to what the branch changed (scripts/harness.sh):
-# privacy + script tests always; lint, build and tests with coverage for the touched layers
-harness:
-    bash scripts/harness.sh
+# privacy + script tests always; lint, build and tests for the touched layers; --coverage measures them against the floors
+harness *ARGS:
+    bash scripts/harness.sh {{ARGS}}
 
 # Doc map and rule homes: every Markdown file in a location of docs/README.md, every rule ID defined once,
 # every guide within its ceiling (guide-ceilings.json); --lower-ceilings follows the guides that shrank

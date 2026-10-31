@@ -134,7 +134,7 @@ here a pull request, every check green, merged by `just merge` (steps 8–10).
      test that reproduces it is the acceptance test of the fix. When the input holds
      patient data, the agent says what it needs from it and how little.
 4. **Implement** to green, the right way (§ 6).
-5. **Self-check:** `just harness` (§ 5).
+5. **Self-check:** `just harness`; `just harness --coverage` before the first push (§ 5).
 6. **Self-review:** the reviewer lanes the diff needs (§ 7), again on the fixes before the
    first push until no 🔴 remains.
 7. **Evidence:** `/visual-proof` for every changed component.
@@ -179,12 +179,12 @@ visual proofs of the pull request are the record.
 
 ## 5. The harness
 
-`just harness` runs it locally, scoped to the layers the branch touched; the same
+`just harness` runs it locally without coverage, scoped to the layers the branch touched;
+`--coverage` adds the floors of `coverage-gates.json`, before a first push. The same
 checks are required on every pull request (`required-checks.json`), and `just merge`
 refuses without them. The git hooks run only fast checks for the same scope; the script
-unit tests never run in a hook (hooks export `GIT_DIR`). Nothing is run by hand just
-before a commit or a push: the hooks do it, and `just harness` is for wanting CI's
-answer before pushing.
+unit tests never run in a hook (hooks export `GIT_DIR`). Nothing else is run by hand
+just before a commit or a push: the hooks do it.
 
 - **Lint, format, types, build** — `scripts/check.py`, every PR.
 - **Core without the desktop shell** — `scripts/core-without-tauri.sh`, when the backend

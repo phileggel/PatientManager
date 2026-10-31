@@ -4,7 +4,7 @@ Guidance for Claude Code in this repository. It is an index: every rule lives in
 
 ## Setup
 
-After cloning: `git config core.hooksPath .githooks` — the hooks refuse a commit to `main`, a bad commit format, an attribution line or patient data, and run the fast checks (`docs/agentic-setup.md`). Tests, coverage, the build and E2E are CI's.
+After cloning: `git config core.hooksPath .githooks` — the hooks refuse a commit to `main`, a bad commit format, an attribution line or patient data, and run the fast checks (`docs/agentic-setup.md`). No hook runs tests, coverage, the build or E2E: CI does.
 
 ## Who decides what
 
@@ -54,7 +54,7 @@ A question only the human can answer is never guessed: headless, it goes on the 
 
 ## Commands
 
-- `just dev` · `just harness` (CI's gate locally, scoped to the touched layers) · `just check` · `just check-full` · `just format` · `just generate-types` · `just merge` (refuses until every check is green; folds `fixup!` commits).
+- `just dev` · `just harness [--coverage]` (CI's gate locally, scoped to the touched layers; coverage before a first push) · `just check` · `just check-full` · `just format` · `just generate-types` · `just merge` (refuses until every check is green; folds `fixup!` commits).
 - `just watch-pr [NN]` (waits for a pull request's checks; exit 0 green) · `just flow-audit <since> [until]` (a batch's figures).
 - `just arch-check` (A1–A8, B18, B24; `--write-allowlist` only lowers the frozen debt) · `just rule-homes` (the doc map, the guide ceilings; `--lower-ceilings` only lowers) · `just coverage-gate` · `just privacy-check` · `just test-scripts`.
 - Ending a batch: `docs/workflow.md` § 3 — the release or `just batch-end`; then `/flow-audit`.
