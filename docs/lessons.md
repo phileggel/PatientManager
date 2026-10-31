@@ -71,18 +71,6 @@ useEffect(() => {
 
 ---
 
-## CI and the scripts it copies
-
-### TL-005 — A script CI runs from a copy must carry everything it sources
-
-**Problem.** `review.yml` takes `scripts/review-lanes.sh` from the base branch and runs it from a temp folder, so a pull request cannot switch its own reviewers off. gh#182 made every script source `scripts/usage-log.sh` from its own folder. The pull request that added the line was green: CI ran the previous `main`'s copy. Every pull request after the merge failed at "Lanes touched by the diff", no reviewer lane ran, and the first watch waited 30 minutes for checks that could never report.
-
-**Lesson.** A change to a script that CI runs from the base branch is not tested by its own pull request. Before merging one, run the script the way CI does: from a folder that holds only the files `review.yml` copies. `scripts/tests/test_review_lanes.py` now does exactly that, from the list in the workflow. When a watch shows a failed check and required checks that never appear, read the failed job first: it is the one that starts the others.
-
-**Reference.** `.github/workflows/review.yml` (step "Map changed files to reviewer lanes"); `scripts/tests/test_review_lanes.py::RunFromACopy`; `scripts/watch-pr.py` (`patience`).
-
----
-
 ## Refactoring
 
 ### TL-006 — A moved symbol is reachable by more paths than its own

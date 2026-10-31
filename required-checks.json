@@ -13,6 +13,9 @@
     "reviewer-infra",
     "reviewer-security",
     "reviewer-e2e",
-    "reviewer-guides"
+    "reviewer-guides",
+    "reviewer-spec",
+    "reviewer-contract",
+    "reviewer-adr"
   ]
 }
