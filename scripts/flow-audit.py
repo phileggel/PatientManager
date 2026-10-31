@@ -63,7 +63,7 @@ GUIDES = (
     ".claude/rules/*.md",
 )
 # Records keep the paths of their day; every other document names paths that exist.
-RECORDS = ("CHANGELOG.md", "docs/adr/", "docs/lessons.md")
+RECORDS = ("CHANGELOG.md", "docs/adr/")
 # A backticked token is read as a path only when it starts at the repository root.
 PATH_ROOTS = ("src/", "src-tauri/", "docs/", "scripts/", "e2e/", ".github/", ".claude/", ".githooks/")
 # The two halves of the usage log itself: they log the others and never themselves.

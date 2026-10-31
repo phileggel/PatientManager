@@ -114,7 +114,7 @@ Widget-local runtime state (snackbar internals) stays with its widget in `ui/com
 **F6** — SHOULD be as smart as possible:
 
 - Get state from store if available
-- Get values directly from gateway otherwise and listen to backend events if updates are needed
+- Get values directly from gateway otherwise and listen to backend events if updates are needed; a bootstrap hook wraps its first `commands.*` calls and its `listen()` in try/catch, logging through `@/infra/logger`, so a test without the Tauri runtime leaks no rejection
 
 **F7** — MUST NOT emit window events (those are emitted by the backend).
 
@@ -240,7 +240,7 @@ return (
 
 **F20** — NEVER use a shared `useRef` to track mounted state across effects. Use a local `let isMounted = true` variable per effect with `return () => { isMounted = false; }` as cleanup instead.
 
-React StrictMode (active in dev) double-invokes effects: mount → cleanup → mount again. A shared ref set to `false` in the first cleanup is never reset to `true` for the second run, so all async guards in the second run see `false` and abort silently. A local variable is scoped to each invocation and starts `true` every time.
+React StrictMode (active in dev) double-invokes effects: mount → cleanup → mount again. A shared ref set to `false` in the first cleanup is never reset to `true` for the second run, so all async guards in the second run see `false` and abort silently. A local variable is scoped to each invocation and starts `true` every time. `listen()` races the same way: guard it with a `cancelled` flag and, if cleanup ran first, call the unlisten it resolves to at once.
 
 ```ts
 // ✅ correct
