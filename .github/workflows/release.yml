@@ -22,7 +22,9 @@ jobs:
     # bundled or published. Linux E2E runs on every pull request (e2e.yml);
     # this is the only place the Windows webview is exercised.
     name: Windows E2E
-    runs-on: windows-latest
+    # Pinned, not windows-latest: Windows runs only on a tag, so a new image would
+    # first show up in the middle of a release.
+    runs-on: windows-2025-vs2026
     timeout-minutes: 60
     # Narrower than the workflow's grant: the suite publishes nothing.
     permissions:
@@ -199,7 +201,8 @@ jobs:
 
   windows:
     needs: windows-e2e
-    runs-on: windows-latest
+    # The image the E2E gate above passed on.
+    runs-on: windows-2025-vs2026
     timeout-minutes: 60
 
     steps:
