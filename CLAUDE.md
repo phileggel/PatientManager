@@ -4,7 +4,7 @@ Guidance for Claude Code in this repository. It is an index: every rule lives in
 
 ## Setup
 
-After cloning: `git config core.hooksPath .githooks` — the hooks refuse a commit to `main`, a bad commit format, an attribution line or patient data, and run the fast checks (`docs/agentic-setup.md`). Tests, coverage, the build and E2E are CI's.
+After cloning: `git config core.hooksPath .githooks` — the hooks refuse a commit to `main`, a bad commit format, an attribution line or patient data, and run the fast checks (`docs/agentic-setup.md`). No hook runs tests, coverage, the build or E2E: CI does.
 
 ## Who decides what
 

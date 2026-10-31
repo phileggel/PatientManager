@@ -11,7 +11,7 @@
 | Tier 4 — E2E            | WebDriver UI flows           | `e2e-rules.md` (ephemeral DB, B36)                           | None                          |
 
 Nothing is run by hand before a commit: the hooks run the fast checks, the tests are CI's
-(`docs/workflow.md` § 5); `just harness --coverage` runs CI's gate locally. One test while working takes the runner's filter, which no recipe has:
+(`docs/workflow.md` § 5); `just harness` runs them locally, as § 5 says. One test while working takes the runner's filter, which no recipe has:
 `npx vitest run <path>`, or `cargo test <filter>` in `src-tauri/`.
 
 ---
