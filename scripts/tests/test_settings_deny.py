@@ -62,7 +62,6 @@ ALLOWED = [
     "gh run rerun 123 --failed",
     "gh release edit v1.2.3 --notes-file notes.md",
     "just release-check",
-    "python3 scripts/release-notes.py v1.2.3",
 ]
 
 

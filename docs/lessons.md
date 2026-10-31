@@ -67,7 +67,7 @@ useEffect(() => {
 
 **Lesson.** The E2E build asks for the port itself: `tauri.e2e.conf.json` sets `additionalBrowserArgs` to the library's defaults plus `--remote-debugging-port=0`. No shipped configuration carries that argument. When a session cannot be created, start the app by hand with `WEBVIEW2_USER_DATA_FOLDER` set and look at the `msedgewebview2.exe` command line before changing anything else.
 
-**Reference.** `src-tauri/tauri.e2e.conf.json`; the step "Check the app starts and its webview can be driven" in `.github/workflows/release-build.yml`; `scripts/tests/test_e2e_conf.py`.
+**Reference.** `src-tauri/tauri.e2e.conf.json`; the step "Check the app starts and its webview can be driven" in `.github/workflows/release.yml`; `scripts/tests/test_e2e_conf.py`.
 
 ---
 

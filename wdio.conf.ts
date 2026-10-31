@@ -7,7 +7,7 @@
 //   cargo install tauri-driver
 //   sudo apt-get install -y webkitgtk-webdriver   # Linux: provides WebKitWebDriver (webkit2gtk-driver before Ubuntu 26.04)
 //   Windows: the msedgedriver matching the WebView2 runtime, on PATH or named
-//   in TAURI_NATIVE_DRIVER (release-build.yml downloads it).
+//   in TAURI_NATIVE_DRIVER (release.yml downloads it).
 //
 // Run:
 //   npm run test:e2e          # local (headed window); Windows CI (release gate)
@@ -42,7 +42,7 @@ const E2E_DB_PATH = resolve(os.tmpdir(), "patient_manager_e2e.db");
 // Failure-screenshot output. The `afterTest` hook below writes a PNG for every
 // failed test so CI runs can be diagnosed without re-running locally. The
 // directory is git-ignored; the E2E workflows upload it as an artifact on
-// failure (.github/workflows/e2e.yml, and release-build.yml on Windows).
+// failure (.github/workflows/e2e.yml, and release.yml on Windows).
 const SCREENSHOT_DIR = resolve(__dirname, "screenshots/e2e-failures");
 
 let tauriDriver: ChildProcess;
