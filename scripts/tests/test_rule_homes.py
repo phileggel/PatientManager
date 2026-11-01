@@ -157,6 +157,12 @@ class AgenticSetup(unittest.TestCase):
              "scripts/merge.py", "scripts/usage-log.sh"],
         )
 
+    def test_519_a_session_hook_owes_a_line(self):
+        self.assertEqual(
+            homes.setup_pieces([".claude/hooks/review-report-required.sh", ".claude/settings.json"]),
+            [".claude/hooks/review-report-required.sh"],
+        )
+
     def test_flow_036_a_piece_that_exists_without_a_line_is_reported(self):
         pieces = ["scripts/merge.py", "scripts/new-tool.py"]
         self.assertEqual(
