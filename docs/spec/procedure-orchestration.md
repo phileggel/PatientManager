@@ -78,7 +78,21 @@ content width.
 
 **PRO-160 (R32) — ComboboxField behavior by mode (frontend)**: In creation mode, the inline patient-creation button (see PRO-080) remains visible even when the search returns no result. In edit mode, the ComboboxField is pre-positioned on the patient of the existing procedure, displayed using the PRO-130 format; when the search returns no result, only the neutral message is shown (see PRO-150) — no creation button is present.
 
-**PRO-170 (R24) — List sort**: The procedure list has no default sort. The user can trigger sorting on the following columns: patient name, procedure date, billed amount, status. Each column follows a three-state cycle: ascending → descending → no sort. Only one sort is active at a time.
+**PRO-170 (R24) — Opening sort (frontend)**: The procedure list opens sorted by procedure date, ascending, and the procedure date column header shows it.
+
+**PRO-170A — Sortable columns (frontend)**: A click on a column header sorts by that column, for these columns: patient name, procedure date, billed amount, status.
+
+**PRO-170B — Sort cycle (frontend)**: A column goes ascending → descending → the opening sort. The procedure date column, ascending when the list opens, goes to descending and back.
+
+**PRO-170C — Equal values (frontend)**: Rows with an equal value in the sorted column keep the order the period's rows were loaded in; there is no second sort key.
+
+**PRO-170D — Empty values (frontend)**: A row with no value in the sorted column comes last, ascending and descending.
+
+**PRO-170E — How long a sort lasts (frontend)**: A chosen sort lasts while the list stays on screen: changing the period or the filters, or a refresh of the rows, keeps it. Coming back to the page opens the list as PRO-170 says.
+
+**PRO-170F — One sort at a time (frontend)**: One sort is active at a time, and only the sorted column's header shows its direction.
+
+**PRO-170G — Text order (frontend)**: Text sorts alphabetically, ignoring case and accents. Status sorts the same way on its `payment_status` code, not its label.
 
 **PRO-180 (R25) — Status filter**: A dedicated selector restricts the display to a specific payment status. This filter is independent of the text search (PRO-100); both filters are applied cumulatively to the rows of the period.
 
@@ -158,7 +172,7 @@ raises at most one `ProcedureUpdated` event, regardless of batch size (EXI-177).
 
 - **Scope of emphasis**: overdue highlighting only affects rows already visible under the current period (PRO-010). An overdue procedure whose date falls outside the selected period receives **no** signal (no count, no period hint) — it surfaces only when its own period is selected.
 - **Filtering**: `Overdue` is **not** a selectable value in the PRO-180 status filter (it is a derived attribute, not a `ProcedureStatus`); overdue rows therefore appear only when `Created` is included by that filter.
-- **Sorting**: overdue introduces **no** sort key (PRO-170) — overdue rows sort exactly as their `Created` peers. The search (PRO-100) is likewise unaffected.
+- **Sorting**: overdue introduces **no** sort key (PRO-170A) — overdue rows sort exactly as their `Created` peers. The search (PRO-100) is likewise unaffected.
 
 ---
 
