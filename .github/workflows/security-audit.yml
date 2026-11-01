@@ -53,7 +53,7 @@ jobs:
 
       - name: Install cargo-audit
         # Pinned to full SHA for v2.87.28 — mutable tags are a supply-chain risk
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32
         with:
           tool: cargo-audit
 
