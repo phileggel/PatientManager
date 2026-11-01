@@ -7,7 +7,7 @@
 
 ### `create_overpayment` — REF-050 to REF-160
 
-Atomic transaction. Creates the full refund chain in sequence:
+Atomic transaction (not yet: ADR-002 until #390). Creates the full refund chain in sequence:
 
 1. Refund `Procedure` with negative amount and `OverpaymentRefund` status (REF-090)
 2. Refund `FundPaymentGroup` — `BankPayed`, locked (REF-100)
@@ -26,7 +26,7 @@ Validates eligibility (REF-010), refund date (REF-030), reason length (REF-040),
 
 ### `cancel_overpayment` — REF-210
 
-Atomic transaction. Reversal cascade in order: revert source procedure status (from `ProcedureRefund.previous_payment_status`), delete `ProcedureRefund` link, delete `BankTransferLink`, delete refund bank transfer, delete refund fund-payment group, delete refund procedure. Always identified by `source_procedure_id`. If any step fails, all changes roll back.
+Atomic transaction (not yet: ADR-002 until #390). Reversal cascade in order: revert source procedure status (from `ProcedureRefund.previous_payment_status`), delete `ProcedureRefund` link, delete `BankTransferLink`, delete refund bank transfer, delete refund fund-payment group, delete refund procedure. Always identified by `source_procedure_id`. If any step fails, all changes roll back.
 
 - **Args:** `CancelOverpaymentRequest`
 - **Returns:** `()`
@@ -36,7 +36,7 @@ Atomic transaction. Reversal cascade in order: revert source procedure status (f
 
 ### `get_source_bank_account` — REF-070
 
-Returns the id of the bank account of the source procedure's original bank transfer, when it resolves as REF-070 defines. Used by the refund form to pre-fill the selector when several accounts exist.
+Returns the id of the bank account of the source procedure's original bank entry, when it resolves as REF-070 defines. Used by the refund form to pre-fill the selector when several accounts exist.
 
 - **Args:** `source_procedure_id: String`
 - **Returns:** `String` (optional — `null` if not resolvable, an unknown source included)
@@ -101,6 +101,8 @@ struct ProcedureRefundInfo {
 
 ## Changelog
 
+- 2026-11-01 — The cascades' atomicity marked as not yet shipped (ADR-002 until #390).
+- 2026-11-01 — `get_source_bank_account`: says bank entry, the glossary term.
 - 2026-11-01 — Added `get_source_bank_account` (REF-070, #458).
 - 2026-05-31 — Reconcile error names with typed implementation: `ProcedureNotEligible`→`SourceNotRefundable`, `InvalidPaymentMethod`→`TransferTypeRejected`, `RefundNotFound`→`RefundRecordNotFound`; drop stale `PartialRefundNotSupported` (REF-020 structurally enforced); add `BankAccountRequired` and `SourceHasNoFund` variants.
 - 2026-05-02 — Added by `overpayment` spec: create_overpayment, cancel_overpayment, get_procedure_refund_by_source, get_procedure_refund_by_refund_procedure

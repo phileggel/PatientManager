@@ -43,11 +43,16 @@ describe("formatBankManualMatchError", () => {
     );
   });
 
+  it("BSM-036: a refused procedure shows the generic message", () => {
+    expect(formatBankManualMatchError({ code: "ProcedureNotFound", procedure_id: "p-1" }).key).toBe(
+      "bank:errors.unexpected",
+    );
+  });
+
   it("maps unreachable BC domain invariants to the generic unexpected key", () => {
     const cases: Array<BankManualMatchError> = [
       { code: "IbanAlreadyUsed" },
       { code: "TotalAmountNotPositive" },
-      { code: "ProcedureNotFound", procedure_id: "p-1" },
       { code: "ProcedureTypeNameDuplicate" },
     ];
     for (const err of cases) {

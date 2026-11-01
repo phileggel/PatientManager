@@ -117,7 +117,7 @@ Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or 
 
 - **Args:** `bank_account_id: String, transfer_date: String, transfer_type: BankEntryType, procedure_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `RefundOnlyVariantRejected` (REF-080), `ProcedureNotFound` (BSM-036), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `RefundOnlyVariantRejected` (REF-080), `ProcedureNotFound { procedure_id }` (BSM-036), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
 
 ---
 
@@ -127,7 +127,7 @@ Updates the date and/or procedure composition of an existing direct payment. New
 
 - **Args:** `transfer_id: String, new_transfer_date: String, new_procedure_ids: Vec<String>`
 - **Returns:** `BankEntryEdit` — `Unchanged` when the date and the procedures (as a set, order aside) equal the stored ones (BSM-031), decided after `TransferNotFound` and `WrongTransferType`, before any write
-- **Errors:** `BankEntryInvalid { reasons }` (BSM-030, answered first, nothing read), `TransferNotFound`, `WrongTransferType` (R4), `ProcedureNotFound` (BSM-036), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-030, answered first, nothing read), `TransferNotFound`, `WrongTransferType` (R4), `ProcedureNotFound { procedure_id }` (BSM-036), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
 
 ---
 
@@ -215,7 +215,7 @@ An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed 
 
 ## Changelog
 
-- 2026-11-01 — BSM-034 to BSM-036 (#461): the four create and update commands write in one unit of work; a refused or failed command publishes no event; a direct selection with an unknown or deleted procedure answers `ProcedureNotFound`.
+- 2026-11-01 — BSM-034 to BSM-036 (#461): the four create and update commands write in one unit of work; a refused or failed command publishes no event; a direct selection with an unknown or deleted procedure answers `ProcedureNotFound { procedure_id }`.
 - 2026-10-19 — Modified by `bank-statement-manual-match` spec (BSM-020 to BSM-031, ticket #351): the four create/update commands answer `BankEntryInvalid { reasons }` first, `InvalidTransferDateFormat` no longer reached; the two update commands return `BankEntryEdit`; the `PATIENT_CASH` account line follows the code
 - 2026-05-02 — Added by `bank-statement-manual-match` spec: get_cash_bank_account_id, get_unsettled_fund_groups, get_all_unsettled_fund_groups, get_fund_groups_by_ids, create_fund_transfer, update_fund_transfer, delete_fund_transfer, get_transfer_fund_group_ids, get_eligible_procedures_for_direct_payment, get_all_eligible_procedures_for_direct_payment, get_procedures_by_ids, create_direct_transfer, update_direct_transfer, delete_direct_transfer, get_transfer_procedure_ids
 - 2026-05-02 — Rescoped: read_all_bank_transfers moved to bank-contract.md (context/bank); BankEntry/BankAccount types moved there too
