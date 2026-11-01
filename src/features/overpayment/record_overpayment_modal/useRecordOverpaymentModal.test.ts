@@ -112,7 +112,7 @@ describe("useRecordOverpaymentModal", () => {
     });
   });
 
-  it("REF-030: proposes the local date, not the UTC one", () => {
+  it("REF-031: proposes the local date, not the UTC one", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 0, 1, 0, 30));
     const utc = vi.spyOn(Date.prototype, "toISOString").mockReturnValue("2025-12-31T23:30:00.000Z");

@@ -19,8 +19,9 @@ The symmetric cancellation flow (`cancel_overpayment`, REF-210) reverses these i
 
 If any step fails mid-cascade, the writes already committed remain in the database — there is no
 automatic rollback. `excel_import`, `bank_manual_match` and `fund_payment_reconciliation` had the
-same limitation when this was written; they now follow ADR-003. This decision stands for the
-overpayment cascade only (owner, 2026-11-01; whether it stays: #390).
+same limitation when this was written; they now follow ADR-003. This decision holds for the
+overpayment cascade only, until #390 moves it onto a unit of work and supersedes this ADR
+(owner, 2026-10-24).
 
 Wrapping the cascade in a single `sqlx` transaction (`BEGIN` … `COMMIT` / `ROLLBACK`) was
 considered. It would guarantee atomicity but adds meaningful complexity: the entire cascade must

@@ -381,12 +381,13 @@ mod tests {
         let mut funds = bus.subscribe::<FundUpdated>().expect("subscribe");
         let mut procedures = bus.subscribe::<ProcedureUpdated>().expect("subscribe");
 
-        // March holds nothing; the row's type is unmapped, so nothing is created.
-        let mut parsed = workbook(vec![row("Mar", "2026-03-15")]);
+        // March holds nothing to replace; the row's patient is not in the workbook,
+        // so nothing is created.
+        let mut parsed = workbook(vec![row("Mars", "2026-03-15")]);
         parsed.patients.clear();
         parsed.funds.clear();
         let result = orchestrator_on(&pool, bus)
-            .execute_import(parsed, HashMap::new(), vec!["Mar".to_string()])
+            .execute_import(parsed, HashMap::new(), vec!["Mars".to_string()])
             .await
             .expect("the import succeeds");
 

@@ -89,7 +89,9 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-178 — What a failed import does not undo (backend)**: The mapping preferences (EXI-230) and the procedure types created on the mapping screen (EXI-140) remain after a failed import.
 
-**EXI-179 — What fails an import (backend)**: An import fails, as EXI-175 says, when a read or a write fails (the database refusing a patient, fund or procedure is a failed write), or when the domain refuses a patient or fund that passed parsing. The refused patient and the refused fund each have their own error; the user sees the same message for all three.
+**EXI-179 — What fails an import (backend)**: An import fails, as EXI-175 says, when a read or a write fails (the database refusing a patient, fund or procedure is a failed write), or when the domain refuses a patient or fund that passed parsing. The refused patient and the refused fund each have their own error.
+
+**EXI-179A — One message for a failed import (frontend)**: A failed read or write of an import, a refused patient and a refused fund show the same message.
 
 ### Import orchestration
 

@@ -403,7 +403,10 @@ impl OverpaymentOrchestrator {
             .fund_payment_service
             .find_group_id_by_procedure(source_procedure_id)
             .await
-            .map_err(|_| OverpaymentTask::DatabaseError)?
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "DB error finding the source's group");
+                OverpaymentTask::DatabaseError
+            })?
         else {
             return Ok(None);
         };
@@ -422,7 +425,10 @@ impl OverpaymentOrchestrator {
             .bank_transfer_service
             .read_transfer(&transfer_id)
             .await
-            .map_err(|_| OverpaymentTask::DatabaseError)?
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "DB error reading the source's transfer");
+                OverpaymentTask::DatabaseError
+            })?
         else {
             return Ok(None);
         };
@@ -433,7 +439,10 @@ impl OverpaymentOrchestrator {
         {
             Ok(account) => Ok(Some(account.id)),
             Err(BankError::BankAccountNotFound { .. }) => Ok(None),
-            Err(_) => Err(OverpaymentTask::DatabaseError.into()),
+            Err(e) => {
+                tracing::error!(target: BACKEND, err = ?e, "DB error reading the source's account");
+                Err(OverpaymentTask::DatabaseError.into())
+            }
         }
     }
 

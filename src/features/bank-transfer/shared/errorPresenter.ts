@@ -64,9 +64,10 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
     case "RefundGroupProtected":
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
+    // A selected procedure unknown or deleted since it was listed (BSM-036).
+    case "ProcedureNotFound":
     // --- ProcedureError domain invariants + lookups (not expected in this flow) ---
     case "ProcedureInvalid":
-    case "ProcedureNotFound":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":
     case "ProcedureTypeNotFound":

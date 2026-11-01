@@ -65,7 +65,7 @@ Represents the link between the original paid procedure and the refund procedure
 
 The backend rejects the request if no `bank_account_id` is provided.
 
-**REF-071 — Failed Source Account Lookup (frontend)**: With multiple bank accounts, if looking up the bank account of the source procedure's original bank transfer fails, an error snackbar is shown and the selector is not pre-filled; an account already picked stays (REF-073).
+**REF-071 — Failed Source Account Lookup (frontend)**: With multiple bank accounts, if looking up the bank account of the source procedure's original bank entry fails, an error snackbar is shown and the selector is not pre-filled; an account already picked stays (REF-073).
 
 **REF-072 — Selector Usable During Pre-fill (frontend)**: While the source's account is still being looked up, the user can pick an account in the selector.
 

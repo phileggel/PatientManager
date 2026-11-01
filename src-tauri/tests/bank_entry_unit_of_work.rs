@@ -23,7 +23,9 @@ use patient_manager_app::{
         event_bus::{BankEntryUpdated, EventBus, FundPaymentGroupUpdated, ProcedureUpdated},
         uow::SqlxTransactionManager,
     },
-    use_cases::bank_manual_match::{BankManualMatchError, BankManualMatchOrchestrator},
+    use_cases::bank_manual_match::{
+        BankEntryEdit, BankManualMatchError, BankManualMatchOrchestrator,
+    },
 };
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
@@ -504,6 +506,34 @@ async fn test_bsm_036_an_unknown_procedure_refuses_the_selection() {
         ))
     ));
     assert_eq!(stored(&pool).await, before);
+}
+
+/// BSM-036: an edit answered unchanged is not judged, and a refusal names the first.
+#[tokio::test]
+async fn test_bsm_036_an_unchanged_edit_is_not_judged_and_a_refusal_names_the_first() {
+    let pool = setup_db().await;
+    let (orchestrator, _, _) = make_components(&pool);
+    let (entry, kept, _) = direct_scene(&pool, &orchestrator).await;
+    sqlx::query(r#"UPDATE "procedure" SET is_deleted = 1 WHERE id = ?"#)
+        .bind(&kept)
+        .execute(&pool)
+        .await
+        .expect("delete");
+
+    let unchanged = orchestrator
+        .update_direct_transfer(entry.clone(), "2026-03-15".to_string(), vec![kept.clone()])
+        .await;
+    let refused = orchestrator
+        .update_direct_transfer(entry, date(), vec![kept.clone(), "unknown".to_string()])
+        .await;
+
+    assert!(matches!(unchanged, Ok(BankEntryEdit::Unchanged)));
+    assert!(matches!(
+        refused,
+        Err(BankManualMatchError::Procedure(
+            ProcedureError::ProcedureNotFound { procedure_id }
+        )) if procedure_id == kept
+    ));
 }
 
 /// BSM-036: a deleted procedure beside a live one is not linked unpaid.
