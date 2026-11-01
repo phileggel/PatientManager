@@ -3,7 +3,7 @@
     "lcov": "coverage/frontend/lcov.info",
     "include": ["src/features/*"],
     "exclude": ["src/features/*/gateway.ts"],
-    "lines": 85.0
+    "lines": 86.5
   },
   "backend": {
     "lcov": "coverage/backend/lcov.info",
