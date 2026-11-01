@@ -17,5 +17,6 @@ pub use orchestrator::{
     DirectPaymentProcedureCandidate, FundGroupCandidate,
 };
 pub use uow::{
-    GroupSettlementOperation, GroupSettlementTransactionManager, GroupSettlementUnitOfWork,
+    BankEntryOperation, BankEntryTransactionManager, BankEntryUnitOfWork, GroupSettlementOperation,
+    GroupSettlementTransactionManager, GroupSettlementUnitOfWork,
 };

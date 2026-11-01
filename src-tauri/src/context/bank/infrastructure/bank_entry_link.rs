@@ -12,12 +12,11 @@ impl SqliteBankEntryLinkRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
-}
 
-#[async_trait::async_trait]
-impl BankEntryLinkRepository for SqliteBankEntryLinkRepository {
-    async fn link_fund_groups(
-        &self,
+    // The row writers, on the caller's connection: a unit of work calls them (ADR-003).
+
+    pub async fn link_fund_groups_in(
+        conn: &mut sqlx::SqliteConnection,
         bank_transfer_id: &str,
         group_ids: &[String],
     ) -> anyhow::Result<()> {
@@ -32,11 +31,74 @@ impl BankEntryLinkRepository for SqliteBankEntryLinkRepository {
                 bank_transfer_id,
                 group_id,
             )
-            .execute(&self.pool)
+            .execute(&mut *conn)
             .await
             .context("Failed to insert bank_transfer_fund_group_link")?;
         }
         Ok(())
+    }
+
+    pub async fn link_procedures_in(
+        conn: &mut sqlx::SqliteConnection,
+        bank_transfer_id: &str,
+        procedure_ids: &[String],
+    ) -> anyhow::Result<()> {
+        for procedure_id in procedure_ids {
+            let id = Uuid::new_v4().to_string();
+            sqlx::query!(
+                r#"
+                INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id)
+                VALUES ($1, $2, $3)
+                "#,
+                id,
+                bank_transfer_id,
+                procedure_id,
+            )
+            .execute(&mut *conn)
+            .await
+            .context("Failed to insert bank_transfer_procedure_link")?;
+        }
+        Ok(())
+    }
+
+    pub async fn unlink_all_fund_groups_in(
+        conn: &mut sqlx::SqliteConnection,
+        bank_transfer_id: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"DELETE FROM bank_transfer_fund_group_link WHERE bank_transfer_id = ?"#,
+            bank_transfer_id,
+        )
+        .execute(&mut *conn)
+        .await
+        .context("Failed to delete fund group links")?;
+        Ok(())
+    }
+
+    pub async fn unlink_all_procedures_in(
+        conn: &mut sqlx::SqliteConnection,
+        bank_transfer_id: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"DELETE FROM bank_transfer_procedure_link WHERE bank_transfer_id = ?"#,
+            bank_transfer_id,
+        )
+        .execute(&mut *conn)
+        .await
+        .context("Failed to delete procedure links")?;
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl BankEntryLinkRepository for SqliteBankEntryLinkRepository {
+    async fn link_fund_groups(
+        &self,
+        bank_transfer_id: &str,
+        group_ids: &[String],
+    ) -> anyhow::Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        Self::link_fund_groups_in(&mut conn, bank_transfer_id, group_ids).await
     }
 
     async fn get_fund_group_ids(&self, bank_transfer_id: &str) -> anyhow::Result<Vec<String>> {
@@ -56,14 +118,8 @@ impl BankEntryLinkRepository for SqliteBankEntryLinkRepository {
     }
 
     async fn unlink_all_fund_groups(&self, bank_transfer_id: &str) -> anyhow::Result<()> {
-        sqlx::query!(
-            r#"DELETE FROM bank_transfer_fund_group_link WHERE bank_transfer_id = ?"#,
-            bank_transfer_id,
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to delete fund group links")?;
-        Ok(())
+        let mut conn = self.pool.acquire().await?;
+        Self::unlink_all_fund_groups_in(&mut conn, bank_transfer_id).await
     }
 
     async fn get_transfer_for_fund_group(
@@ -91,22 +147,8 @@ impl BankEntryLinkRepository for SqliteBankEntryLinkRepository {
         bank_transfer_id: &str,
         procedure_ids: &[String],
     ) -> anyhow::Result<()> {
-        for procedure_id in procedure_ids {
-            let id = Uuid::new_v4().to_string();
-            sqlx::query!(
-                r#"
-                INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id)
-                VALUES ($1, $2, $3)
-                "#,
-                id,
-                bank_transfer_id,
-                procedure_id,
-            )
-            .execute(&self.pool)
-            .await
-            .context("Failed to insert bank_transfer_procedure_link")?;
-        }
-        Ok(())
+        let mut conn = self.pool.acquire().await?;
+        Self::link_procedures_in(&mut conn, bank_transfer_id, procedure_ids).await
     }
 
     async fn get_procedure_ids(&self, bank_transfer_id: &str) -> anyhow::Result<Vec<String>> {
@@ -126,13 +168,7 @@ impl BankEntryLinkRepository for SqliteBankEntryLinkRepository {
     }
 
     async fn unlink_all_procedures(&self, bank_transfer_id: &str) -> anyhow::Result<()> {
-        sqlx::query!(
-            r#"DELETE FROM bank_transfer_procedure_link WHERE bank_transfer_id = ?"#,
-            bank_transfer_id,
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to delete procedure links")?;
-        Ok(())
+        let mut conn = self.pool.acquire().await?;
+        Self::unlink_all_procedures_in(&mut conn, bank_transfer_id).await
     }
 }
