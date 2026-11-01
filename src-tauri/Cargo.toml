@@ -49,7 +49,7 @@ thiserror = "2"
 pdf-extract = "0.12"
 regex = "1"
 csv = "1"
-calamine = "0.36"
+calamine = "0.37"
 flate2 = "1"
 tauri-plugin-dialog = { version = "2", optional = true }
 tauri-plugin-window-state = { version = "2", optional = true }
@@ -58,7 +58,7 @@ tauri-plugin-process = { version = "2", optional = true }
 tauri-plugin-opener = { version = "2", optional = true }
 sha2 = "0.10"
 printpdf = "0.12"
-rust_xlsxwriter = { version = "0.94", optional = true }
+rust_xlsxwriter = { version = "0.102", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
