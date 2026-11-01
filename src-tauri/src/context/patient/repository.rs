@@ -49,7 +49,6 @@ pub trait PatientRepository: Send + Sync {
     /// without one; remaining ties resolve via DB iteration order. Used by
     /// excel-import (EXI-080) to dedup rows that arrive without an SSN.
     async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>>;
-    async fn create_batch(&self, patients: Vec<Patient>) -> anyhow::Result<Vec<Patient>>;
     async fn delete_patient(&self, id: &str) -> anyhow::Result<()>;
     /// PDU-030 — the pairs of patients the user declared different people,
     /// smaller identifier first.
@@ -306,43 +305,6 @@ impl PatientRepository for SqlitePatientRepository {
             .find(|r| r.name.as_ref().is_some_and(|n| n.to_lowercase() == needle));
 
         Ok(row.map(Patient::from))
-    }
-
-    async fn create_batch(&self, patients: Vec<Patient>) -> anyhow::Result<Vec<Patient>> {
-        let mut tx = self.pool.begin().await?;
-        let mut created_patients = Vec::new();
-
-        for patient in patients {
-            tracing::trace!(
-                target: BACKEND,
-                patient_id = %patient.id,
-                "Inserting patient into database within transaction"
-            );
-
-            sqlx::query!(
-                r#"
-                INSERT INTO patient (id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted)
-                VALUES ($1, $2, $3, $4, NULL, NULL, NULL, NULL, 0)
-                "#,
-                patient.id,
-                patient.is_anonymous,
-                patient.name,
-                patient.ssn,
-            )
-            .execute(&mut *tx)
-            .await?;
-
-            created_patients.push(patient);
-        }
-
-        tx.commit().await?;
-        tracing::trace!(
-            target: BACKEND,
-            count = created_patients.len(),
-            "Batch patients created successfully"
-        );
-
-        Ok(created_patients)
     }
 
     async fn delete_patient(&self, id: &str) -> anyhow::Result<()> {
@@ -716,26 +678,6 @@ mod tests {
 
         let found = db.find_patient_by_ssn("1234567890123").await.unwrap();
         assert!(found.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_create_batch() {
-        let db = setup_test_repo().await;
-
-        let patients = vec![
-            make_patient_with_id("patient-1"),
-            make_patient_with_id("patient-2"),
-        ];
-
-        let created = db.create_batch(patients).await.unwrap();
-        assert_eq!(created.len(), 2);
-        assert_eq!(created[0].name, Some("Marie Dupont".to_string()));
-        assert_eq!(created[1].name, Some("Marie Dupont".to_string()));
-        assert!(!created[0].id.is_empty());
-        assert!(!created[1].id.is_empty());
-
-        let all_patients = db.read_all_patients().await.unwrap();
-        assert_eq!(all_patients.len(), 2);
     }
 
     #[tokio::test]

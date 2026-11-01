@@ -130,7 +130,7 @@ impl SqliteProcedureRepository {
 
 impl SqliteProcedureRepository {
     /// Insert one procedure on a connection the caller owns — the write
-    /// `create_batch` loops over, also used by a unit of work (ADR-003).
+    /// a unit of work calls (ADR-003).
     pub async fn insert_in(
         conn: &mut sqlx::SqliteConnection,
         procedure: &Procedure,
@@ -166,6 +166,24 @@ impl SqliteProcedureRepository {
         .with_context(|| format!("Failed to insert procedure {}", procedure.id))?;
 
         Ok(())
+    }
+
+    /// Hard-delete every procedure of a month (YYYY-MM), soft-deleted ones included,
+    /// on a connection the caller owns (ADR-003). Returns the number of rows deleted.
+    pub async fn delete_by_month_in(
+        conn: &mut sqlx::SqliteConnection,
+        month: &str,
+    ) -> anyhow::Result<u64> {
+        let pattern = format!("{month}-%");
+        let result = sqlx::query!(
+            r#"DELETE FROM procedure WHERE procedure_date LIKE ?"#,
+            pattern
+        )
+        .execute(conn)
+        .await
+        .context("Failed to delete procedures by month")?;
+
+        Ok(result.rows_affected())
     }
 
     /// Update one procedure on a connection the caller owns — the write
@@ -580,24 +598,6 @@ impl ProcedureRepository for SqliteProcedureRepository {
         Ok(row.map(Procedure::from))
     }
 
-    async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-        let mut tx = self.pool.begin().await?;
-        let mut created_procedures = Vec::new();
-
-        for procedure in procedures {
-            Self::insert_in(&mut tx, &procedure).await?;
-            created_procedures.push(procedure);
-        }
-
-        tx.commit().await?;
-        tracing::trace!(
-            target: BACKEND, count = created_procedures.len(),
-            "Procedures batch inserted successfully"
-        );
-
-        Ok(created_procedures)
-    }
-
     async fn update_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
         let mut tx = self.pool.begin().await?;
         let mut updated_procedures = Vec::new();
@@ -697,19 +697,6 @@ impl ProcedureRepository for SqliteProcedureRepository {
         .context("Failed to check blocking procedures in month")?;
 
         Ok(count > 0)
-    }
-
-    async fn delete_procedures_by_month(&self, month: &str) -> anyhow::Result<u64> {
-        let pattern = format!("{month}-%");
-        let result = sqlx::query!(
-            r#"DELETE FROM procedure WHERE procedure_date LIKE ?"#,
-            pattern
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to delete procedures by month")?;
-
-        Ok(result.rows_affected())
     }
 
     async fn find_created_in_date_range(
@@ -1068,7 +1055,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_procedures_by_month_removes_all() {
+    async fn delete_by_month_in_removes_all() {
         let repo = setup().await;
         repo.create_procedure(
             "p1".to_string(),
@@ -1098,7 +1085,11 @@ mod tests {
         )
         .await
         .unwrap();
-        let deleted = repo.delete_procedures_by_month("2026-02").await.unwrap();
+        let mut conn = repo.pool.acquire().await.unwrap();
+        let deleted = SqliteProcedureRepository::delete_by_month_in(&mut conn, "2026-02")
+            .await
+            .expect("the month is deleted");
+        drop(conn);
         assert_eq!(deleted, 2);
         assert!(repo.read_all_procedures().await.unwrap().is_empty());
     }
@@ -1241,17 +1232,6 @@ mod tests {
         let result = repo.read_procedures_by_patient_id("p1").await.unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].patient_id, "p1");
-    }
-
-    #[tokio::test]
-    async fn create_batch_inserts_multiple_in_transaction() {
-        let repo = setup().await;
-        let p1 = make_procedure("p1", "t1", "2026-01-10").unwrap();
-        let p2 = make_procedure("p2", "t1", "2026-01-11").unwrap();
-        let created = repo.create_batch(vec![p1, p2]).await.unwrap();
-        assert_eq!(created.len(), 2);
-        let all = repo.read_all_procedures().await.unwrap();
-        assert_eq!(all.len(), 2);
     }
 
     #[tokio::test]

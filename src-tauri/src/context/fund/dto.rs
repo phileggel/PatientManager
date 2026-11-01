@@ -3,14 +3,6 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-/// Fund candidate for batch import - semantically different from Fund (lacks ID, created_at)
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct FundCandidate {
-    pub temp_id: String,
-    pub fund_identifier: String,
-    pub fund_name: String,
-}
-
 /// Fund payment group candidate created from PDF reconciliation data
 /// Groups matched procedures by (fund_id + payment_date)
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

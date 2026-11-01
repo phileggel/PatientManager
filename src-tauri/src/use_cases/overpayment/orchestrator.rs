@@ -465,7 +465,6 @@ mod tests {
             .returning(move |_| Ok(proc_result.clone()));
         mock.expect_update_procedure().returning(Ok);
         mock.expect_delete_procedure().returning(|_| Ok(()));
-        mock.expect_create_batch().returning(Ok);
         mock
     }
 
@@ -562,13 +561,10 @@ mod tests {
             .returning(|_, _, _| Ok(vec![]));
         mock.expect_find_procedure_exact()
             .returning(|_, _, _, _| Ok(None));
-        mock.expect_create_batch().returning(Ok);
         mock.expect_update_batch().returning(Ok);
         mock.expect_find_unpaid_by_fund().returning(|_| Ok(vec![]));
         mock.expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        mock.expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
         mock.expect_find_unreconciled_by_date_range()
             .returning(|_, _| Ok(vec![]));
         mock.expect_find_created_in_date_range()

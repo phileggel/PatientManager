@@ -93,9 +93,6 @@ mod tests {
         async fn find_fund_by_identifier(&self, _: &str) -> anyhow::Result<Option<Fund>> {
             unimplemented!()
         }
-        async fn create_batch(&self, _: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
-            unimplemented!()
-        }
     }
 
     fn create_pdf_line(fund_name: &str) -> NormalizedPdfLine {

@@ -36,7 +36,6 @@ pub trait FundRepository: Send + Sync {
     async fn read_fund(&self, id: &str) -> anyhow::Result<Option<Fund>>;
     async fn update_fund(&self, fund: Fund) -> anyhow::Result<Fund>;
     async fn find_fund_by_identifier(&self, identifier: &str) -> anyhow::Result<Option<Fund>>;
-    async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>>;
 }
 
 /// Alphabetical order a user expects: case and accents ignored ("Élan" sits with the E's).
@@ -190,44 +189,6 @@ impl FundRepository for SqliteFundRepository {
         .await?;
 
         Ok(row.map(Fund::from))
-    }
-
-    async fn create_batch(&self, funds: Vec<Fund>) -> anyhow::Result<Vec<Fund>> {
-        let mut tx = self.pool.begin().await?;
-
-        let mut created_funds = Vec::new();
-
-        for fund in funds {
-            tracing::trace!(
-                target: BACKEND,
-                fund_id = %fund.id,
-                fund_identifier = %fund.fund_identifier,
-                "Inserting affiliated fund into database within transaction"
-            );
-
-            sqlx::query!(
-                r#"
-                INSERT INTO fund (id, fund_identifier, name, is_deleted)
-                VALUES ($1, $2, $3, 0)
-                "#,
-                fund.id,
-                fund.fund_identifier,
-                fund.name,
-            )
-            .execute(&mut *tx)
-            .await?;
-
-            created_funds.push(fund);
-        }
-
-        tx.commit().await?;
-        tracing::trace!(
-            target: BACKEND,
-            count = created_funds.len(),
-            "Batch affiliated funds created successfully"
-        );
-
-        Ok(created_funds)
     }
 }
 
@@ -890,18 +851,6 @@ mod tests {
 
         assert!(repo.read_fund(&fund.id).await.unwrap().is_none());
         assert!(repo.read_all_funds().await.unwrap().is_empty());
-    }
-
-    #[tokio::test]
-    async fn create_batch_inserts_all_funds() {
-        let repo = setup_fund_repo().await;
-        let funds = vec![
-            Fund::new("A".to_string(), "Fund A".to_string()).unwrap(),
-            Fund::new("B".to_string(), "Fund B".to_string()).unwrap(),
-        ];
-        let created = repo.create_batch(funds).await.unwrap();
-        assert_eq!(created.len(), 2);
-        assert_eq!(repo.read_all_funds().await.unwrap().len(), 2);
     }
 
     // --- SqliteFundPaymentRepository ---

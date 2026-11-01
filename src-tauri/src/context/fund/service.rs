@@ -1,10 +1,7 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{
-    context::fund::{
-        Fund, FundCandidate, FundError, FundPaymentGroup, FundPaymentRepository, FundRepository,
-    },
+    context::fund::{Fund, FundError, FundPaymentGroup, FundPaymentRepository, FundRepository},
     shared::{
         event_bus::{EventBus, FundPaymentGroupUpdated, FundUpdated},
         logger::BACKEND,
@@ -118,41 +115,6 @@ impl FundService {
         })?;
         let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
         Ok(result)
-    }
-
-    /// Create batch of valid funds.
-    /// Candidates should have been validated first.
-    /// Returns the created funds alongside a `temp_id → created_id` map
-    /// derived from each entity's preserved `temp_id`, so callers never have
-    /// to assume positional alignment with the input list.
-    pub async fn create_batch(
-        &self,
-        candidates: Vec<FundCandidate>,
-    ) -> Result<(Vec<Fund>, HashMap<String, String>), FundError> {
-        let mut funds: Vec<Fund> = Vec::new();
-
-        for candidate in candidates {
-            // Domain layer creates and validates each fund
-            let fund = Fund::new_with_temp_id(
-                candidate.fund_identifier,
-                candidate.fund_name,
-                candidate.temp_id,
-            )?;
-            funds.push(fund);
-        }
-
-        let created_funds = self.repository.create_batch(funds).await.map_err(|e| {
-            tracing::error!(target: BACKEND, err = ?e, "create_batch: repository failed");
-            FundError::DatabaseError
-        })?;
-
-        let temp_id_map: HashMap<String, String> = created_funds
-            .iter()
-            .filter_map(|f| f.temp_id.clone().map(|tmp| (tmp, f.id.clone())))
-            .collect();
-
-        let _ = self.event_bus.publish::<FundUpdated>(FundUpdated);
-        Ok((created_funds, temp_id_map))
     }
 }
 
@@ -644,18 +606,8 @@ mod tests {
     }
 
     // --- FundService: uncovered paths ---
-    use crate::context::fund::FundCandidate;
-
     fn make_fund() -> Fund {
         Fund::restore("f1".into(), "93".into(), "CPAM 93".into())
-    }
-
-    fn make_candidate() -> FundCandidate {
-        FundCandidate {
-            fund_identifier: "93".to_string(),
-            fund_name: "CPAM 93".to_string(),
-            temp_id: String::new(),
-        }
     }
 
     #[tokio::test]
@@ -738,39 +690,6 @@ mod tests {
             result,
             Err(FundError::FundInvalid { reasons }) if reasons.len() == 1
         ));
-    }
-
-    /// The service constructs `Fund` objects from candidates via
-    /// `Fund::new_with_temp_id` BEFORE handing them to the repository. The
-    /// echoing mock lets us verify field propagation end-to-end: a regression
-    /// in the factory (dropped `fund_identifier`, `name`, or `temp_id`) must
-    /// surface here.
-    #[tokio::test]
-    async fn fund_service_create_batch_propagates_candidate_fields() {
-        let mut mock = MockFundRepository::new();
-        mock.expect_create_batch().returning(Ok);
-        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
-
-        let candidate = FundCandidate {
-            fund_identifier: "93".to_string(),
-            fund_name: "CPAM 93".to_string(),
-            temp_id: "tmp-93".to_string(),
-        };
-        let (funds, map) = service
-            .create_batch(vec![candidate])
-            .await
-            .expect("create_batch should succeed for valid candidate");
-
-        assert_eq!(funds.len(), 1);
-        assert_eq!(funds[0].fund_identifier, "93");
-        assert_eq!(funds[0].name, "CPAM 93");
-        assert_eq!(funds[0].temp_id.as_deref(), Some("tmp-93"));
-        assert!(!funds[0].id.is_empty(), "factory must generate an id");
-        assert_eq!(
-            map.get("tmp-93"),
-            Some(&funds[0].id),
-            "temp_id_map must map the candidate temp_id to the created fund id"
-        );
     }
 
     #[tokio::test]
@@ -900,21 +819,6 @@ mod tests {
         let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
 
         let result = service.update_fund(make_fund()).await;
-
-        assert!(matches!(result, Err(FundError::DatabaseError)));
-    }
-
-    #[tokio::test]
-    async fn fund_service_create_batch_repository_error_translates() {
-        // Candidate is valid so the `Fund::new_with_temp_id` factory succeeds;
-        // the failure must come from the repository `create_batch` call so the
-        // `.map_err(… DatabaseError)` arm is the one under test.
-        let mut mock = MockFundRepository::new();
-        mock.expect_create_batch()
-            .returning(|_| Err(anyhow!("Mock repository error")));
-        let service = FundService::new(Arc::new(mock), Arc::new(EventBus::new()));
-
-        let result = service.create_batch(vec![make_candidate()]).await;
 
         assert!(matches!(result, Err(FundError::DatabaseError)));
     }

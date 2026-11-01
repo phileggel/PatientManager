@@ -406,17 +406,10 @@ impl ProcedureOrchestrationService {
         Ok(())
     }
 
-    /// Create a batch of valid procedures
-    ///
-    /// awaited_amount is recalculated from billed_amount and paid_amount
-    /// before saving to ensure consistency.
-    /// Also updates patient tracking fields (latest_date, latest_procedure_type, etc.)
-    /// for each patient that received new procedures.
-    pub async fn create_batch(
-        &self,
-        candidates: Vec<ProcedureCandidate>,
-    ) -> Result<Vec<Procedure>, ProcedureOrchestrationError> {
-        let mut procedures_to_create = Vec::new();
+    /// The procedures a batch of candidates becomes, each with its status and payment
+    /// method. An invalid candidate is left out. Nothing is written: a unit of work does.
+    pub fn prepare_batch(candidates: Vec<ProcedureCandidate>) -> Vec<Procedure> {
+        let mut procedures = Vec::new();
 
         for candidate in candidates {
             // Map payment method string to enum based on confirmed_payment_date
@@ -447,71 +440,69 @@ impl ProcedureOrchestrationService {
                 candidate.paid_amount,
                 status,
             ) {
-                Ok(procedure) => procedures_to_create.push(procedure),
+                Ok(procedure) => procedures.push(procedure),
                 Err(e) => {
                     tracing::warn!(target: BACKEND, error = %e, "Skipping invalid procedure candidate in batch");
                 }
             }
         }
 
-        // Use the batch creation method which uses a single transaction and emits a single event
-        let created_procedures = self
-            .context_procedure_service
-            .create_batch(procedures_to_create)
-            .await?;
+        procedures
+    }
 
-        // Update patient tracking fields for patients with new procedures (cross-context side effect)
+    /// The patients whose tracking fields (latest_date, latest_procedure_type, ...) a batch
+    /// of procedures moves, as they should be stored. `new_patients` are about to be written
+    /// in the same unit of work, so they are not read from the database.
+    pub async fn patient_tracking_updates(
+        &self,
+        procedures: &[Procedure],
+        new_patients: &[Patient],
+    ) -> Result<Vec<Patient>, ProcedureOrchestrationError> {
         // Same logic as create_procedure but batched: find the most recent procedure per patient
-        let mut latest_per_patient: std::collections::HashMap<String, Procedure> =
+        let mut latest_per_patient: std::collections::HashMap<&str, &Procedure> =
             std::collections::HashMap::new();
-        for procedure in &created_procedures {
+        for procedure in procedures {
             let entry = latest_per_patient
-                .entry(procedure.patient_id.clone())
-                .or_insert_with(|| procedure.clone());
+                .entry(procedure.patient_id.as_str())
+                .or_insert(procedure);
             if procedure.procedure_date > entry.procedure_date {
-                *entry = procedure.clone();
+                *entry = procedure;
             }
         }
 
-        for (patient_id, latest) in &latest_per_patient {
-            if let Some(patient) = self
-                .patient_repository
-                .read_patient(patient_id)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "create_batch: read_patient tracking failed");
-                    ProcedureOrchestrationTask::DatabaseError
-                })?
-            {
-                let should_update = patient
-                    .latest_date
-                    .as_ref()
-                    .map(|existing_latest| latest.procedure_date > *existing_latest)
-                    .unwrap_or(true);
+        let mut updates = Vec::new();
+        for (patient_id, latest) in latest_per_patient {
+            let patient = match new_patients.iter().find(|p| p.id == patient_id) {
+                Some(new_patient) => Some(new_patient.clone()),
+                None => self
+                    .patient_repository
+                    .read_patient(patient_id)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(target: BACKEND, err = ?e, "patient_tracking_updates: read_patient failed");
+                        ProcedureOrchestrationTask::DatabaseError
+                    })?,
+            };
+            let Some(mut patient) = patient else {
+                continue;
+            };
 
-                if should_update {
-                    let mut updated_patient = patient.clone();
-                    updated_patient.latest_date = Some(latest.procedure_date);
-                    updated_patient.latest_procedure_type = Some(latest.procedure_type_id.clone());
-                    updated_patient.latest_procedure_amount = Some(latest.billed_amount);
-                    updated_patient.latest_fund = latest.fund_id.clone();
-                    self.patient_repository
-                        .update_patient(updated_patient)
-                        .await
-                        .map_err(|e| {
-                            tracing::error!(target: BACKEND, err = ?e, "create_batch: update_patient tracking failed");
-                            ProcedureOrchestrationTask::DatabaseError
-                        })?;
-                    tracing::debug!(
-                        target: BACKEND,
-                        patient_id = %patient_id,
-                        "Patient tracking fields updated via batch creation"
-                    );
-                }
+            let should_update = patient
+                .latest_date
+                .as_ref()
+                .map(|existing_latest| latest.procedure_date > *existing_latest)
+                .unwrap_or(true);
+
+            if should_update {
+                patient.latest_date = Some(latest.procedure_date);
+                patient.latest_procedure_type = Some(latest.procedure_type_id.clone());
+                patient.latest_procedure_amount = Some(latest.billed_amount);
+                patient.latest_fund = latest.fund_id.clone();
+                updates.push(patient);
             }
         }
 
-        Ok(created_procedures)
+        Ok(updates)
     }
 
     /// Get unpaid procedures by fund (delegates to context service)
@@ -616,7 +607,7 @@ mod tests {
     }
 
     /// Build a MockProcedureRepository that stubs all methods as unimplemented
-    /// except create_batch (pass-through) and update_procedure (pass-through).
+    /// except update_procedure (pass-through).
     fn mock_proc_repo_passthrough() -> MockProcedureRepository {
         let mut mock = MockProcedureRepository::new();
         mock.expect_create_procedure()
@@ -639,14 +630,11 @@ mod tests {
             .returning(|_, _, _| panic!("not expected"));
         mock.expect_find_procedure_exact()
             .returning(|_, _, _, _| panic!("not expected"));
-        mock.expect_create_batch().returning(Ok);
         mock.expect_update_batch()
             .returning(|_| panic!("not expected"));
         mock.expect_find_unpaid_by_fund()
             .returning(|_| panic!("not expected"));
         mock.expect_has_blocking_procedures_in_month()
-            .returning(|_| panic!("not expected"));
-        mock.expect_delete_procedures_by_month()
             .returning(|_| panic!("not expected"));
         mock.expect_find_unreconciled_by_date_range()
             .returning(|_, _| panic!("not expected"));
@@ -678,8 +666,6 @@ mod tests {
         mock.expect_create_patient()
             .returning(|_| panic!("not expected"));
         mock.expect_find_patient_by_ssn()
-            .returning(|_| panic!("not expected"));
-        mock.expect_create_batch()
             .returning(|_| panic!("not expected"));
         mock.expect_delete_patient()
             .returning(|_| panic!("not expected"));
@@ -766,7 +752,6 @@ mod tests {
         );
         mock.expect_read_all_procedures().returning(|| Ok(vec![]));
         mock.expect_update_procedure().returning(Ok);
-        mock.expect_create_batch().returning(Ok);
         mock
     }
 
@@ -784,7 +769,6 @@ mod tests {
             .returning(|_| Ok(vec![]));
         mock.expect_update_procedure().returning(Ok);
         mock.expect_delete_procedure().returning(|_| Ok(()));
-        mock.expect_create_batch().returning(Ok);
         mock
     }
 
@@ -812,7 +796,6 @@ mod tests {
         mock.expect_update_procedure().returning(Ok);
         mock.expect_delete_procedure().returning(|_| Ok(()));
         mock.expect_read_all_procedures().returning(|| Ok(vec![]));
-        mock.expect_create_batch().returning(Ok);
         mock
     }
 
@@ -888,7 +871,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_batch_updates_latest_xx() {
+    async fn test_patient_tracking_updates_latest_xx() {
         let patient = Patient::restore(
             "patient-id-1".to_string(),
             false,
@@ -900,8 +883,7 @@ mod tests {
             None,
         );
 
-        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
-        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
+        let patient_repo = make_patient_repo(Some(patient));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
@@ -929,15 +911,18 @@ mod tests {
             awaited_amount: None,
         };
 
-        let result = orchestrator.create_batch(vec![candidate]).await;
-        assert!(result.is_ok());
+        let procedures = ProcedureOrchestrationService::prepare_batch(vec![candidate]);
+        let updates = orchestrator
+            .patient_tracking_updates(&procedures, &[])
+            .await
+            .expect("the tracking is computed");
 
-        let updated = updated_capture.lock().unwrap().clone();
-        assert!(
-            updated.is_some(),
+        assert_eq!(
+            updates.len(),
+            1,
             "Patient should have been updated with latest_xx fields"
         );
-        let updated_patient = updated.unwrap();
+        let updated_patient = updates[0].clone();
 
         assert_eq!(
             updated_patient.latest_date,
@@ -952,7 +937,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_batch_does_not_update_if_older_procedure() {
+    async fn test_patient_tracking_does_not_update_if_older_procedure() {
         // Patient already has a more recent procedure
         let existing_date = NaiveDate::from_ymd_opt(2024, 12, 1).unwrap();
         let patient = Patient::restore(
@@ -966,8 +951,7 @@ mod tests {
             Some(200000),
         );
 
-        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
-        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
+        let patient_repo = make_patient_repo(Some(patient));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
@@ -996,13 +980,15 @@ mod tests {
             awaited_amount: None,
         };
 
-        let result = orchestrator.create_batch(vec![candidate]).await;
-        assert!(result.is_ok());
+        let procedures = ProcedureOrchestrationService::prepare_batch(vec![candidate]);
+        let updates = orchestrator
+            .patient_tracking_updates(&procedures, &[])
+            .await
+            .expect("the tracking is computed");
 
         // Patient should NOT have been updated (existing date is newer)
-        let updated = updated_capture.lock().unwrap().clone();
         assert!(
-            updated.is_none(),
+            updates.is_empty(),
             "Patient should NOT be updated when batch procedure is older"
         );
     }
@@ -1292,7 +1278,7 @@ mod tests {
     // --- R19: latest_fund cleared when newest batch procedure has no fund ---
 
     #[tokio::test]
-    async fn test_create_batch_clears_latest_fund_when_newest_has_no_fund() {
+    async fn test_patient_tracking_clears_latest_fund_when_newest_has_no_fund() {
         let patient = Patient::restore(
             "patient-id-1".to_string(),
             false,
@@ -1304,8 +1290,7 @@ mod tests {
             Some(50000),
         );
 
-        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
-        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
+        let patient_repo = make_patient_repo(Some(patient));
 
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
@@ -1333,9 +1318,13 @@ mod tests {
             awaited_amount: None,
         };
 
-        orchestrator.create_batch(vec![candidate]).await.unwrap();
+        let procedures = ProcedureOrchestrationService::prepare_batch(vec![candidate]);
+        let updates = orchestrator
+            .patient_tracking_updates(&procedures, &[])
+            .await
+            .expect("the tracking is computed");
 
-        let updated = updated_capture.lock().unwrap().clone().unwrap();
+        let updated = updates[0].clone();
         assert_eq!(
             updated.latest_date,
             Some(NaiveDate::from_ymd_opt(2024, 6, 15).unwrap())
@@ -1748,7 +1737,6 @@ mod tests {
         mock.expect_read_procedure().returning(|_| Ok(None));
         mock.expect_update_procedure().returning(Ok);
         mock.expect_read_all_procedures().returning(|| Ok(vec![]));
-        mock.expect_create_batch().returning(Ok);
         mock
     }
 
@@ -1897,7 +1885,7 @@ mod tests {
 
     // --- DB-error translation arms (orchestrator infra paths) ---
     //
-    // Each repository call inside create/update/delete/create_batch translates a
+    // Each repository call inside create/update/delete translates a
     // repo failure into `ProcedureOrchestrationTask::DatabaseError`. The tests
     // below drive one such arm apiece so a future logic change that drops or
     // mis-routes a translation is caught rather than silently uncovered.
@@ -2131,7 +2119,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn create_batch_read_patient_db_error_returns_database_error() {
+    async fn patient_tracking_read_patient_db_error_returns_database_error() {
         let event_bus = Arc::new(EventBus::new());
         let context_service = Arc::new(ContextProcedureService::new(
             Arc::new(mock_proc_repo_creating()),
@@ -2155,41 +2143,10 @@ mod tests {
             paid_amount: None,
             awaited_amount: None,
         }];
-        let result = orchestrator.create_batch(candidates).await;
-        assert!(matches!(
-            result,
-            Err(ProcedureOrchestrationError::Task(
-                ProcedureOrchestrationTask::DatabaseError
-            ))
-        ));
-    }
-
-    #[tokio::test]
-    async fn create_batch_update_patient_db_error_returns_database_error() {
-        let event_bus = Arc::new(EventBus::new());
-        let context_service = Arc::new(ContextProcedureService::new(
-            Arc::new(mock_proc_repo_creating()),
-            event_bus,
-        ));
-        let orchestrator = ProcedureOrchestrationService::new(
-            context_service,
-            mock_patient_repo_read_ok_update_err(make_valid_patient()),
-            Arc::new(mock_type_repo_stub()),
-            Arc::new(mock_fund_repo_stub()),
-            Arc::new(refund_repo_noop()),
-        );
-        let candidates = vec![ProcedureCandidate {
-            patient_id: "patient-id-1".to_string(),
-            fund_id: None,
-            procedure_type_id: "type-1".to_string(),
-            procedure_date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
-            billed_amount: 100_000,
-            payment_method: None,
-            confirmed_payment_date: None,
-            paid_amount: None,
-            awaited_amount: None,
-        }];
-        let result = orchestrator.create_batch(candidates).await;
+        let procedures = ProcedureOrchestrationService::prepare_batch(candidates);
+        let result = orchestrator
+            .patient_tracking_updates(&procedures, &[])
+            .await;
         assert!(matches!(
             result,
             Err(ProcedureOrchestrationError::Task(
