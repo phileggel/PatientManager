@@ -33,7 +33,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-020 — Creation refusals, all at once (backend)**: Creating a bank entry (FUND or direct) is refused when its account is missing (not for `CASH`, BSM-026), its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written.
 
-**BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account (not for `CASH`, BSM-026) or group, a wrong type (R4), or the refund-only type (REF-080): a form with a refused field is refused for its fields alone.
+**BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account (not for `CASH`, BSM-026) or group, a procedure of a direct selection (BSM-036), a wrong type (R4), or the refund-only type (REF-080): a form with a refused field is refused for its fields alone.
 
 **BSM-022 — The form does not judge its fields (frontend)**: The bank entry forms, creation and edit, FUND and direct, never check their own fields: Save is enabled whenever they are not saving and sends the form as it is (BSM-020, BSM-030 judge it).
 
@@ -52,6 +52,10 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 **BSM-032 — An unchanged edit closes silently (frontend)**: When an edit is answered unchanged (BSM-031), the edit dialog closes with no snackbar and the list is not refreshed.
 
 **BSM-033 — The edit dialog shows the account (frontend)**: The edit dialog shows the bank entry's account as text — the stored account's name, the cash account's translated name for `CASH` (R13) — and offers no way to change it (R9, R17).
+
+**BSM-034 — A refused bank entry changes nothing (backend)**: Creating or editing a bank entry writes the entry, its links and all it changes on the groups and procedures it adds, keeps or removes (R7, R8, R10, R11, R15, R16, R18, R19, BSM-035) together. When the creation or edit is refused or fails, all of them stay as they were and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
+
+**BSM-035 — What an edit keeps follows its date (backend)**: A group or procedure an edit keeps stays settled or paid, and its `confirmed_payment_date` becomes the edited date.
 
 ### FUND-type transfers
 
@@ -96,6 +100,8 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 **R13 — Automatic account for the CASH type (frontend + backend)**: For a `CASH` transaction, the account is automatically the default cash account — no account selection is offered to the user. The cash account is identified by the fixed id `cash-account-default` (pre-created by migration). Its display name comes from i18n, not from the database. The account it is stored on is BSM-026's.
 
 **R14 — Creation: procedure selection (frontend + backend)**: The user selects one or more procedures in `Created` status whose execution date (`procedure_date`) is within the 7 days preceding the payment date. The selection UI is similar to the procedure-management UI in fund-payment groups. The payment amount is the sum of the amounts of the selected procedures.
+
+**BSM-036 — Every selected procedure exists (backend)**: Creating or editing a direct bank entry whose selection holds a procedure that does not exist or is deleted is refused, naming the first one found, even beside procedures that exist. A procedure the edit keeps is judged too, unlike the references of PRO-251: the whole selection is resent on each edit, and the amount cannot count a deleted procedure (owner, 2026-11-01). The field refusals of BSM-021 come first; an edit answered unchanged (BSM-031) is not judged.
 
 **R15 — Creation: status effects (backend)**: On validation, each procedure receives the corresponding payment method, its date and actual paid amount are set, and its status moves to `DirectlyPayed`. See the "Affected fields — on payment creation" table.
 

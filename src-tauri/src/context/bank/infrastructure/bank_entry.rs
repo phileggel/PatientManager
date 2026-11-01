@@ -15,6 +15,79 @@ impl SqliteBankEntryRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
+
+    /// The row writer, on the caller's connection: a unit of work calls it (ADR-003).
+    pub async fn insert_in(
+        conn: &mut sqlx::SqliteConnection,
+        transfer: &BankEntry,
+    ) -> anyhow::Result<()> {
+        let type_str = transfer_type_to_str(transfer.transfer_type);
+        let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
+
+        tracing::info!(
+            target: BACKEND,
+            id = %transfer.id,
+            transfer_date = %transfer_date_str,
+            amount = transfer.amount,
+            transfer_type = %type_str,
+            account_id = %transfer.bank_account.id,
+            "Persisting bank transfer"
+        );
+
+        sqlx::query!(
+            r#"
+            INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
+            VALUES ($1, $2, $3, $4, $5)
+            "#,
+            transfer.id,
+            transfer_date_str,
+            transfer.amount,
+            type_str,
+            transfer.bank_account.id,
+        )
+        .execute(&mut *conn)
+        .await
+        .context("Failed to persist bank transfer")?;
+
+        Ok(())
+    }
+
+    /// The row writer, on the caller's connection: a unit of work calls it (ADR-003).
+    pub async fn update_in(
+        conn: &mut sqlx::SqliteConnection,
+        transfer: &BankEntry,
+    ) -> anyhow::Result<()> {
+        let type_str = transfer_type_to_str(transfer.transfer_type);
+
+        tracing::info!(
+            target: BACKEND,
+            transfer_id = %transfer.id,
+            transfer_date = %transfer.transfer_date,
+            amount = transfer.amount,
+            account_id = %transfer.bank_account.id,
+            "Updating bank transfer"
+        );
+
+        let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
+
+        sqlx::query!(
+            r#"
+            UPDATE bank_transfer
+            SET transfer_date = ?, amount = ?, transfer_type = ?, bank_account_id = ?
+            WHERE id = ?
+            "#,
+            transfer_date_str,
+            transfer.amount,
+            type_str,
+            transfer.bank_account.id,
+            transfer.id,
+        )
+        .execute(&mut *conn)
+        .await
+        .context("Failed to update bank transfer")?;
+
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
@@ -94,39 +167,6 @@ impl BankEntryRepository for SqliteBankEntryRepository {
             .collect())
     }
 
-    async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
-        let type_str = transfer_type_to_str(transfer.transfer_type);
-
-        tracing::info!(
-            target: BACKEND,
-            transfer_id = %transfer.id,
-            transfer_date = %transfer.transfer_date,
-            amount = transfer.amount,
-            account_id = %transfer.bank_account.id,
-            "Updating bank transfer"
-        );
-
-        let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
-
-        sqlx::query!(
-            r#"
-            UPDATE bank_transfer
-            SET transfer_date = ?, amount = ?, transfer_type = ?, bank_account_id = ?
-            WHERE id = ?
-            "#,
-            transfer_date_str,
-            transfer.amount,
-            type_str,
-            transfer.bank_account.id,
-            transfer.id,
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to update bank transfer")?;
-
-        Ok(transfer)
-    }
-
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()> {
         tracing::info!(target: BACKEND, transfer_id = %id, "Hard-deleting bank transfer");
 
@@ -138,36 +178,16 @@ impl BankEntryRepository for SqliteBankEntryRepository {
         Ok(())
     }
 
+    async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
+        let mut conn = self.pool.acquire().await?;
+        Self::update_in(&mut conn, &transfer).await?;
+        Ok(transfer)
+    }
+
     /// Persist a fully-constructed BankEntry (validation lives in the service).
     async fn persist_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {
-        let type_str = transfer_type_to_str(transfer.transfer_type);
-        let transfer_date_str = transfer.transfer_date.format("%Y-%m-%d").to_string();
-
-        tracing::info!(
-            target: BACKEND,
-            id = %transfer.id,
-            transfer_date = %transfer_date_str,
-            amount = transfer.amount,
-            transfer_type = %type_str,
-            account_id = %transfer.bank_account.id,
-            "Persisting bank transfer"
-        );
-
-        sqlx::query!(
-            r#"
-            INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
-            VALUES ($1, $2, $3, $4, $5)
-            "#,
-            transfer.id,
-            transfer_date_str,
-            transfer.amount,
-            type_str,
-            transfer.bank_account.id,
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to persist bank transfer")?;
-
+        let mut conn = self.pool.acquire().await?;
+        Self::insert_in(&mut conn, &transfer).await?;
         Ok(transfer)
     }
 }

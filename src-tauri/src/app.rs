@@ -256,6 +256,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         fund_payment_service.clone(),
         context_procedure_service.clone(),
         group_settlement,
+        Arc::new(SqlxTransactionManager::new(db.get_pool().clone())),
     ));
     tracing::info!(target: BACKEND, "Bank manual match orchestrator created");
 

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use chrono::NaiveDate;
@@ -16,7 +16,10 @@ use crate::context::procedure::{
 };
 
 use super::error::{BankManualMatchError, BankManualMatchTask};
-use super::uow::{settle_group, GroupSettlementTransactionManager};
+use super::uow::{
+    settle_group, write_bank_entry, BankEntryChange, BankEntrySelection,
+    BankEntryTransactionManager, BankEntryWrites, GroupSettlementTransactionManager,
+};
 use crate::BACKEND;
 
 /// Number of days before the transfer/payment date within which to search for eligible items (R6, R14).
@@ -81,6 +84,7 @@ pub struct BankManualMatchOrchestrator {
     fund_payment_service: Arc<FundPaymentService>,
     procedure_service: Arc<ProcedureService>,
     group_settlement: Arc<dyn GroupSettlementTransactionManager>,
+    bank_entry_writes: Arc<dyn BankEntryTransactionManager>,
 }
 
 impl BankManualMatchOrchestrator {
@@ -90,6 +94,7 @@ impl BankManualMatchOrchestrator {
         fund_payment_service: Arc<FundPaymentService>,
         procedure_service: Arc<ProcedureService>,
         group_settlement: Arc<dyn GroupSettlementTransactionManager>,
+        bank_entry_writes: Arc<dyn BankEntryTransactionManager>,
     ) -> Self {
         Self {
             bank_transfer_service,
@@ -97,6 +102,7 @@ impl BankManualMatchOrchestrator {
             fund_payment_service,
             procedure_service,
             group_settlement,
+            bank_entry_writes,
         }
     }
 
@@ -122,6 +128,112 @@ impl BankManualMatchOrchestrator {
         }
         self.fund_payment_service.notify_group_updated();
         Ok(())
+    }
+
+    /// BSM-034 — Write a bank entry and all it changes in one transaction
+    /// (ADR-003), then notify through the owning services.
+    async fn write_entry(&self, writes: BankEntryWrites) -> Result<(), BankManualMatchError> {
+        let procedures_changed = !writes.procedures.is_empty();
+        let groups_changed = !writes.group_statuses.is_empty();
+        write_bank_entry(self.bank_entry_writes.as_ref(), writes)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "write_entry: unit of work failed");
+                BankError::DatabaseError
+            })?;
+        self.bank_transfer_service.notify_transfers_updated();
+        if procedures_changed {
+            self.procedure_service.notify_procedures_updated();
+        }
+        if groups_changed {
+            self.fund_payment_service.notify_group_updated();
+        }
+        Ok(())
+    }
+
+    /// What reverting `reverted` and settling `settled` on `confirmed_date` makes
+    /// of their procedures and groups, written nowhere yet. A group in both ends
+    /// as if it had been reverted, then settled.
+    async fn plan_fund_settlement(
+        &self,
+        reverted: &[String],
+        settled: &[String],
+        confirmed_date: NaiveDate,
+    ) -> Result<(Vec<Procedure>, Vec<(String, FundPaymentGroupStatus)>), BankManualMatchError> {
+        let mut procedures: HashMap<String, Procedure> = HashMap::new();
+        let mut statuses: HashMap<String, FundPaymentGroupStatus> = HashMap::new();
+        for group_id in reverted {
+            // A group that is not found has nothing to revert.
+            let Some(mut group) = self.fund_payment_service.read_group(group_id).await? else {
+                continue;
+            };
+            for procedure in self.read_group_procedures(&group).await? {
+                procedures.insert(procedure.id.clone(), reverted_from_fund(procedure));
+            }
+            group.revert_bank_payment();
+            statuses.insert(group_id.clone(), group.status);
+        }
+        for group_id in settled {
+            let mut group = self
+                .fund_payment_service
+                .read_group(group_id)
+                .await?
+                .ok_or_else(|| FundError::PaymentGroupNotFound {
+                    fund_payment_group_id: group_id.clone(),
+                })?;
+            for procedure in self.read_group_procedures(&group).await? {
+                let current = procedures.remove(&procedure.id).unwrap_or(procedure);
+                procedures.insert(current.id.clone(), settled_by_fund(current, confirmed_date));
+            }
+            group.confirm_bank_payment();
+            statuses.insert(group_id.clone(), group.status);
+        }
+        Ok((
+            procedures.into_values().collect(),
+            statuses.into_iter().collect(),
+        ))
+    }
+
+    /// What reverting `reverted` and paying `paid` directly makes of those
+    /// procedures, written nowhere yet. A procedure in both ends paid.
+    async fn plan_direct_payment(
+        &self,
+        reverted: &[String],
+        paid: &[String],
+        payment_method: PaymentMethod,
+        confirmed_date: NaiveDate,
+    ) -> Result<Vec<Procedure>, BankManualMatchError> {
+        let mut procedures: HashMap<String, Procedure> = HashMap::new();
+        for procedure in self
+            .procedure_service
+            .read_procedures_by_ids(reverted.to_vec())
+            .await?
+        {
+            procedures.insert(procedure.id.clone(), reverted_from_direct(procedure));
+        }
+        for procedure in self
+            .procedure_service
+            .read_procedures_by_ids(paid.to_vec())
+            .await?
+        {
+            let current = procedures.remove(&procedure.id).unwrap_or(procedure);
+            procedures.insert(
+                current.id.clone(),
+                paid_directly(current, payment_method, confirmed_date),
+            );
+        }
+        Ok(procedures.into_values().collect())
+    }
+
+    async fn read_group_procedures(
+        &self,
+        group: &FundPaymentGroup,
+    ) -> Result<Vec<Procedure>, BankManualMatchError> {
+        let procedure_ids = group.lines.iter().map(|l| l.procedure_id.clone()).collect();
+        Ok(self
+            .procedure_service
+            .read_procedures_by_ids(procedure_ids)
+            .await?)
     }
 
     // ======================================================================
@@ -177,32 +289,29 @@ impl BankManualMatchOrchestrator {
 
         let transfer = self
             .bank_transfer_service
-            .create_transfer(
-                transfer_date.clone(),
+            .prepare_transfer(
+                transfer_date,
                 total_amount,
                 BankEntryType::FundWire,
                 bank_account_id,
-                false,
             )
             .await?;
-
-        self.transfer_link_repo
-            .link_fund_groups(&transfer.id, &group_ids)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "create_fund_transfer: link_fund_groups failed");
-                BankError::DatabaseError
-            })?;
-
-        // Update each group: procedures → FundPaid/PartiallyFundPaid, group → BankPaid
-        for group_id in &group_ids {
-            self.apply_fund_transfer_to_group(group_id, confirmed_date)
-                .await?;
-        }
+        let transfer_id = transfer.id.clone();
+        let (procedures, group_statuses) = self
+            .plan_fund_settlement(&[], &group_ids, confirmed_date)
+            .await?;
+        let linked_count = group_ids.len();
+        self.write_entry(BankEntryWrites {
+            entry: BankEntryChange::New(transfer),
+            selection: BankEntrySelection::FundGroups(group_ids),
+            procedures,
+            group_statuses,
+        })
+        .await?;
 
         Ok(BankManualMatchResult {
-            transfer_id: transfer.id,
-            linked_count: group_ids.len(),
+            transfer_id,
+            linked_count,
         })
     }
 
@@ -230,7 +339,7 @@ impl BankManualMatchOrchestrator {
             return Err(BankManualMatchTask::WrongTransferType.into());
         }
 
-        // Revert old groups
+        // BSM-031 reads what the entry holds.
         let old_group_ids = self
             .transfer_link_repo
             .get_fund_group_ids(&transfer_id)
@@ -243,49 +352,35 @@ impl BankManualMatchOrchestrator {
         if new_date == transfer.transfer_date && same_selection(&old_group_ids, &new_group_ids) {
             return Ok(BankEntryEdit::Unchanged);
         }
-        for group_id in &old_group_ids {
-            self.revert_fund_transfer_from_group(group_id).await?;
-        }
 
-        // Update transfer date and amount
+        // BSM-034 — everything is checked and decided before the one write.
         let total_amount = self.compute_fund_groups_amount(&new_group_ids).await?;
-        let confirmed_date = new_date;
-
         let updated = crate::context::bank::BankEntry::with_id(
             transfer.id.clone(),
-            new_transfer_date.clone(),
+            new_transfer_date,
             total_amount,
             BankEntryType::FundWire,
             transfer.bank_account,
         )?;
-        self.bank_transfer_service.update_transfer(updated).await?;
-
-        // Update links
-        self.transfer_link_repo
-            .unlink_all_fund_groups(&transfer_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "update_fund_transfer: unlink_all_fund_groups failed");
-                BankError::DatabaseError
-            })?;
-        self.transfer_link_repo
-            .link_fund_groups(&transfer_id, &new_group_ids)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "update_fund_transfer: link_fund_groups failed");
-                BankError::DatabaseError
-            })?;
-
-        // Apply new groups
-        for group_id in &new_group_ids {
-            self.apply_fund_transfer_to_group(group_id, confirmed_date)
-                .await?;
-        }
+        self.bank_transfer_service
+            .ensure_account_exists(&updated)
+            .await?;
+        let (procedures, group_statuses) = self
+            .plan_fund_settlement(&old_group_ids, &new_group_ids, new_date)
+            .await?;
+        let linked_count = new_group_ids.len();
+        self.write_entry(BankEntryWrites {
+            entry: BankEntryChange::Edited(updated),
+            selection: BankEntrySelection::FundGroups(new_group_ids),
+            procedures,
+            group_statuses,
+        })
+        .await?;
 
         Ok(BankEntryEdit::Updated {
             result: BankManualMatchResult {
                 transfer_id,
-                linked_count: new_group_ids.len(),
+                linked_count,
             },
         })
     }
@@ -405,31 +500,25 @@ impl BankManualMatchOrchestrator {
 
         let transfer = self
             .bank_transfer_service
-            .create_transfer(
-                transfer_date.clone(),
-                total_amount,
-                transfer_type,
-                bank_account_id,
-                false,
-            )
+            .prepare_transfer(transfer_date, total_amount, transfer_type, bank_account_id)
             .await?;
-
-        self.transfer_link_repo
-            .link_procedures(&transfer.id, &procedure_ids)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "create_direct_transfer: link_procedures failed");
-                BankError::DatabaseError
-            })?;
-
+        let transfer_id = transfer.id.clone();
         let payment_method = transfer_type_to_payment_method(transfer_type);
-
-        self.apply_direct_payment_to_procedures(&procedure_ids, payment_method, confirmed_date)
+        let procedures = self
+            .plan_direct_payment(&[], &procedure_ids, payment_method, confirmed_date)
             .await?;
+        let linked_count = procedure_ids.len();
+        self.write_entry(BankEntryWrites {
+            entry: BankEntryChange::New(transfer),
+            selection: BankEntrySelection::Procedures(procedure_ids),
+            procedures,
+            group_statuses: vec![],
+        })
+        .await?;
 
         Ok(BankManualMatchResult {
-            transfer_id: transfer.id,
-            linked_count: procedure_ids.len(),
+            transfer_id,
+            linked_count,
         })
     }
 
@@ -479,7 +568,7 @@ impl BankManualMatchOrchestrator {
         // R4 — Immutable type guard (checked before any mutation).
         let transfer = self.read_direct_transfer(&transfer_id).await?;
 
-        // Revert old procedures
+        // BSM-031 reads what the entry holds.
         let old_procedure_ids = self
             .transfer_link_repo
             .get_procedure_ids(&transfer_id)
@@ -494,15 +583,11 @@ impl BankManualMatchOrchestrator {
         {
             return Ok(BankEntryEdit::Unchanged);
         }
-        self.revert_direct_payment_from_procedures(&old_procedure_ids)
-            .await?;
 
-        // Update transfer amount and date
+        // BSM-034 — everything is checked and decided before the one write.
         let total_amount = self.compute_procedures_amount(&new_procedure_ids).await?;
         let transfer_type = transfer.transfer_type;
-        let confirmed_date = new_date;
         let payment_method = transfer_type_to_payment_method(transfer_type);
-
         let updated = crate::context::bank::BankEntry::with_id(
             transfer.id.clone(),
             new_transfer_date,
@@ -510,32 +595,30 @@ impl BankManualMatchOrchestrator {
             transfer_type,
             transfer.bank_account,
         )?;
-        self.bank_transfer_service.update_transfer(updated).await?;
-
-        // Update links
-        self.transfer_link_repo
-            .unlink_all_procedures(&transfer_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "update_direct_transfer: unlink_all_procedures failed");
-                BankError::DatabaseError
-            })?;
-        self.transfer_link_repo
-            .link_procedures(&transfer_id, &new_procedure_ids)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "update_direct_transfer: link_procedures failed");
-                BankError::DatabaseError
-            })?;
-
-        // Apply new procedures
-        self.apply_direct_payment_to_procedures(&new_procedure_ids, payment_method, confirmed_date)
+        self.bank_transfer_service
+            .ensure_account_exists(&updated)
             .await?;
+        let procedures = self
+            .plan_direct_payment(
+                &old_procedure_ids,
+                &new_procedure_ids,
+                payment_method,
+                new_date,
+            )
+            .await?;
+        let linked_count = new_procedure_ids.len();
+        self.write_entry(BankEntryWrites {
+            entry: BankEntryChange::Edited(updated),
+            selection: BankEntrySelection::Procedures(new_procedure_ids),
+            procedures,
+            group_statuses: vec![],
+        })
+        .await?;
 
         Ok(BankEntryEdit::Updated {
             result: BankManualMatchResult {
                 transfer_id,
-                linked_count: new_procedure_ids.len(),
+                linked_count,
             },
         })
     }
@@ -673,61 +756,21 @@ impl BankManualMatchOrchestrator {
             .procedure_service
             .read_procedures_by_ids(procedure_ids.to_vec())
             .await?;
+        // BSM-036 — a procedure the read did not return is unknown or deleted.
+        if let Some(missing) = procedure_ids
+            .iter()
+            .find(|id| !procedures.iter().any(|p| &p.id == *id))
+        {
+            return Err(ProcedureError::ProcedureNotFound {
+                procedure_id: missing.clone(),
+            }
+            .into());
+        }
         let total: i64 = procedures.iter().map(|p| p.billed_amount).sum();
         if total <= 0 {
             return Err(BankError::AmountNotPositive.into());
         }
         Ok(total)
-    }
-
-    /// R7 — Transition procedures of a group to FundPaid/PartiallyFundPaid
-    /// and set the group status to BankPaid.
-    async fn apply_fund_transfer_to_group(
-        &self,
-        group_id: &str,
-        confirmed_date: NaiveDate,
-    ) -> Result<(), BankManualMatchError> {
-        let group = self
-            .fund_payment_service
-            .read_group(group_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "apply_fund_transfer_to_group: read_group failed");
-                FundError::DatabaseError
-            })?;
-        // A group that is not found has nothing to settle: the status write
-        // touches no row, as before.
-        let Some(mut group) = group else {
-            return self
-                .settle_group(None, group_id, FundPaymentGroupStatus::BankPaid)
-                .await;
-        };
-        let procedure_ids: Vec<String> =
-            group.lines.iter().map(|l| l.procedure_id.clone()).collect();
-
-        let procedures = self
-            .procedure_service
-            .read_procedures_by_ids(procedure_ids)
-            .await?;
-
-        let settled = procedures
-            .into_iter()
-            .map(|mut p| {
-                let new_status = if p.payment_status == ProcedureStatus::PartiallyReconciled {
-                    ProcedureStatus::PartiallyFundPaid
-                } else {
-                    ProcedureStatus::FundPaid
-                };
-                p.payment_status = new_status;
-                // paid_amount is conserved (R7 spec)
-                let amount = p.paid_amount;
-                p.with_payment_info(PaymentMethod::BankTransfer, Some(confirmed_date), amount)
-            })
-            .collect();
-
-        group.confirm_bank_payment();
-        self.settle_group(Some(settled), group_id, group.status)
-            .await
     }
 
     /// R8 — Revert procedures of a group to Reconciled/PartiallyReconciled
@@ -759,51 +802,11 @@ impl BankManualMatchOrchestrator {
             .read_procedures_by_ids(procedure_ids)
             .await?;
 
-        let settled = procedures
-            .into_iter()
-            .map(|mut p| {
-                p.payment_status = match p.payment_status {
-                    ProcedureStatus::FundPaid => ProcedureStatus::Reconciled,
-                    ProcedureStatus::PartiallyFundPaid => ProcedureStatus::PartiallyReconciled,
-                    other => other, // Unexpected — leave as-is
-                };
-                // Clear Stage 2 — payment_method + confirmed_payment_date.
-                // fund_reconciliation_date (Stage 1) and paid_amount stay (per R8).
-                p.revert_fund_payment()
-            })
-            .collect();
+        let settled = procedures.into_iter().map(reverted_from_fund).collect();
 
         group.revert_bank_payment();
         self.settle_group(Some(settled), group_id, group.status)
             .await
-    }
-
-    /// R15 — Set procedures to DirectlyPaid with payment info.
-    async fn apply_direct_payment_to_procedures(
-        &self,
-        procedure_ids: &[String],
-        payment_method: PaymentMethod,
-        confirmed_date: NaiveDate,
-    ) -> Result<(), BankManualMatchError> {
-        let procedures = self
-            .procedure_service
-            .read_procedures_by_ids(procedure_ids.to_vec())
-            .await?;
-
-        let updated: Vec<Procedure> = procedures
-            .into_iter()
-            .map(|mut p| {
-                p.payment_status = ProcedureStatus::DirectlyPaid;
-                let amount = p.billed_amount;
-                p.with_payment_info(payment_method, Some(confirmed_date), Some(amount))
-            })
-            .collect();
-
-        self.procedure_service
-            .update_procedures_batch(updated, false)
-            .await?;
-
-        Ok(())
     }
 
     /// R16 — Revert procedures to Created status, clear payment info.
@@ -816,13 +819,7 @@ impl BankManualMatchOrchestrator {
             .read_procedures_by_ids(procedure_ids.to_vec())
             .await?;
 
-        let updated: Vec<Procedure> = procedures
-            .into_iter()
-            .map(|mut p| {
-                p.payment_status = ProcedureStatus::Created;
-                p.clear_payment_info()
-            })
-            .collect();
+        let updated: Vec<Procedure> = procedures.into_iter().map(reverted_from_direct).collect();
 
         self.procedure_service
             .update_procedures_batch(updated, false)
@@ -835,6 +832,45 @@ impl BankManualMatchOrchestrator {
 // ======================================================================
 // Pure conversion helpers (testable)
 // ======================================================================
+
+/// R7 — A procedure of a settled group: FundPaid/PartiallyFundPaid, paid_amount conserved.
+fn settled_by_fund(mut p: Procedure, confirmed_date: NaiveDate) -> Procedure {
+    p.payment_status = if p.payment_status == ProcedureStatus::PartiallyReconciled {
+        ProcedureStatus::PartiallyFundPaid
+    } else {
+        ProcedureStatus::FundPaid
+    };
+    let amount = p.paid_amount;
+    p.with_payment_info(PaymentMethod::BankTransfer, Some(confirmed_date), amount)
+}
+
+/// R8 — A procedure of a reverted group: Stage 2 (payment_method and
+/// confirmed_payment_date) cleared; fund_reconciliation_date and paid_amount stay.
+fn reverted_from_fund(mut p: Procedure) -> Procedure {
+    p.payment_status = match p.payment_status {
+        ProcedureStatus::FundPaid => ProcedureStatus::Reconciled,
+        ProcedureStatus::PartiallyFundPaid => ProcedureStatus::PartiallyReconciled,
+        other => other, // Unexpected — leave as-is
+    };
+    p.revert_fund_payment()
+}
+
+/// R15 — A procedure paid directly: DirectlyPaid with its payment info.
+fn paid_directly(
+    mut p: Procedure,
+    payment_method: PaymentMethod,
+    confirmed_date: NaiveDate,
+) -> Procedure {
+    p.payment_status = ProcedureStatus::DirectlyPaid;
+    let amount = p.billed_amount;
+    p.with_payment_info(payment_method, Some(confirmed_date), Some(amount))
+}
+
+/// R16 — A procedure whose direct payment is gone: Created, payment info cleared.
+fn reverted_from_direct(mut p: Procedure) -> Procedure {
+    p.payment_status = ProcedureStatus::Created;
+    p.clear_payment_info()
+}
 
 fn parse_date(s: &str) -> Result<NaiveDate, BankError> {
     NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| BankError::InvalidTransferDateFormat)
@@ -948,6 +984,7 @@ mod tests {
             link_repo,
             fund_svc.clone(),
             proc_svc.clone(),
+            Arc::new(SqlxTransactionManager::new(pool.clone())),
             Arc::new(SqlxTransactionManager::new(pool.clone())),
         );
         (orchestrator, fund_svc, proc_svc)

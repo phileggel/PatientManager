@@ -58,6 +58,7 @@ async fn setup_with_bus() -> (BankManualMatchOrchestrator, SqlitePool, Arc<Event
             bus.clone(),
         )),
         Arc::new(SqlxTransactionManager::new(pool.clone())),
+        Arc::new(SqlxTransactionManager::new(pool.clone())),
     );
     (orchestrator, pool, bus)
 }

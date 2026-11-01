@@ -40,23 +40,9 @@ impl BankEntryService {
         bank_account_id: String,
         is_silent: bool,
     ) -> Result<BankEntry, BankError> {
-        let bank_account_id = transfer_type.account_for(bank_account_id);
-        // Fetch and validate bank account exists
-        let bank_account = self
-            .account_repository
-            .read_account(&bank_account_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "create_transfer: read_account failed");
-                BankError::DatabaseError
-            })?
-            .ok_or_else(|| BankError::BankAccountNotFound {
-                bank_account_id: bank_account_id.clone(),
-            })?;
-
-        // Domain construction happens in the service so typed domain errors
-        // (e.g. `AmountNotPositive`) surface directly — the repo just persists.
-        let entry = BankEntry::new(transfer_date, amount, transfer_type, bank_account)?;
+        let entry = self
+            .prepare_transfer(transfer_date, amount, transfer_type, bank_account_id)
+            .await?;
         let transfer = self.repository.persist_transfer(entry).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "create_transfer: repository failed");
             BankError::DatabaseError
@@ -86,21 +72,9 @@ impl BankEntryService {
         })
     }
 
-    /// Update an existing transfer
+    /// Update a transfer, its account checked first.
     pub async fn update_transfer(&self, transfer: BankEntry) -> Result<BankEntry, BankError> {
-        // Validate that the bank account exists
-        let account_id = transfer.bank_account.id.clone();
-        self.account_repository
-            .read_account(&account_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "update_transfer: read_account failed");
-                BankError::DatabaseError
-            })?
-            .ok_or(BankError::BankAccountNotFound {
-                bank_account_id: account_id,
-            })?;
-
+        self.ensure_account_exists(&transfer).await?;
         let updated = self
             .repository
             .update_transfer(transfer)
@@ -109,11 +83,57 @@ impl BankEntryService {
                 tracing::error!(target: BACKEND, err = ?e, "update_transfer: repository failed");
                 BankError::DatabaseError
             })?;
-
-        // Publish event
         let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
-
         Ok(updated)
+    }
+
+    /// Check and build a new transfer, writing nothing: a unit of work writes it (ADR-003).
+    pub async fn prepare_transfer(
+        &self,
+        transfer_date: String,
+        amount: i64,
+        transfer_type: BankEntryType,
+        bank_account_id: String,
+    ) -> Result<BankEntry, BankError> {
+        let bank_account_id = transfer_type.account_for(bank_account_id);
+        // Fetch and validate bank account exists
+        let bank_account = self
+            .account_repository
+            .read_account(&bank_account_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "prepare_transfer: read_account failed");
+                BankError::DatabaseError
+            })?
+            .ok_or_else(|| BankError::BankAccountNotFound {
+                bank_account_id: bank_account_id.clone(),
+            })?;
+
+        // Domain construction happens in the service so typed domain errors
+        // (e.g. `AmountNotPositive`) surface directly — the repo just persists.
+        BankEntry::new(transfer_date, amount, transfer_type, bank_account)
+    }
+
+    /// Check that an edited transfer's account exists, writing nothing (ADR-003).
+    pub async fn ensure_account_exists(&self, transfer: &BankEntry) -> Result<(), BankError> {
+        let account_id = transfer.bank_account.id.clone();
+        self.account_repository
+            .read_account(&account_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "ensure_account_exists: read_account failed");
+                BankError::DatabaseError
+            })?
+            .ok_or(BankError::BankAccountNotFound {
+                bank_account_id: account_id,
+            })?;
+        Ok(())
+    }
+
+    /// Tell listeners bank entries changed, after a unit of work that wrote
+    /// them committed (ADR-003).
+    pub fn notify_transfers_updated(&self) {
+        let _ = self.event_bus.publish::<BankEntryUpdated>(BankEntryUpdated);
     }
 
     /// Persist a BankEntry pre-built via `BankEntry::restore` (no factory pass).
