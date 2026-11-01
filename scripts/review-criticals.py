@@ -6,8 +6,9 @@ Use: python3 scripts/review-criticals.py <report.md>
 `review.yml` fails the lane's check on anything but 0. A report may cover several
 documents, each closing with its own "Review complete: N critical" or opening with a
 "🔴 N critical" headline, so the count is the sum of every such line; a report holding
-both forms may count a finding twice, which is still red. A report saying neither nor
-"No issues found" counts as 1: a silent green would be worse than a re-run.
+both forms may count a finding twice, which is still red. A headline leaves out a
+severity it has none of, so "🟡 1 warning" alone is 0. A report saying none of these nor
+that it found nothing counts as 1: a silent green would be worse than a re-run.
 
 It runs in CI only, beside a token, so it imports nothing from `scripts/`, and the
 workflow takes it from the base branch.
@@ -24,7 +25,10 @@ def criticals(report: str) -> int:
     counts = re.findall(r"(?:Review complete: |🔴 )(\d+) critical", report)
     if counts:
         return sum(int(count) for count in counts)
-    return 0 if "No issues found" in report else 1
+    if re.search(r"(?m)^\s*- 🔴|🔴[^\n]*\n+\s*- ", report):
+        return 1  # a listed critical with no count, whatever else the report says
+    clean = r"(?m)No issues found|No findings|^#+\s*Findings\s+None\b|(?:🟡|🔵) \d+ (?:warning|suggestion)"
+    return 0 if re.search(clean, report) else 1
 
 
 def main(argv: list[str]) -> int:
