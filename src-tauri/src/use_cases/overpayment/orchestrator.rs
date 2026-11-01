@@ -1002,24 +1002,16 @@ mod tests {
         }
     }
 
-    /// The transfer's read joins its account and filters deleted ones, so a deleted
-    /// account reaches the orchestrator as no transfer at all.
-    #[tokio::test]
-    async fn ref_070_a_transfer_read_that_finds_nothing_resolves_to_nothing() {
+    /// The orchestrator of a `get_source_bank_account` read, on the given repositories.
+    fn source_lookup_orchestrator(
+        fund_repo: MockFundPaymentRepository,
+        link_repo: MockBankEntryLinkRepository,
+        entry_repo: MockBankEntryRepository,
+        account_repo: MockBankAccountRepository,
+    ) -> OverpaymentOrchestrator {
         let event_bus = Arc::new(EventBus::new());
-        let mut fund_repo = MockFundPaymentRepository::new();
-        fund_repo
-            .expect_find_group_id_by_procedure()
-            .returning(|_| Ok(Some("group-1".to_string())));
-        let mut link_repo = MockBankEntryLinkRepository::new();
-        link_repo
-            .expect_get_transfer_for_fund_group()
-            .returning(|_| Ok(Some("transfer-1".to_string())));
-        let mut entry_repo = MockBankEntryRepository::new();
-        entry_repo.expect_read_transfer().returning(|_| Ok(None));
-        let account_repo: Arc<dyn BankAccountRepository> =
-            Arc::new(bank_account_repo_returns_account());
-        let orchestrator = OverpaymentOrchestrator::new(
+        let account_repo: Arc<dyn BankAccountRepository> = Arc::new(account_repo);
+        OverpaymentOrchestrator::new(
             Arc::new(ProcedureService::new(
                 Arc::new(MockProcedureRepository::new()),
                 event_bus.clone(),
@@ -1036,9 +1028,94 @@ mod tests {
             Arc::new(BankAccountService::new(account_repo, event_bus)),
             Arc::new(link_repo),
             Arc::new(MockProcedureRefundRepository::new()),
+        )
+    }
+
+    fn fund_repo_finds_group() -> MockFundPaymentRepository {
+        let mut mock = MockFundPaymentRepository::new();
+        mock.expect_find_group_id_by_procedure()
+            .returning(|_| Ok(Some("group-1".to_string())));
+        mock
+    }
+
+    fn link_repo_finds_transfer() -> MockBankEntryLinkRepository {
+        let mut mock = MockBankEntryLinkRepository::new();
+        mock.expect_get_transfer_for_fund_group()
+            .returning(|_| Ok(Some("transfer-1".to_string())));
+        mock
+    }
+
+    /// The transfer's read joins its account and filters deleted ones, so a deleted
+    /// account reaches the orchestrator as no transfer at all.
+    #[tokio::test]
+    async fn ref_070_a_transfer_read_that_finds_nothing_resolves_to_nothing() {
+        let mut entry_repo = MockBankEntryRepository::new();
+        entry_repo.expect_read_transfer().returning(|_| Ok(None));
+        let orchestrator = source_lookup_orchestrator(
+            fund_repo_finds_group(),
+            link_repo_finds_transfer(),
+            entry_repo,
+            bank_account_repo_returns_account(),
         );
         let account = orchestrator.get_source_bank_account("source-1").await;
         assert_eq!(account.unwrap(), None);
+    }
+
+    /// REF-071: a failed read at any step of the lookup is a `DatabaseError`.
+    #[tokio::test]
+    async fn ref_071_a_failed_read_at_any_step_is_a_database_error() {
+        let mut fund_repo = MockFundPaymentRepository::new();
+        fund_repo
+            .expect_find_group_id_by_procedure()
+            .returning(|_| Err(anyhow::anyhow!("db")));
+        let mut link_repo = MockBankEntryLinkRepository::new();
+        link_repo
+            .expect_get_transfer_for_fund_group()
+            .returning(|_| Err(anyhow::anyhow!("db")));
+        let mut entry_repo = MockBankEntryRepository::new();
+        entry_repo
+            .expect_read_transfer()
+            .returning(|_| Err(anyhow::anyhow!("db")));
+        let mut account_repo = MockBankAccountRepository::new();
+        account_repo
+            .expect_read_account()
+            .returning(|_| Err(anyhow::anyhow!("db")));
+
+        for orchestrator in [
+            source_lookup_orchestrator(
+                fund_repo,
+                MockBankEntryLinkRepository::new(),
+                MockBankEntryRepository::new(),
+                MockBankAccountRepository::new(),
+            ),
+            source_lookup_orchestrator(
+                fund_repo_finds_group(),
+                link_repo,
+                MockBankEntryRepository::new(),
+                MockBankAccountRepository::new(),
+            ),
+            source_lookup_orchestrator(
+                fund_repo_finds_group(),
+                link_repo_finds_transfer(),
+                entry_repo,
+                MockBankAccountRepository::new(),
+            ),
+            source_lookup_orchestrator(
+                fund_repo_finds_group(),
+                link_repo_finds_transfer(),
+                bank_entry_repo_persist_ok(),
+                account_repo,
+            ),
+        ] {
+            let err = orchestrator
+                .get_source_bank_account("source-1")
+                .await
+                .unwrap_err();
+            assert!(matches!(
+                err,
+                OverpaymentError::Task(OverpaymentTask::DatabaseError)
+            ));
+        }
     }
 
     #[tokio::test]
