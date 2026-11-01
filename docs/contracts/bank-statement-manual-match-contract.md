@@ -49,7 +49,7 @@ Creates a `FUND` bank entry linked to the given group IDs. On success: procedure
 
 ---
 
-### `update_fund_transfer` — R9, R10, R11, BSM-030, BSM-031, BSM-034, BSM-036
+### `update_fund_transfer` — R9, R10, R11, BSM-030, BSM-031, BSM-034, BSM-035
 
 Updates the date and/or group composition of an existing FUND transfer. Newly added groups receive the same status effects as creation (R10 → R7); removed groups are rolled back as in deletion (R11 → R8). Amount recomputed from the final group set.
 
@@ -109,7 +109,7 @@ Returns `DirectPaymentProcedureCandidate` details for a given set of IDs. Used i
 
 ---
 
-### `create_direct_transfer` — R13, R14, R15, BSM-020, BSM-021, BSM-026, BSM-034, BSM-035
+### `create_direct_transfer` — R13, R14, R15, BSM-020, BSM-021, BSM-026, BSM-034, BSM-036
 
 Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or `PATIENT_CASH`) linked to the given procedure IDs. For `PATIENT_CASH`, the backend stores `cash-account-default`, whatever `bank_account_id` it is sent, even an unknown one (BSM-026); the screen sends an empty one. On success: each procedure moves to `DirectlyPayed`; `payment_method`, `confirmed_payment_date`, and `actual_payment_amount` are set according to the type mapping in `BankEntryType`.
 
@@ -117,7 +117,7 @@ Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or 
 
 - **Args:** `bank_account_id: String, transfer_date: String, transfer_type: BankEntryType, procedure_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `RefundOnlyVariantRejected` (REF-080), `ProcedureNotFound` (BSM-035), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `RefundOnlyVariantRejected` (REF-080), `ProcedureNotFound` (BSM-036), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
 
 ---
 
@@ -127,7 +127,7 @@ Updates the date and/or procedure composition of an existing direct payment. New
 
 - **Args:** `transfer_id: String, new_transfer_date: String, new_procedure_ids: Vec<String>`
 - **Returns:** `BankEntryEdit` — `Unchanged` when the date and the procedures (as a set, order aside) equal the stored ones (BSM-031), decided after `TransferNotFound` and `WrongTransferType`, before any write
-- **Errors:** `BankEntryInvalid { reasons }` (BSM-030, answered first, nothing read), `TransferNotFound`, `WrongTransferType` (R4), `ProcedureNotFound` (BSM-035), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-030, answered first, nothing read), `TransferNotFound`, `WrongTransferType` (R4), `ProcedureNotFound` (BSM-036), `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
 
 ---
 

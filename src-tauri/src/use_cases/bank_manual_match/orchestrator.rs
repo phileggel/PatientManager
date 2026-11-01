@@ -756,7 +756,7 @@ impl BankManualMatchOrchestrator {
             .procedure_service
             .read_procedures_by_ids(procedure_ids.to_vec())
             .await?;
-        // BSM-035 — a procedure the read did not return is unknown or deleted.
+        // BSM-036 — a procedure the read did not return is unknown or deleted.
         if let Some(missing) = procedure_ids
             .iter()
             .find(|id| !procedures.iter().any(|p| &p.id == *id))

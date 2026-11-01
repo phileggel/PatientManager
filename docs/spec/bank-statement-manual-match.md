@@ -53,9 +53,9 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-033 — The edit dialog shows the account (frontend)**: The edit dialog shows the bank entry's account as text — the stored account's name, the cash account's translated name for `CASH` (R13) — and offers no way to change it (R9, R17).
 
-**BSM-034 — A refused bank entry changes nothing (backend)**: Creating or editing a bank entry writes the entry, its links and all it changes on the groups and procedures it adds, keeps or removes (R7, R8, R10, R11, R15, R16, R18, R19, BSM-036) together. When the creation or edit is refused or fails, all of them stay as they were and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
+**BSM-034 — A refused bank entry changes nothing (backend)**: Creating or editing a bank entry writes the entry, its links and all it changes on the groups and procedures it adds, keeps or removes (R7, R8, R10, R11, R15, R16, R18, R19, BSM-035) together. When the creation or edit is refused or fails, all of them stay as they were and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
 
-**BSM-036 — What an edit keeps follows its date (backend)**: A group or procedure an edit keeps stays settled or paid, and its `confirmed_payment_date` becomes the edited date.
+**BSM-035 — What an edit keeps follows its date (backend)**: A group or procedure an edit keeps stays settled or paid, and its `confirmed_payment_date` becomes the edited date.
 
 ### FUND-type transfers
 
@@ -101,7 +101,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **R14 — Creation: procedure selection (frontend + backend)**: The user selects one or more procedures in `Created` status whose execution date (`procedure_date`) is within the 7 days preceding the payment date. The selection UI is similar to the procedure-management UI in fund-payment groups. The payment amount is the sum of the amounts of the selected procedures.
 
-**BSM-035 — Every selected procedure exists (backend)**: Creating or editing a direct bank entry whose selection holds a procedure that does not exist or is deleted is refused with a specific error, even beside procedures that exist. An edit answered unchanged (BSM-031) is not judged.
+**BSM-036 — Every selected procedure exists (backend)**: Creating or editing a direct bank entry whose selection holds a procedure that does not exist or is deleted is refused with a specific error, even beside procedures that exist, and one the edit keeps is judged too. The field refusals of BSM-021 come first; an edit answered unchanged (BSM-031) is not judged.
 
 **R15 — Creation: status effects (backend)**: On validation, each procedure receives the corresponding payment method, its date and actual paid amount are set, and its status moves to `DirectlyPayed`. See the "Affected fields — on payment creation" table.
 
