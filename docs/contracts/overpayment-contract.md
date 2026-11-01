@@ -34,6 +34,16 @@ Atomic transaction. Reversal cascade in order: revert source procedure status (f
 
 ---
 
+### `get_source_bank_account` — REF-070
+
+Returns the id of the bank account of the source procedure's original bank transfer, when it resolves as REF-070 defines. Used by the refund form to pre-fill the selector when several accounts exist.
+
+- **Args:** `source_procedure_id: String`
+- **Returns:** `String` (optional — `null` if not resolvable, an unknown source included)
+- **Errors:** `DatabaseError`
+
+---
+
 ### `get_procedure_refund_by_source` — REF-190, REF-210
 
 Returns the `ProcedureRefundInfo` for a given source procedure ID. Used by the `Overpaid` modal to display the refund details and by the "Cancel Refund" action to resolve IDs before cancellation.
@@ -91,5 +101,6 @@ struct ProcedureRefundInfo {
 
 ## Changelog
 
+- 2026-11-01 — Added `get_source_bank_account` (REF-070, #458).
 - 2026-05-31 — Reconcile error names with typed implementation: `ProcedureNotEligible`→`SourceNotRefundable`, `InvalidPaymentMethod`→`TransferTypeRejected`, `RefundNotFound`→`RefundRecordNotFound`; drop stale `PartialRefundNotSupported` (REF-020 structurally enforced); add `BankAccountRequired` and `SourceHasNoFund` variants.
 - 2026-05-02 — Added by `overpayment` spec: create_overpayment, cancel_overpayment, get_procedure_refund_by_source, get_procedure_refund_by_refund_procedure

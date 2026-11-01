@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT l.fund_payment_group_id\n            FROM fund_payment_line l\n            JOIN fund_payment_group g ON g.id = l.fund_payment_group_id\n            WHERE l.procedure_id = $1 AND l.is_deleted = 0 AND g.is_deleted = 0\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "fund_payment_group_id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "fund_payment_line",
+            "name": "fund_payment_group_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f44a81128b8eaed9e39e539cfc5219543b3f142f363d14748551777f21907f69"
+}

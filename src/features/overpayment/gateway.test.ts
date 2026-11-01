@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { commands, type ProcedureRefundInfo } from "@/bindings";
+import { commands, type OverpaymentError, type ProcedureRefundInfo } from "@/bindings";
 import {
   cancelOverpayment,
   createOverpayment,
   getProcedureRefundByRefundProcedure,
   getProcedureRefundBySource,
+  getSourceBankAccount,
 } from "./gateway";
 
 /**
@@ -22,6 +23,7 @@ vi.mock("@/bindings", async () => {
       cancelOverpayment: vi.fn(),
       getProcedureRefundBySource: vi.fn(),
       getProcedureRefundByRefundProcedure: vi.fn(),
+      getSourceBankAccount: vi.fn(),
     },
   };
 });
@@ -150,5 +152,25 @@ describe("getProcedureRefundByRefundProcedure", () => {
     });
     const result = await getProcedureRefundByRefundProcedure("refund-proc-1");
     expect(result).toEqual({ success: true, data: SAMPLE_REFUND_INFO });
+  });
+});
+
+describe("getSourceBankAccount", () => {
+  it("returns the account id on success", async () => {
+    vi.mocked(commands.getSourceBankAccount).mockResolvedValueOnce({
+      status: "ok",
+      data: "account-1",
+    });
+    expect(await getSourceBankAccount("source-proc-1")).toEqual({
+      success: true,
+      data: "account-1",
+    });
+    expect(commands.getSourceBankAccount).toHaveBeenCalledWith("source-proc-1");
+  });
+
+  it("surfaces the typed error verbatim", async () => {
+    const error: OverpaymentError = { code: "DatabaseError" };
+    vi.mocked(commands.getSourceBankAccount).mockResolvedValueOnce({ status: "error", error });
+    expect(await getSourceBankAccount("source-proc-1")).toEqual({ success: false, error });
   });
 });

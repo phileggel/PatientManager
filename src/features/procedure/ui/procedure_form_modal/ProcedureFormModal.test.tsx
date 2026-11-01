@@ -422,6 +422,26 @@ describe("ProcedureFormModal — view mode saves a changed procedure type (DEBT-
   });
 });
 
+describe("ProcedureFormModal — refund button without a bank account (REF-070)", () => {
+  it("explains itself in words, never a raw key", () => {
+    useCacheStore.setState({ bankAccounts: [] });
+    render(
+      <ProcedureFormModal
+        mode="view"
+        procedure={{ ...MOCK_PROCEDURE, payment_status: "FUND_PAID" }}
+        isOpen
+        onClose={vi.fn()}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Refund" });
+    expect(button).toBeDisabled();
+    expect(button.parentElement).toHaveAttribute(
+      "title",
+      "A bank account must be created before recording a refund.",
+    );
+  });
+});
+
 // #391 (REF-190): an Overpaid procedure's partial edit follows PRO-121 and PRO-122.
 describe("ProcedureFormModal — overpaid mode (REF-190)", () => {
   const OVERPAID: Procedure = { ...MOCK_PROCEDURE, payment_status: "OVERPAID" };

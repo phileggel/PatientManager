@@ -90,7 +90,7 @@ impl ProcedureRefund {
 
     fn validate(reason: &Option<String>) -> Result<(), ProcedureError> {
         if let Some(r) = reason {
-            if r.len() > MAX_REASON_LEN {
+            if r.chars().count() > MAX_REASON_LEN {
                 return Err(ProcedureError::RefundReasonTooLong);
             }
         }
@@ -156,6 +156,22 @@ mod tests {
             ProcedureStatus::FundPaid,
         );
         assert!(matches!(result, Err(ProcedureError::RefundReasonTooLong)));
+    }
+
+    /// REF-040 counts characters: 255 accented ones are longer than 255 bytes.
+    #[test]
+    fn ref_040_255_accented_characters_are_accepted() {
+        let reason = "é".repeat(255);
+        let result = ProcedureRefund::new(
+            "src-id".to_string(),
+            "refund-id".to_string(),
+            "group-id".to_string(),
+            "transfer-id".to_string(),
+            "2026-04-01".to_string(),
+            Some(reason),
+            ProcedureStatus::FundPaid,
+        );
+        assert!(result.is_ok());
     }
 
     #[test]

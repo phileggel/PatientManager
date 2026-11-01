@@ -886,6 +886,18 @@ async getProcedureRefundBySource(sourceProcedureId: string) : Promise<Result<Pro
 }
 },
 /**
+ * REF-070 — the bank account of the source procedure's original bank transfer,
+ * when it resolves; the refund form pre-fills it.
+ */
+async getSourceBankAccount(sourceProcedureId: string) : Promise<Result<string | null, OverpaymentError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_source_bank_account", { sourceProcedureId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * REF-200 — Fetch ProcedureRefund by refund_procedure_id.
  * Used by the OverpaymentRefund modal to resolve source_procedure_id before cancel
  * (the modal only holds the refund procedure's own ID).

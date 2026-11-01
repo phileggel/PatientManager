@@ -45,9 +45,11 @@ Represents the link between the original paid procedure and the refund procedure
 
 **REF-020 — Full Refund Only (backend)**: An overpayment always covers the full amount of the original procedure. Partial refunds are not supported in V1. The backend rejects any request where the submitted amount differs from `source.procedure_amount`, returning a validation error.
 
-**REF-030 — Refund Date Validation (frontend + backend)**: The `refund_date` must be a valid date, not in the future, and cannot be earlier than the `confirmed_payment_date` of the source procedure.
+**REF-030 — Refund Date Validation (frontend + backend)**: The `refund_date` must be a valid date, not in the future, and cannot be earlier than the `confirmed_payment_date` of the source procedure. "The future" is judged against today's local date.
 
-**REF-040 — Reason Field Validation (frontend + backend)**: The `reason` field is optional, but if provided, it must not exceed 255 characters.
+**REF-031 — Refund Date Default (frontend)**: The "Record Overpayment" modal proposes today's local date as the refund date.
+
+**REF-040 — Reason Field Validation (frontend + backend)**: The `reason` field is optional, but if provided, it must not exceed 255 characters, counted the same way on both sides: one Unicode code point is one character, so a precomposed accented letter is one and a composed emoji or a decomposed letter is several.
 
 ### Creation of Refund Records
 
@@ -62,6 +64,12 @@ Represents the link between the original paid procedure and the refund procedure
 - If **multiple bank accounts** exist: the selector is pre-filled with the bank account from the source procedure's original bank transfer. "Resolvable" means the source has a linked `BankTransfer` whose `bank_account_id` exists as a non-deleted record in the `bank_account` table. If not resolvable, the selector is shown empty and the user must pick one.
 
 The backend rejects the request if no `bank_account_id` is provided.
+
+**REF-071 — Failed Source Account Lookup (frontend)**: With multiple bank accounts, if looking up the bank account of the source procedure's original bank transfer fails, an error snackbar is shown and the selector is not pre-filled; an account already picked stays (REF-073).
+
+**REF-072 — Selector Usable During Pre-fill (frontend)**: While the source's account is still being looked up, the user can pick an account in the selector.
+
+**REF-073 — A Picked Account Stays (frontend)**: An account the user has picked before the pre-fill arrives is never replaced by it.
 
 **REF-080 — OutgoingWire Transfer Type Exclusivity (backend)**: The `OutgoingWire` variant of `TransferType` is only creatable through the overpayment flow. The bank statement manual-match command rejects any attempt to create a bank transfer with `transfer_type = OutgoingWire`.
 
@@ -154,9 +162,9 @@ If any step fails, the entire operation rolls back.
           │
           ▼
 [User enters refund details]
-  → Refund date (REF-030)
+  → Refund date (REF-030, REF-031)
   → Payment method (REF-060)
-  → Bank account, pre-filled or empty (REF-070)
+  → Bank account, pre-filled or empty (REF-070 to REF-073)
   → Optional reason (REF-040)
           │
           ▼
@@ -214,9 +222,9 @@ A "Cancel Refund" button is available in the `EditProcedureModal` for:
 1. User opens the `EditProcedureModal` for an eligible procedure and clicks "Refund".
 2. The "Record Overpayment" modal opens, pre-filled with source details.
 3. User fills in:
-   - **Repayment Date** (REF-030)
+   - **Repayment Date** (REF-030, REF-031)
    - **Payment Method** — Credit Card, Check, or Outgoing Wire Transfer (REF-060)
-   - **Bank Account** — pre-filled or empty per REF-070 resolution logic
+   - **Bank Account** — pre-filled or empty per REF-070 to REF-073
    - **Reason** — optional (REF-040)
 4. User clicks "Confirm Refund".
 5. A Confirmation Dialog appears, summarizing the financial impact:

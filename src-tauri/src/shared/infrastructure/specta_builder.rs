@@ -136,6 +136,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             overpayment::create_overpayment,
             overpayment::cancel_overpayment,
             overpayment::get_procedure_refund_by_source,
+            overpayment::get_source_bank_account,
             overpayment::get_procedure_refund_by_refund_procedure,
             fund_payment_report_pdf::generate_fund_reconciliation_report_pdf,
             fund_payment_report_pdf::export_and_open_fund_reconciliation_report_pdf,
