@@ -144,7 +144,7 @@ async fn insert_label_mapping(
     fund_id: Option<&str>,
 ) {
     sqlx::query(
-        "INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id, is_deleted) VALUES (?, ?, ?, ?, 0)",
+        "INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id) VALUES (?, ?, ?, ?)",
     )
     .bind(id)
     .bind(account_id)
@@ -509,7 +509,12 @@ async fn test_bas_043_delete_makes_the_label_unknown_again() {
         .await
         .unwrap()
         .is_empty());
-    // The next import may save the same label again (active-row unique index).
+    let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bank_fund_label_mapping")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(rows, 0, "the label is really deleted");
+    // The next import may save the same label again.
     insert_label_mapping(&pool, "map-2", "acc-1", "VIR CPAM", Some("fund-1")).await;
 }
 
@@ -541,9 +546,6 @@ async fn test_bas_044_reassign_or_delete_of_a_missing_mapping_is_refused() {
     }
 }
 
-const LABEL_CASCADE_MIGRATION: &str =
-    include_str!("../migrations/20260929_bank_statement_label_cascade.sql");
-
 #[tokio::test]
 async fn test_bas_046_deleting_a_bank_account_deletes_its_labels() {
     let pool = setup_pool().await;
@@ -557,34 +559,6 @@ async fn test_bas_046_deleting_a_bank_account_deletes_its_labels() {
         .await
         .unwrap();
 
-    assert!(ctx
-        .orchestrator
-        .list_label_mappings()
-        .await
-        .unwrap()
-        .is_empty());
-}
-
-#[tokio::test]
-async fn test_bas_046_labels_of_accounts_deleted_before_the_upgrade_are_deleted() {
-    let pool = setup_pool().await;
-    sqlx::raw_sql("DROP TRIGGER IF EXISTS trg_bank_account_delete_labels")
-        .execute(&pool)
-        .await
-        .unwrap();
-    insert_bank_account(&pool, "acc-1").await;
-    insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM", None).await;
-    sqlx::query("UPDATE bank_account SET is_deleted = 1 WHERE id = 'acc-1'")
-        .execute(&pool)
-        .await
-        .unwrap();
-
-    sqlx::raw_sql(LABEL_CASCADE_MIGRATION)
-        .execute(&pool)
-        .await
-        .expect("migration applies");
-
-    let ctx = build_ctx(&pool);
     assert!(ctx
         .orchestrator
         .list_label_mappings()

@@ -66,7 +66,7 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             r#"
             SELECT id, bank_account_id, bank_label, fund_id
             FROM bank_fund_label_mapping
-            WHERE bank_account_id = $1 AND is_deleted = 0
+            WHERE bank_account_id = $1
             "#,
             bank_account_id,
         )
@@ -90,7 +90,6 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             r#"
             SELECT id, bank_account_id, bank_label, fund_id
             FROM bank_fund_label_mapping
-            WHERE is_deleted = 0
             ORDER BY bank_account_id, bank_label
             "#,
         )
@@ -118,7 +117,7 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             r#"
             UPDATE bank_fund_label_mapping
             SET fund_id = $1
-            WHERE id = $2 AND is_deleted = 0
+            WHERE id = $2
             RETURNING id AS "id!", bank_account_id AS "bank_account_id!", bank_label AS "bank_label!", fund_id AS "fund_id?"
             "#,
             fund_id,
@@ -137,13 +136,10 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
     }
 
     async fn delete_mapping(&self, id: &str) -> anyhow::Result<bool> {
-        let result = sqlx::query!(
-            "UPDATE bank_fund_label_mapping SET is_deleted = 1 WHERE id = $1 AND is_deleted = 0",
-            id,
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to delete label mapping")?;
+        let result = sqlx::query!("DELETE FROM bank_fund_label_mapping WHERE id = $1", id,)
+            .execute(&self.pool)
+            .await
+            .context("Failed to delete label mapping")?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -165,7 +161,7 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
         let existing = sqlx::query!(
             r#"
             SELECT id FROM bank_fund_label_mapping
-            WHERE bank_account_id = $1 AND bank_label = $2 AND is_deleted = 0
+            WHERE bank_account_id = $1 AND bank_label = $2
             "#,
             bank_account_id,
             bank_label,
@@ -200,8 +196,8 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             let id = Uuid::new_v4().to_string();
             sqlx::query!(
                 r#"
-                INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id, is_deleted)
-                VALUES ($1, $2, $3, $4, 0)
+                INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id)
+                VALUES ($1, $2, $3, $4)
                 "#,
                 id,
                 bank_account_id,

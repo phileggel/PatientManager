@@ -104,13 +104,6 @@ async fn test_migration_deleted_account_holding_a_bank_entry_is_restored() {
     insert_account(&pool, "acc-held", "Held", true).await;
     insert_transfer(&pool, "t-1", "acc-held").await;
     insert_account(&pool, "acc-empty", "Empty", true).await;
-    sqlx::query(
-        "INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, is_deleted)
-         VALUES ('label-1', 'acc-held', 'TEST LABEL', 1)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
     let entries = SqliteBankEntryRepository::new(pool.clone());
     let before = entries.read_transfer("t-1").await.unwrap();
     assert!(
@@ -135,15 +128,6 @@ async fn test_migration_deleted_account_holding_a_bank_entry_is_restored() {
     assert!(
         after.is_some(),
         "the restored account's entry is read again"
-    );
-    let label_deleted: bool =
-        sqlx::query_scalar("SELECT is_deleted FROM bank_fund_label_mapping WHERE id = 'label-1'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    assert!(
-        label_deleted,
-        "BAS-046: a restored account's labels do not come back"
     );
 }
 

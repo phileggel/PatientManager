@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, bank_account_id, bank_label, fund_id\n            FROM bank_fund_label_mapping\n            WHERE is_deleted = 0\n            ORDER BY bank_account_id, bank_label\n            ",
+  "query": "\n            SELECT id, bank_account_id, bank_label, fund_id\n            FROM bank_fund_label_mapping\n            ORDER BY bank_account_id, bank_label\n            ",
   "describe": {
     "columns": [
       {
@@ -58,5 +58,5 @@
       true
     ]
   },
-  "hash": "d997313e2e2ad27a572f6dfe5bb7d3499f7a3052a0e7660fd0754b9e519a0f11"
+  "hash": "10a92add4fa48840d4b4858cda13c2001390940fae9629b7e1731e4408b8979b"
 }

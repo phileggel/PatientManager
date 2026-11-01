@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM bank_fund_label_mapping WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "5bf27ad30cb5cf487b6e018c7358448ffda8a4661927ad855f84bdcb040b3a1b"
+}

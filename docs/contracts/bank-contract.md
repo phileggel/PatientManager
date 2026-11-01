@@ -38,7 +38,7 @@ Replaces the name and IBAN of an account that is not deleted: both are sent, and
 
 ### `delete_bank_account` — BAC-041, BAC-043, BAC-051
 
-Soft-deletes a bank account (marks it as deleted; no data is removed). It is refused while any bank entry is recorded on the account (BAC-043). The cash account (`cash-account-default`) must not be deletable per BAC-051.
+Soft-deletes a bank account (its row is kept and marked as deleted; its bank statement labels are really deleted, BAS-046). It is refused while any bank entry is recorded on the account (BAC-043). The cash account (`cash-account-default`) must not be deletable per BAC-051.
 
 - **Args:** `id: String`
 - **Returns:** `()`
@@ -150,5 +150,6 @@ enum BankEntryType {
 - 2026-05-02 — Backend gaps resolved: CashAccountProtected enforced on update/delete; file renamed from bank-account-contract.md to bank-contract.md; read_bank_account command removed (unused — service method kept for internal orchestrator use)
 - 2026-05-04 — Added by `bank-statement-auto-match` spec (BAS-013) and `bank-account` R5: IbanAlreadyUsed error variant on create_bank_account and update_bank_account; IBAN uniqueness now spans soft-deleted accounts.
 - 2026-10-24 — `get_cash_bank_account_id`: the form uses it to leave the cash account out of its list; a CASH entry's account is the backend's (bank-statement-manual-match BSM-026, #455)
+- 2026-11-02 — `delete_bank_account`: its labels are really deleted (#583).
 - 2026-10-24 — `delete_bank_account`: refused with `BankAccountHoldsBankEntries` while a bank entry is on the account (R6, #448); the Errors of `create_bank_account` and `update_bank_account` spelled as on the wire; `read_all_bank_accounts` lists `DatabaseError`
 - 2026-10-24 — the `bank-account` rules renumbered R1–R9 → BAC (#503); `create_bank_account` and `update_bank_account` refuse a taken name with `BankAccountNameAlreadyUsed` (BAC-013); `update_bank_account` returns `BankAccountNotFound` for an unknown or deleted account (BAC-030)

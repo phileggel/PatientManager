@@ -176,7 +176,7 @@ async fn insert_label_mapping(
     fund_id: Option<&str>,
 ) {
     sqlx::query(
-        "INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id, is_deleted) VALUES (?, ?, ?, ?, 0)",
+        "INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id) VALUES (?, ?, ?, ?)",
     )
     .bind(id)
     .bind(account_id)
