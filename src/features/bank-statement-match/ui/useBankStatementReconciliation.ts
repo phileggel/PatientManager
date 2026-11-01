@@ -34,6 +34,12 @@ function lineIdsForLabel(
   );
 }
 
+function assignsProcedures(
+  c: BankStatementCorrection,
+): c is Extract<BankStatementCorrection, { type: "AssignProcedures" }> {
+  return c.type === "AssignProcedures" && c.procedure_ids.length > 0;
+}
+
 /**
  * BAS-113/092/066 — compact the STORED correction list before appending
  * `incoming`. The engine's pre-replay filter mirrors these removals
@@ -47,7 +53,8 @@ function lineIdsForLabel(
  *   (BAS-092 — its implied size changed).
  * - A LinkFund that changes a label's fund (or rejects the label) drops the
  *   AssignProcedures corrections staged under the old fund (BAS-066 —
- *   procedures never cross funds).
+ *   procedures never cross funds). An empty one assigns nothing and stays: the
+ *   correction still holds the line (BAS-062B).
  */
 function compactForApply(
   list: BankStatementCorrection[],
@@ -72,8 +79,7 @@ function compactForApply(
       return line?.fund_id !== incoming.assignment.fund_id;
     };
     return list.filter(
-      (c) =>
-        !(c.type === "AssignProcedures" && affected.has(c.line_id) && fundChangedFor(c.line_id)),
+      (c) => !(assignsProcedures(c) && affected.has(c.line_id) && fundChangedFor(c.line_id)),
     );
   }
   return list;
@@ -93,7 +99,7 @@ function compactForRevert(
   let next = list.filter((_, i) => i !== index);
   if (removed?.type === "LinkFund") {
     const affected = lineIdsForLabel(reconciliation, removed.bank_label);
-    next = next.filter((c) => !(c.type === "AssignProcedures" && affected.has(c.line_id)));
+    next = next.filter((c) => !(assignsProcedures(c) && affected.has(c.line_id)));
   }
   return next;
 }
