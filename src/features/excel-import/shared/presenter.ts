@@ -16,6 +16,8 @@ export function formatExcelImportError(err: ExcelImportError): { key: string } {
       return { key: "excel-import:errors.invalid_format" };
     case "ParseError":
       return { key: "excel-import:errors.parse_error" };
+    case "PatientInvalid":
+    case "FundInvalid":
     case "ImportFailed":
       return { key: "excel-import:errors.import_failed" };
     case "DatabaseError":

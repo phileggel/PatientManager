@@ -35,6 +35,15 @@ describe("formatExcelImportError", () => {
     });
   });
 
+  it.each([
+    "PatientInvalid",
+    "FundInvalid",
+  ] as const)("keeps the import's failure message for %s", (code) => {
+    expect(formatExcelImportError({ code })).toEqual({
+      key: "excel-import:errors.import_failed",
+    });
+  });
+
   it("maps DatabaseError to its key", () => {
     const err: ExcelImportError = { code: "DatabaseError" };
     expect(formatExcelImportError(err)).toEqual({

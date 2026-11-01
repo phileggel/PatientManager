@@ -292,6 +292,28 @@ mod tests {
         assert_eq!(stored(&pool).await, untouched());
     }
 
+    /// EXI-179: a workbook patient the domain refuses has its own error, and nothing changes.
+    #[tokio::test]
+    async fn test_exi_179_a_patient_that_fails_validation_changes_nothing() {
+        let pool = seeded_pool().await;
+        let mut parsed = workbook(vec![row("Jan", "2026-01-15")]);
+        for patient in &mut parsed.patients {
+            patient.name = String::new();
+            patient.ssn = String::new();
+        }
+
+        let err = orchestrator(&pool)
+            .execute_import(parsed, mapping("type-1"), vec!["Jan".to_string()])
+            .await
+            .expect_err("the import fails");
+
+        assert_eq!(
+            err,
+            crate::use_cases::excel_import::ExcelImportError::PatientInvalid
+        );
+        assert_eq!(stored(&pool).await, untouched());
+    }
+
     /// EXI-176: a blocked month is left alone while the other month is imported.
     #[tokio::test]
     async fn test_exi_176_the_import_goes_on_beside_a_blocked_month() {

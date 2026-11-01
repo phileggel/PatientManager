@@ -1592,9 +1592,9 @@ export type ExcelFund = { temp_id: string; fund_identifier: string; fund_name: s
  * Error surface for the Excel import use case.
  * 
  * A flat `#[serde(tag = "code")]` enum — NOT an untagged composite. The
- * excel-import contract deliberately keeps the error surface coarse: per-row
- * failures are reported in-band via `ParsingIssues` / `skipped_procedures`,
- * never as command errors, and infrastructure failures collapse to a single
+ * excel-import contract keeps the error surface coarse: skipped rows are
+ * reported in-band via `ParsingIssues` / `skipped_procedures`, never as
+ * command errors, and infrastructure failures collapse to a single
  * catch-all (`ImportFailed` for execution, `DatabaseError` for the mapping
  * repo). There are no FE-meaningful bounded-context errors to wrap with
  * `#[from]`, so the use-case enum is the FE-facing type directly.
@@ -1619,10 +1619,18 @@ export type ExcelImportError =
  */
 { code: "ParseError" } | 
 /**
- * `execute_excel_import` — catch-all for infrastructure failures (repo /
- * service writes). Per the contract, all per-row failures surface via
- * `ImportExecutionResult.skipped_procedures`, so this covers only
- * infrastructure-level faults. Logged at the call site; the wire surface
+ * `execute_excel_import` — the domain refused a patient of the workbook
+ * (EXI-179). Nothing was written (EXI-175).
+ */
+{ code: "PatientInvalid" } | 
+/**
+ * `execute_excel_import` — the domain refused a fund of the workbook
+ * (EXI-179). Nothing was written (EXI-175).
+ */
+{ code: "FundInvalid" } | 
+/**
+ * `execute_excel_import` — catch-all: a read or a write failed (EXI-179).
+ * Nothing was written (EXI-175). Logged at the call site; the wire surface
  * carries no detail.
  */
 { code: "ImportFailed" } | 

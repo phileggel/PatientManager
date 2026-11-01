@@ -115,7 +115,7 @@ impl ExcelImportOrchestrator {
             )
             .map_err(|e| {
                 tracing::error!(target: BACKEND, err = ?e, "Invalid patient in the workbook");
-                ExcelImportError::ImportFailed
+                ExcelImportError::PatientInvalid
             })?;
             patients_map.insert(excel_patient.temp_id.clone(), patient.id.clone());
             new_patients.push(patient);
@@ -155,7 +155,7 @@ impl ExcelImportOrchestrator {
                 )
                 .map_err(|e| {
                     tracing::error!(target: BACKEND, err = ?e, "Invalid fund in the workbook");
-                    ExcelImportError::ImportFailed
+                    ExcelImportError::FundInvalid
                 })?;
                 funds_map.insert(excel_fund.temp_id.clone(), fund.id.clone());
                 new_funds.push(fund);
@@ -2099,7 +2099,7 @@ mod tests {
             .execute_import(parse_result, HashMap::new(), vec![])
             .await
             .unwrap_err();
-        assert_eq!(err, ExcelImportError::ImportFailed);
+        assert_eq!(err, ExcelImportError::FundInvalid);
     }
 
     /// A well-formed procedure row anchors `workbook_year`, so the sheet-level

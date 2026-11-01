@@ -79,7 +79,7 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-170 (R16) — Pre-import deletion (backend)**: If a sheet's nominal month is not blocked (see EXI-160), **all** existing procedures for that month are permanently deleted before the new data is imported, unless EXI-171 applies. This mechanism allows a corrected sheet to be re-imported without accumulating duplicates.
 
-**EXI-171 — A workbook with no well-formed date (backend)**: When no procedure row of the workbook has a date in the expected format (EXI-280), the import cannot tell the year of its months: it blocks and replaces no month, and every row is reported skipped (EXI-290).
+**EXI-171 — A workbook with no well-formed date (backend)**: When no procedure row of the workbook has a date in the expected format (EXI-280), the import cannot tell the year of its months: it blocks and replaces no month, and every row that reaches the date gate is reported skipped (EXI-290).
 
 **EXI-175 — A failed import writes nothing (backend)**: Every write of an import — the patients and funds it creates (EXI-080, EXI-090), the procedures of the months it replaces (EXI-170), the procedures it creates and the patients' tracking fields (EXI-190) — happens in one transaction. If any of them fails, none applies and the import is rejected with an error: every procedure of every month, selected or not, is as it was before the import.
 
@@ -89,7 +89,7 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-178 — What a failed import does not undo (backend)**: The mapping preferences (EXI-230) and the procedure types created on the mapping screen (EXI-140) remain after a failed import.
 
-**EXI-179 — What fails an import (backend)**: An import fails, as EXI-175 says, when a read or a write fails, when the domain refuses a patient or fund that passed parsing, or when the database refuses a patient, fund or procedure.
+**EXI-179 — What fails an import (backend)**: An import fails, as EXI-175 says, when a read or a write fails (the database refusing a patient, fund or procedure is a failed write), or when the domain refuses a patient or fund that passed parsing. The refused patient and the refused fund each have their own error; the user sees the same message for all three.
 
 ### Import orchestration
 
@@ -124,7 +124,7 @@ Procedures in `Created` are then eligible for fund reconciliation (see R1 of fun
 **EXI-220 (R21) — Import report (backend + frontend)**: At the end of import, a single detailed report is reachable from the result screen. It contains two sections:
 
 - **Missing sheets**: list of monthly sheets expected but not found in the Excel file, displayed by the same name the user sees on the sheet-selection step (EXI-110).
-- **Skipped lines**: a single flat table with columns sheet, row, reason. Lines may come from either parse-time skips (see EXI-020) or execute-time skips (see EXI-290) — the two origins are merged because the user-facing concept ("rows that didn't make it into the database") is identical regardless of pipeline stage. Lines skipped because of an `#N/A` name or empty row are never reported (too numerous and not informative — the parser drops them silently, so they reach neither the wire nor the display). Rows are sorted by sheet (canonical month order) then row number.
+- **Skipped lines**: a single flat table with columns sheet, row, reason. Lines may come from either parse-time skips (see EXI-020, EXI-040) or execute-time skips (see EXI-290) — the two origins are merged because the user-facing concept ("rows that didn't make it into the database") is identical regardless of pipeline stage. Lines skipped because of an `#N/A` name or empty row are never reported (too numerous and not informative — the parser drops them silently, so they reach neither the wire nor the display). Rows are sorted by sheet (canonical month order) then row number.
 
 This report is informative and non-blocking.
 

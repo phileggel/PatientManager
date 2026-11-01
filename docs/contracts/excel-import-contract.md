@@ -23,7 +23,7 @@ Executes the import from a previously parsed response. Resolves and creates pati
 
 - **Args:** `parsed_data: ParseExcelResponse, procedure_type_mapping: Map<String, String>, selected_sheets: Vec<String>` — `selected_sheets` carries canonical sheet names (`"Jan"`, `"Fév"`, …) matching `ExcelProcedure.sheet_month`.
 - **Returns:** `ImportExecutionResult`
-- **Errors:** `ImportFailed` — catch-all; a skipped row is counted in `procedures_skipped`, and one failing a date gate also gets a `skipped_procedures` entry (EXI-290). Named variants wait on #366. `ImportFailed` covers what EXI-179 lists. On `ImportFailed` nothing was written (EXI-175). A blocked month or a skipped row is no failure (EXI-176).
+- **Errors:** `PatientInvalid`, `FundInvalid` — the domain refused a patient or fund of the workbook (EXI-179); `ImportFailed` — catch-all, a read or a write failed. A skipped row is counted in `procedures_skipped`, and one failing a date gate also gets a `skipped_procedures` entry (EXI-290). On any of them nothing was written (EXI-175). A blocked month or a skipped row is no failure (EXI-176).
 
 ---
 
@@ -143,4 +143,4 @@ Each is raised after the commit, at most once per import; a failed import raises
   - `ImportExecutionResult`: added `skipped_procedures: Vec<SkippedRow>` (execute-time skip report, mirrors parse-time `parsing_issues.skipped_rows`)
 - 2026-06-06 — Typed-error migration: all 4 commands return `ExcelImportError` (flat `#[serde(tag = "code")]` enum) instead of `Result<T, String>`. `get_excel_amount_mappings` / `save_excel_amount_mappings` now surface `DatabaseError` on infra failure (previously `Errors: —`).
 - 2026-10-24 — `parse_excel_file`: a path inside the app's data or log folder is `PathRejected`, a file above 50 MB `InvalidFormat` (#512).
-- 2026-11-01 — `execute_excel_import`: every write is one transaction, so on `ImportFailed` nothing was written (EXI-175, #580); its events are raised after the commit.
+- 2026-11-01 — `execute_excel_import`: every write is one transaction, so on any error nothing was written (EXI-175, #580); its events are raised after the commit; `PatientInvalid` and `FundInvalid` added (EXI-179).
