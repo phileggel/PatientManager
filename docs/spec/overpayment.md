@@ -61,7 +61,7 @@ Represents the link between the original paid procedure and the refund procedure
 
 - If **no bank account exists** in the system: the "Refund" button is disabled and a message is shown — "A bank account must be created before recording a refund."
 - If **exactly one bank account** exists: the selector is pre-filled with it automatically.
-- If **multiple bank accounts** exist: the selector is pre-filled with the bank account from the source procedure's original bank transfer. "Resolvable" means the source has a linked `BankTransfer` whose `bank_account_id` exists as a non-deleted record in the `bank_account` table. If not resolvable, the selector is shown empty and the user must pick one.
+- If **multiple bank accounts** exist: the selector is pre-filled with the bank account from the source procedure's original bank entry. "Resolvable" means the source has a linked bank entry whose `bank_account_id` exists as a non-deleted record in the `bank_account` table. If not resolvable, the selector is shown empty and the user must pick one.
 
 The backend rejects the request if no `bank_account_id` is provided.
 
