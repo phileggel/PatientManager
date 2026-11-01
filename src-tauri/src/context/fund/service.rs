@@ -146,6 +146,20 @@ impl FundPaymentService {
         })
     }
 
+    /// The group holding this procedure's line, if any (REF-070).
+    pub async fn find_group_id_by_procedure(
+        &self,
+        procedure_id: &str,
+    ) -> Result<Option<String>, FundError> {
+        self.repository
+            .find_group_id_by_procedure(procedure_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, error = %e, "Failed to find the group of a procedure");
+                FundError::DatabaseError
+            })
+    }
+
     /// Read fund payment lines for a specific group
     pub async fn read_lines_by_group(
         &self,

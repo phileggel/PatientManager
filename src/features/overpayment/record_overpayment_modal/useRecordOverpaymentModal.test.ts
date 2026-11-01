@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankAccount, OverpaymentError } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
@@ -11,11 +11,13 @@ vi.mock("../gateway", () => ({
   cancelOverpayment: vi.fn(),
   getProcedureRefundBySource: vi.fn(),
   getProcedureRefundByRefundProcedure: vi.fn(),
+  getSourceBankAccount: vi.fn(),
 }));
 
 import * as gateway from "../gateway";
 
 const mockCreate = vi.mocked(gateway.createOverpayment);
+const mockSourceAccount = vi.mocked(gateway.getSourceBankAccount);
 const mockToast = vi.mocked(toastService.show);
 
 const SOURCE_PROCEDURE = makeProcedure({
@@ -47,11 +49,108 @@ describe("useRecordOverpaymentModal", () => {
     expect(result.current.bankAccountId).toBe("ba-1");
   });
 
-  it("does not pre-fill bankAccountId when multiple accounts exist", () => {
+  describe("REF-070 with several accounts", () => {
     const second: BankAccount = { id: "ba-2", name: "Second", iban: null };
-    useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
+
+    it("pre-fills the account of the source's original transfer", async () => {
+      useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
+      mockSourceAccount.mockResolvedValue({ success: true, data: "ba-2" });
+      const { result } = makeHook();
+      await waitFor(() => expect(result.current.bankAccountId).toBe("ba-2"));
+      expect(mockSourceAccount).toHaveBeenCalledWith("proc-1");
+    });
+
+    it.each([
+      ["not resolvable", { success: true as const, data: null }],
+      ["no longer in the list", { success: true as const, data: "ba-gone" }],
+    ])("stays empty when the account is %s", async (_case, answer) => {
+      useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
+      mockSourceAccount.mockResolvedValue(answer);
+      const { result } = makeHook();
+      await waitFor(() => expect(mockSourceAccount).toHaveBeenCalled());
+      await act(async () => {});
+      expect(result.current.bankAccountId).toBe("");
+    });
+
+    it("REF-071: stays empty when the account cannot be read", async () => {
+      useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
+      mockSourceAccount.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
+      const { result } = makeHook();
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith("error", expect.any(String)));
+      expect(result.current.bankAccountId).toBe("");
+    });
+
+    it("REF-071: stays empty when the lookup throws", async () => {
+      useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
+      mockSourceAccount.mockRejectedValue(new Error("ipc down"));
+      const { result } = makeHook();
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith("error", "ipc down"));
+      expect(result.current.bankAccountId).toBe("");
+    });
+
+    it("REF-072: the selector is usable while the pre-fill is pending", async () => {
+      useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
+      mockSourceAccount.mockReturnValue(new Promise(() => {}));
+      const { result } = makeHook();
+      await waitFor(() => expect(mockSourceAccount).toHaveBeenCalled());
+      expect(result.current.bankAccountId).toBe("");
+      expect(result.current.loading).toBe(false);
+    });
+
+    it("REF-073: never overwrites a choice the user already made", async () => {
+      useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT, second] });
+      let answer: (value: { success: true; data: string }) => void = () => {};
+      mockSourceAccount.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      );
+      const { result } = makeHook();
+      act(() => result.current.setBankAccountId("ba-1"));
+      await act(async () => answer({ success: true, data: "ba-2" }));
+      expect(result.current.bankAccountId).toBe("ba-1");
+    });
+  });
+
+  it("REF-030: proposes the local date, not the UTC one", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 0, 1, 0, 30));
+    const utc = vi.spyOn(Date.prototype, "toISOString").mockReturnValue("2025-12-31T23:30:00.000Z");
+    try {
+      const { result } = makeHook();
+      expect(result.current.refundDate).toBe("2026-01-01");
+    } finally {
+      utc.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("REF-030: accepts a refund dated today and one dated the confirmed payment date", () => {
+    const today = new Date(2026, 5, 15, 12);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(today);
+    try {
+      const { result } = makeHook({ ...SOURCE_PROCEDURE, confirmed_payment_date: "2026-06-10" });
+      for (const date of ["2026-06-15", "2026-06-10"]) {
+        act(() => result.current.setRefundDate(date));
+        act(() => result.current.handleSubmit());
+        expect(result.current.fieldErrors.refundDate).toBeUndefined();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("REF-040: counts characters, so 255 emoji pass and the 256th does not", () => {
+    useCacheStore.setState({ bankAccounts: [MOCK_ACCOUNT] });
     const { result } = makeHook();
-    expect(result.current.bankAccountId).toBe("");
+    act(() => result.current.setReason("😀".repeat(255)));
+    act(() => result.current.handleSubmit());
+    expect(result.current.fieldErrors.reason).toBeUndefined();
+
+    act(() => result.current.setReason("😀".repeat(256)));
+    act(() => result.current.handleSubmit());
+    expect(result.current.fieldErrors.reason).toBeTruthy();
   });
 
   it("handleSubmit sets fieldErrors when transferType and bankAccountId are missing", () => {
@@ -63,7 +162,9 @@ describe("useRecordOverpaymentModal", () => {
   });
 
   it("handleSubmit sets fieldErrors.refundDate when date is in the future", () => {
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0]!;
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const tomorrow = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
     const { result } = makeHook();
     act(() => {
       result.current.setRefundDate(tomorrow);

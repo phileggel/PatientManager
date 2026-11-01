@@ -404,6 +404,11 @@ pub trait FundPaymentRepository: Send + Sync {
     ) -> anyhow::Result<Vec<FundPaymentLine>>;
     async fn read_group(&self, id: &str) -> anyhow::Result<Option<FundPaymentGroup>>;
     async fn read_lines_by_group(&self, group_id: &str) -> anyhow::Result<Vec<FundPaymentLine>>;
+    /// The group holding this procedure's line, if any (REF-070).
+    async fn find_group_id_by_procedure(
+        &self,
+        procedure_id: &str,
+    ) -> anyhow::Result<Option<String>>;
     async fn read_all_groups(&self) -> anyhow::Result<Vec<FundPaymentGroup>>;
     async fn update_group(&self, group: FundPaymentGroup) -> anyhow::Result<FundPaymentGroup>;
     async fn update_group_status(

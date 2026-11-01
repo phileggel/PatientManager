@@ -12,7 +12,7 @@
  * REF-030: refundDate validation.
  * REF-040: reason max 255 chars.
  * REF-060: transferType restricted to CreditCard, Check, OutgoingWire.
- * REF-070: bankAccount required; pre-filled if single account exists.
+ * REF-070: bankAccount required; pre-filled as the hook resolves it.
  */
 
 import { X } from "lucide-react";

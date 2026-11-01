@@ -40,6 +40,18 @@ export async function cancelOverpayment(
   return { success: false, error: result.error };
 }
 
+export async function getSourceBankAccount(
+  sourceProcedureId: string,
+): Promise<ServiceResult<string | null, OverpaymentError>> {
+  logger.debug("Fetching the source's bank account", { sourceProcedureId });
+  const result = await commands.getSourceBankAccount(sourceProcedureId);
+  if (result.status === "ok") {
+    return { success: true, data: result.data };
+  }
+  logger.error("Failed to fetch the source's bank account", { code: result.error.code });
+  return { success: false, error: result.error };
+}
+
 export async function getProcedureRefundBySource(
   sourceProcedureId: string,
 ): Promise<ServiceResult<ProcedureRefundInfo | null, OverpaymentError>> {

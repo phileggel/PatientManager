@@ -4,7 +4,8 @@
  * REF-030: refundDate must be present and not in the future.
  * REF-040: reason max 255 chars.
  * REF-060: transferType must be CreditCard, Check, or OutgoingWire.
- * REF-070: bankAccountId is required; pre-filled if exactly one account exists.
+ * REF-070: bankAccountId is required; pre-filled with the only account, or with the account
+ * of the source's original transfer when several exist and it resolves.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -17,6 +18,14 @@ import * as gateway from "../gateway";
 import { formatOverpaymentError } from "../shared/presenter";
 
 const TAG = "[useRecordOverpaymentModal]";
+
+/** Today in the user's time zone, as the backend judges REF-030 (`YYYY-MM-DD`). */
+function localToday(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
 
 interface FieldErrors {
   refundDate?: string;
@@ -41,7 +50,7 @@ export function useRecordOverpaymentModal({
 
   const bankAccounts = useCacheStore((state) => state.bankAccounts);
 
-  const today = new Date().toISOString().split("T")[0] ?? "";
+  const today = localToday();
 
   const [refundDate, setRefundDate] = useState(today);
   const [transferType, setTransferType] = useState("");
@@ -51,30 +60,50 @@ export function useRecordOverpaymentModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // REF-070: pre-fill bank account if exactly one exists
+  // REF-070: the only account, or the source's original one; a choice already made stays.
   useEffect(() => {
     if (bankAccounts.length === 1 && bankAccounts[0]) {
       setBankAccountId(bankAccounts[0].id);
+      return;
     }
-  }, [bankAccounts]);
+    if (bankAccounts.length < 2) return;
+    let stale = false;
+    gateway
+      .getSourceBankAccount(sourceProcedure.id)
+      .then((result) => {
+        if (stale) return;
+        if (!result.success) {
+          const { key, params } = formatOverpaymentError(result.error);
+          toastService.show("error", t(key, params));
+          return;
+        }
+        const accountId = result.data;
+        if (accountId && bankAccounts.some((account) => account.id === accountId)) {
+          setBankAccountId((current) => current || accountId);
+        }
+      })
+      .catch((error) => {
+        logger.error(`${TAG} Exception fetching the source's bank account`, { error });
+        if (stale) return;
+        toastService.show("error", error instanceof Error ? error.message : tc("error.unknown"));
+      });
+    return () => {
+      stale = true;
+    };
+  }, [bankAccounts, sourceProcedure.id, t, tc]);
 
   const validate = useCallback((): FieldErrors => {
     const errors: FieldErrors = {};
 
     if (!refundDate) {
       errors.refundDate = t("error.refund_date");
-    } else {
-      const parsed = new Date(refundDate);
-      const todayDate = new Date(today);
-      if (parsed > todayDate) {
-        errors.refundDate = t("error.refund_date");
-      } else if (
-        // REF-030: refundDate must not be before the source procedure's confirmed payment date
-        sourceProcedure.confirmed_payment_date &&
-        refundDate < sourceProcedure.confirmed_payment_date
-      ) {
-        errors.refundDate = t("error.refund_date");
-      }
+    } else if (
+      refundDate > today ||
+      // REF-030: refundDate must not be before the source procedure's confirmed payment date
+      (sourceProcedure.confirmed_payment_date &&
+        refundDate < sourceProcedure.confirmed_payment_date)
+    ) {
+      errors.refundDate = t("error.refund_date");
     }
 
     if (!transferType) {
@@ -85,7 +114,7 @@ export function useRecordOverpaymentModal({
       errors.bankAccountId = t("error.bank_account");
     }
 
-    if (reason.length > 255) {
+    if ([...reason].length > 255) {
       errors.reason = t("error.reason_too_long");
     }
 

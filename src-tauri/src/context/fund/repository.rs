@@ -506,6 +506,24 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         }
     }
 
+    async fn find_group_id_by_procedure(
+        &self,
+        procedure_id: &str,
+    ) -> anyhow::Result<Option<String>> {
+        let group_id = sqlx::query_scalar!(
+            r#"
+            SELECT l.fund_payment_group_id
+            FROM fund_payment_line l
+            JOIN fund_payment_group g ON g.id = l.fund_payment_group_id
+            WHERE l.procedure_id = $1 AND l.is_deleted = 0 AND g.is_deleted = 0
+            "#,
+            procedure_id,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(group_id)
+    }
+
     async fn read_lines_by_group(&self, group_id: &str) -> anyhow::Result<Vec<FundPaymentLine>> {
         tracing::trace!(target: BACKEND, group_id = %group_id, "Fetching fund payment lines for group");
 
@@ -1036,6 +1054,30 @@ mod tests {
         assert_eq!(lines.len(), 2);
         let read = payment_repo.read_group(&group.id).await.unwrap().unwrap();
         assert_eq!(read.origin, GroupOrigin::Payment);
+    }
+
+    #[tokio::test]
+    async fn ref_070_a_procedure_finds_its_group_until_its_line_is_gone() {
+        let (fund_repo, payment_repo) = setup_payment_repos().await;
+        let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
+        let group = payment_repo
+            .create_group(
+                fund.id.clone(),
+                "2026-01-15".to_string(),
+                10000,
+                vec!["proc-1".to_string()],
+            )
+            .await
+            .unwrap();
+
+        let found = payment_repo.find_group_id_by_procedure("proc-1").await;
+        assert_eq!(found.unwrap().as_deref(), Some(group.id.as_str()));
+        let other = payment_repo.find_group_id_by_procedure("proc-2").await;
+        assert_eq!(other.unwrap(), None);
+
+        payment_repo.delete_lines_by_group(&group.id).await.unwrap();
+        let gone = payment_repo.find_group_id_by_procedure("proc-1").await;
+        assert_eq!(gone.unwrap(), None);
     }
 
     #[tokio::test]

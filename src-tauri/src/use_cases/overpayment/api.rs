@@ -59,6 +59,24 @@ pub async fn get_procedure_refund_by_refund_procedure(
         .await
 }
 
+/// REF-070 — the bank account of the source procedure's original bank transfer,
+/// when it resolves; the refund form pre-fills it.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_source_bank_account(
+    source_procedure_id: String,
+    orchestrator: State<'_, Arc<OverpaymentOrchestrator>>,
+) -> Result<Option<String>, OverpaymentError> {
+    tracing::info!(
+        target: BACKEND,
+        source_procedure_id = %source_procedure_id,
+        "Processing get_source_bank_account command"
+    );
+    orchestrator
+        .get_source_bank_account(&source_procedure_id)
+        .await
+}
+
 /// REF-200 — Fetch ProcedureRefund by source_procedure_id.
 /// Used by the OverpaymentRefund modal to resolve source_procedure_id before cancel.
 #[tauri::command]

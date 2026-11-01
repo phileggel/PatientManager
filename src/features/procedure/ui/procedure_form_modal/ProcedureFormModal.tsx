@@ -364,7 +364,7 @@ export function ProcedureFormModal({
           {/* Refund button — view mode with FundPaid/PartiallyFundPaid (REF-010, REF-070) */}
           {canShowRefundButton && (
             <span
-              title={bankAccounts.length === 0 ? tov("noAccountTooltip") : undefined}
+              title={bankAccounts.length === 0 ? tov("no_account_tooltip") : undefined}
               className="flex-1"
             >
               <Button

@@ -101,7 +101,7 @@ impl OverpaymentOrchestrator {
 
         // Step 4 — Validate reason max 255 chars (REF-040)
         if let Some(ref reason) = req.reason {
-            if reason.len() > 255 {
+            if reason.chars().count() > 255 {
                 return Err(OverpaymentTask::ReasonTooLong.into());
             }
         }
@@ -391,6 +391,50 @@ impl OverpaymentOrchestrator {
             reason: r.reason,
             previous_payment_status: r.previous_payment_status,
         }))
+    }
+
+    /// REF-070 — the bank account of the source's original bank transfer, when it
+    /// resolves to a non-deleted account: procedure → fund group → bank transfer.
+    pub async fn get_source_bank_account(
+        &self,
+        source_procedure_id: &str,
+    ) -> Result<Option<String>, OverpaymentError> {
+        let Some(group_id) = self
+            .fund_payment_service
+            .find_group_id_by_procedure(source_procedure_id)
+            .await
+            .map_err(|_| OverpaymentTask::DatabaseError)?
+        else {
+            return Ok(None);
+        };
+        let Some(transfer_id) = self
+            .transfer_link_repo
+            .get_transfer_for_fund_group(&group_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "DB error finding the source's transfer");
+                OverpaymentTask::DatabaseError
+            })?
+        else {
+            return Ok(None);
+        };
+        let Some(transfer) = self
+            .bank_transfer_service
+            .read_transfer(&transfer_id)
+            .await
+            .map_err(|_| OverpaymentTask::DatabaseError)?
+        else {
+            return Ok(None);
+        };
+        match self
+            .bank_account_service
+            .read_account(&transfer.bank_account.id)
+            .await
+        {
+            Ok(account) => Ok(Some(account.id)),
+            Err(BankError::BankAccountNotFound { .. }) => Ok(None),
+            Err(_) => Err(OverpaymentTask::DatabaseError.into()),
+        }
     }
 
     /// Fetch a ProcedureRefund by refund_procedure_id.
@@ -885,6 +929,135 @@ mod tests {
             ),
             "expected InvalidRefundDate (REF-030 before-confirmed), got: {err}"
         );
+    }
+
+    /// The orchestrator of a `get_source_bank_account` read: `group` is the source's
+    /// fund group, `transfer` the transfer linked to it, `account` whether its account
+    /// still exists.
+    fn source_account_orchestrator(
+        group: Option<&'static str>,
+        transfer: Option<&'static str>,
+        account: bool,
+    ) -> OverpaymentOrchestrator {
+        let event_bus = Arc::new(EventBus::new());
+        let mut fund_repo = MockFundPaymentRepository::new();
+        fund_repo
+            .expect_find_group_id_by_procedure()
+            .returning(move |_| Ok(group.map(str::to_string)));
+        let mut link_repo = MockBankEntryLinkRepository::new();
+        link_repo
+            .expect_get_transfer_for_fund_group()
+            .returning(move |_| Ok(transfer.map(str::to_string)));
+        let account_repo: Arc<dyn BankAccountRepository> = Arc::new(if account {
+            bank_account_repo_returns_account()
+        } else {
+            bank_account_repo_returns_none()
+        });
+        OverpaymentOrchestrator::new(
+            Arc::new(ProcedureService::new(
+                Arc::new(MockProcedureRepository::new()),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(fund_repo),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(bank_entry_repo_persist_ok()),
+                account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(BankAccountService::new(account_repo, event_bus)),
+            Arc::new(link_repo),
+            Arc::new(MockProcedureRefundRepository::new()),
+        )
+    }
+
+    #[tokio::test]
+    async fn ref_070_the_source_account_comes_from_its_original_transfer() {
+        let account = source_account_orchestrator(Some("group-1"), Some("transfer-1"), true)
+            .get_source_bank_account("source-1")
+            .await
+            .unwrap();
+        assert_eq!(account.as_deref(), Some("account-1"));
+    }
+
+    #[tokio::test]
+    async fn ref_070_a_source_without_a_group_or_a_transfer_resolves_to_nothing() {
+        for orchestrator in [
+            source_account_orchestrator(None, None, true),
+            source_account_orchestrator(Some("group-1"), None, true),
+        ] {
+            let account = orchestrator.get_source_bank_account("source-1").await;
+            assert_eq!(account.unwrap(), None);
+        }
+    }
+
+    /// The transfer's read joins its account and filters deleted ones, so a deleted
+    /// account reaches the orchestrator as no transfer at all.
+    #[tokio::test]
+    async fn ref_070_a_transfer_read_that_finds_nothing_resolves_to_nothing() {
+        let event_bus = Arc::new(EventBus::new());
+        let mut fund_repo = MockFundPaymentRepository::new();
+        fund_repo
+            .expect_find_group_id_by_procedure()
+            .returning(|_| Ok(Some("group-1".to_string())));
+        let mut link_repo = MockBankEntryLinkRepository::new();
+        link_repo
+            .expect_get_transfer_for_fund_group()
+            .returning(|_| Ok(Some("transfer-1".to_string())));
+        let mut entry_repo = MockBankEntryRepository::new();
+        entry_repo.expect_read_transfer().returning(|_| Ok(None));
+        let account_repo: Arc<dyn BankAccountRepository> =
+            Arc::new(bank_account_repo_returns_account());
+        let orchestrator = OverpaymentOrchestrator::new(
+            Arc::new(ProcedureService::new(
+                Arc::new(MockProcedureRepository::new()),
+                event_bus.clone(),
+            )),
+            Arc::new(FundPaymentService::new(
+                Arc::new(fund_repo),
+                event_bus.clone(),
+            )),
+            Arc::new(BankEntryService::new(
+                Arc::new(entry_repo),
+                account_repo.clone(),
+                event_bus.clone(),
+            )),
+            Arc::new(BankAccountService::new(account_repo, event_bus)),
+            Arc::new(link_repo),
+            Arc::new(MockProcedureRefundRepository::new()),
+        );
+        let account = orchestrator.get_source_bank_account("source-1").await;
+        assert_eq!(account.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn ref_070_a_deleted_account_resolves_to_nothing() {
+        let account = source_account_orchestrator(Some("group-1"), Some("transfer-1"), false)
+            .get_source_bank_account("source-1")
+            .await
+            .unwrap();
+        assert_eq!(account, None);
+    }
+
+    /// REF-040 counts characters: 255 accented ones pass, the 256th does not.
+    #[tokio::test]
+    async fn ref_040_the_limit_counts_characters_not_bytes() {
+        let orchestrator = make_success_orchestrator();
+        let mut req = base_request();
+        req.reason = Some("é".repeat(256));
+        assert!(matches!(
+            orchestrator.create_overpayment(req).await.unwrap_err(),
+            OverpaymentError::Task(OverpaymentTask::ReasonTooLong)
+        ));
+
+        let mut req = base_request();
+        req.reason = Some("é".repeat(255));
+        orchestrator
+            .create_overpayment(req)
+            .await
+            .expect("255 accented characters are within the limit");
     }
 
     #[tokio::test]
