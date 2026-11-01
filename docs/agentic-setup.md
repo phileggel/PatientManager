@@ -4,7 +4,7 @@ What each piece of the setup is for, in one line, and what it must never do. The
 content of a piece differs from one repository to another; its responsibility does not.
 Only what this repository holds: what the plugins bring is in their own files.
 
-`scripts/rule-homes.py` fails when a script or a git hook
+`scripts/rule-homes.py` fails when a script or a hook
 exists without a line here, or when a line names a path that is gone. `/flow:flow-audit`
 reads each generic piece against its line. A piece is a list item opened by its path.
 
@@ -58,10 +58,8 @@ reads each generic piece against its line. A piece is a list item opened by its 
   messages. Never: prints the data it found.
 - `scripts/review-stop-reason.py` — why a reviewer session stopped in CI. Never: fails its job.
 - `scripts/review-criticals.py` — a report's critical count. Never: counts a report with no count as clean.
-- `scripts/usage_log.py` — writes one line per run of a tool, locally. Never: in CI,
-  nor anything about the data handled.
-- `scripts/usage-log.sh` — the same line for a shell script. Never: changes the
-  script's exit code.
+- `scripts/usage_log.py` — one line per run of a tool, locally. Never: in CI, nor the data.
+- `scripts/usage-log.sh` — the same line for a shell script. Never: changes its exit code.
 
 ### Git hooks
 
@@ -70,13 +68,15 @@ reads each generic piece against its line. A piece is a list item opened by its 
 - `.githooks/commit-msg` — refuses a title outside the commit format, an attribution
   line, or private data. Never: rewrites the message.
 - `.githooks/pre-push` — the fast checks of the pushed commits. Never: what CI owns.
-- `.githooks/pre-merge-commit` — refuses a merge commit, so history stays linear.
-  Never: blocks a fast-forward.
+- `.githooks/pre-merge-commit` — refuses a merge commit. Never: blocks a fast-forward.
 
 ## This project
 
 The pieces only this repository has: the tools of its build.
 
+- `.claude/hooks/session-start.sh` — installs a web session's toolchain. Never: the app's data.
+- `.claude/hooks/review-report-required.sh` — sends a CI reviewer back to save its
+  report. Never: a local session, or a second time.
 - `scripts/start-app.sh` — starts the application in development mode. Never: touches
   the installed application's data.
 - `scripts/core-without-tauri.sh` — proves the core builds without the desktop shell

@@ -169,13 +169,13 @@ def listed_pieces(setup_text: str) -> list[str]:
 
 
 def setup_pieces(files: list[str]) -> list[str]:
-    """The pieces that owe a line: scripts, skills (as their folder), agent prompts, git hooks."""
+    """The pieces that owe a line: scripts, skills (as their folder), agent prompts, hooks."""
     pieces = set()
     for f in files:
         skill = SKILL.fullmatch(f)
         if skill:
             pieces.add(skill.group(1))
-        elif re.fullmatch(r"scripts/[^/]+|\.claude/agents/[^/]+\.md", f):
+        elif re.fullmatch(r"scripts/[^/]+|\.claude/agents/[^/]+\.md|\.claude/hooks/[^/]+", f):
             pieces.add(f)
         elif re.fullmatch(r"\.githooks/[^/.]+", f):
             pieces.add(f)
