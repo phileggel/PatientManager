@@ -213,13 +213,15 @@ jobs:
           # base branch's prompts and settings over the pull request's in the workspace.
           # Its `.claude/skills/` may load as the session's skills: the `Skill` tool is refused.
           git worktree add --detach /home/runner/work/_temp/branch HEAD
-          # The stop-reason helper runs beside a token (last step): the base
-          # branch's copy, or none at all on the pull request that adds it.
-          if git cat-file -e "origin/$BASE:scripts/review-stop-reason.py" 2>/dev/null; then
-            git checkout "origin/$BASE" -- scripts/review-stop-reason.py
-          else
-            rm -f scripts/review-stop-reason.py
-          fi
+          # The helpers run beside a token (last step): the base branch's copy, or
+          # none at all on the pull request that adds it.
+          for helper in scripts/review-stop-reason.py scripts/review-criticals.py; do
+            if git cat-file -e "origin/$BASE:$helper" 2>/dev/null; then
+              git checkout "origin/$BASE" -- "$helper"
+            else
+              rm -f "$helper"
+            fi
+          done
           # The session's settings and hooks are the base branch's too: the pinned
           # action loads the checked-out project's settings (setting sources user,
           # project, local in base-action/src/parse-sdk-options.ts at v1.0.251) and
@@ -280,7 +282,7 @@ jobs:
             echo "needed=false" >> "$GITHUB_OUTPUT"
           else
             echo "needed=true" >> "$GITHUB_OUTPUT"
-            why=$(python3 scripts/review-stop-reason.py "$SESSION_LOG" 2>/dev/null || echo "the stop reason is unavailable")
+            why=$(python3 -I scripts/review-stop-reason.py "$SESSION_LOG" 2>/dev/null || echo "the stop reason is unavailable")
             echo "::warning::reviewer-$REVIEWER wrote no report on its first try: $why. Trying once more."
           fi
 
@@ -358,15 +360,25 @@ jobs:
             why="the stop reason is unavailable"
             # This step holds a token: the helper runs only as the base branch's copy.
             if [[ "$TRUSTED" == "success" ]]; then
-              why=$(python3 scripts/review-stop-reason.py review-session.json 2>/dev/null || echo "$why")
+              why=$(python3 -I scripts/review-stop-reason.py review-session.json 2>/dev/null || echo "$why")
             fi
             body=$(printf '%s\n## reviewer-%s — no report\n\nThe reviewer produced no report in two tries ([run](%s)); the check fails until it does. On the second try %s.\n\nSession said:\n\n> %s\n' \
               "$MARKER" "$REVIEWER" "$RUN_URL" "$why" "${last:-(no final message)}")
             criticals=1
           else
-            # The lanes' headline, or the spec, contract and ADR reviewers' closing line.
-            criticals=$( { grep -Eo '(🔴 |Review complete: )[0-9]+ critical' "$report" || true; } | grep -Eo '[0-9]+' | head -n 1 || true)
-            criticals=${criticals:-0}
+            # A failure of the helper fails this step, so a report it cannot read never
+            # goes green. `-I`: the rest of `scripts/` is the pull request's, and Python
+            # would otherwise import from it, beside the token.
+            # If the trusted step failed, the helper may be the pull request's: fail.
+            # The grep is for the pull request that adds the helper only.
+            if [[ "$TRUSTED" != "success" ]]; then
+              criticals=1
+            elif [[ -f scripts/review-criticals.py ]]; then
+              criticals=$(python3 -I scripts/review-criticals.py "$report")
+            else
+              criticals=$( { grep -Eo '(🔴 |Review complete: )[0-9]+ critical' "$report" || true; } | grep -Eo '[0-9]+' | head -n 1 || true)
+              criticals=${criticals:-0}
+            fi
             # GitHub caps a comment at 65 536 characters; keep the head of a long report.
             body=$(printf '%s\n%s\n\n[run](%s)\n' "$MARKER" "$(head -c 60000 "$report")" "$RUN_URL")
           fi
