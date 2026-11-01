@@ -54,6 +54,17 @@ class Criticals(unittest.TestCase):
         self.assertEqual(review.criticals(section), 1)
         self.assertEqual(review.criticals("No findings in a.\n- 🔴 b: a finding\n"), 1)
 
+    def test_574_a_listed_critical_counts_beside_a_document_that_closes_at_zero(self):
+        report = "Review complete: 0 critical.\n## b\n- 🔴 a finding\n"
+        self.assertEqual(review.criticals(report), 1)
+
+    def test_574_a_zero_headline_followed_by_a_list_is_zero(self):
+        report = "🔴 0 critical, 1 warning(s).\n\n- 🟡 a warning\n"
+        self.assertEqual(review.criticals(report), 0)
+
+    def test_574_a_phrase_inside_a_sentence_is_not_a_clean_report(self):
+        self.assertEqual(review.criticals("There were no findings new; see above.\n"), 1)
+
     def test_574_an_empty_critical_section_is_zero(self):
         self.assertEqual(review.criticals("### 🔴 Critical\n✅ None.\n🟡 1 warning\n"), 0)
 

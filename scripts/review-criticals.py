@@ -22,12 +22,13 @@ from pathlib import Path
 
 
 def criticals(report: str) -> int:
-    counts = re.findall(r"(?:Review complete: |🔴 )(\d+) critical", report)
-    if counts:
-        return sum(int(count) for count in counts)
-    if re.search(r"(?m)^\s*- 🔴|🔴[^\n]*\n+\s*- ", report):
-        return 1  # a listed critical with no count, whatever else the report says
-    clean = r"(?m)No issues found|No findings|^#+\s*Findings\s+None\b|(?:🟡|🔵) \d+ (?:warning|suggestion)"
+    total = sum(int(n) for n in re.findall(r"(?:Review complete: |🔴 )(\d+) critical", report))
+    # A critical listed with no count, whatever else the report says.
+    if re.search(r"(?m)^\s*- 🔴|🔴(?! \d)[^\n]*\n+\s*- ", report):
+        return max(total, 1)
+    if re.search(r"(?:Review complete: |🔴 )\d+ critical", report):
+        return total
+    clean = r"(?m)No issues found|^No findings|^#+\s*Findings\s+None\b|(?:🟡|🔵) \d+ (?:warning|suggestion)"
     return 0 if re.search(clean, report) else 1
 
 
