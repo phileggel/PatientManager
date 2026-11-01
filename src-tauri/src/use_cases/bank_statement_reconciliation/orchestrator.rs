@@ -2680,6 +2680,71 @@ mod tests {
         assert_eq!(count, 0, "a left-aside line must create nothing (BAS-123C)");
     }
 
+    // BAS-062A — a transfer removed by the user is not created at validation, even
+    // though linking another label re-attempts the auto-match.
+    #[tokio::test]
+    async fn validate_reconciliation_removed_transfer_stays_removed_after_another_link() {
+        let mapping = BankFundLabelMapping {
+            id: "m1".to_string(),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: "CPAM93".to_string(),
+            fund_id: Some("fund-1".to_string()),
+        };
+        let group = FundPaymentGroup::restore(
+            "group-a".to_string(),
+            "fund-1".to_string(),
+            NaiveDate::from_ymd_opt(2026, 1, 14).unwrap(),
+            100_000,
+            vec![],
+            FundPaymentGroupStatus::Active,
+            crate::context::fund::GroupOrigin::Payment,
+        );
+        let fund = Fund::restore(
+            "fund-1".to_string(),
+            "FUND-1".to_string(),
+            "Fund 1".to_string(),
+        );
+        let orchestrator = make_orchestrator_with(vec![fund], vec![group], None, vec![mapping]);
+
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-16".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 100_000,
+                },
+                BankStatementCreditLine {
+                    date: "2026-01-17".to_string(),
+                    label: "OTHER".to_string(),
+                    amount: 50_000,
+                },
+            ],
+            total_credits: 150_000,
+            unparsed_count: 0,
+        };
+        let corrections = vec![
+            BankStatementCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: Vec::new(),
+            },
+            BankStatementCorrection::LinkFund {
+                bank_label: "OTHER".to_string(),
+                assignment: FundAssignment::Fund {
+                    fund_id: "fund-1".to_string(),
+                },
+            },
+        ];
+
+        let count = orchestrator
+            .validate_reconciliation("acc-1", &parse_result, &corrections)
+            .await
+            .unwrap();
+
+        assert_eq!(count, 0);
+    }
+
     // BAS-115 — `create_group` is called `is_silent=true` (no new publish); the
     // born group's single `FundPaymentGroupUpdated` event comes from the
     // `notify_group_updated` call that follows the settle step. Exactly one

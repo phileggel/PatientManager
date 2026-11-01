@@ -574,6 +574,64 @@ describe("useBankStatementReconciliation — correction-list compaction (BAS-113
     expect(mockCompute.mock.calls.at(-1)?.[2]).toEqual([LINK_FUND_A, LINK_FUND_B]);
   });
 
+  it("BAS-062B: re-linking to a different fund keeps an empty AssignProcedures on the line", async () => {
+    const afterAssign: BankStatementReconciliation = makeReconciliation({
+      lines: [makeRatpLine()],
+    });
+    const LEAVE_ASIDE: BankStatementCorrection = { ...ASSIGN_PROCEDURES, procedure_ids: [] };
+    mockCompute
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION })
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION })
+      .mockResolvedValueOnce({ success: true, data: afterAssign })
+      .mockResolvedValueOnce({ success: true, data: afterAssign });
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_A);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(LEAVE_ASIDE);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_B);
+    });
+
+    expect(result.current.corrections).toEqual([LINK_FUND_A, LEAVE_ASIDE, LINK_FUND_B]);
+  });
+
+  it("BAS-062B: reverting a LinkFund keeps an empty AssignProcedures on the line", async () => {
+    const afterAssign: BankStatementReconciliation = makeReconciliation({
+      lines: [makeRatpLine()],
+    });
+    const LEAVE_ASIDE: BankStatementCorrection = { ...ASSIGN_PROCEDURES, procedure_ids: [] };
+    mockCompute
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION })
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION })
+      .mockResolvedValueOnce({ success: true, data: afterAssign })
+      .mockResolvedValueOnce({ success: true, data: INITIAL_RECONCILIATION });
+
+    const { result } = renderHook(() =>
+      useBankStatementReconciliation(BANK_ACCOUNT_ID, PARSE_RESULT),
+    );
+    await waitFor(() => expect(result.current.reconciliation).toBeDefined());
+
+    await act(async () => {
+      await result.current.applyCorrection(LINK_FUND_A);
+    });
+    await act(async () => {
+      await result.current.applyCorrection(LEAVE_ASIDE);
+    });
+    await act(async () => {
+      await result.current.revertCorrection(0);
+    });
+
+    expect(result.current.corrections).toEqual([LEAVE_ASIDE]);
+  });
+
   it("reverting a LinkFund correction removes dependent AssignProcedures corrections for lines of that label (BAS-066) — revert-safety", async () => {
     const afterAssign: BankStatementReconciliation = makeReconciliation({
       lines: [makeRatpLine()],
