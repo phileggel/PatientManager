@@ -38,6 +38,36 @@ class Criticals(unittest.TestCase):
         self.assertEqual(review.criticals("## reviewer-backend\n\n✅ No issues found.\n"), 0)
         self.assertEqual(review.criticals("Review complete: 0 critical, 1 warning(s).\n"), 0)
 
+    def test_574_a_headline_of_warnings_or_suggestions_only_is_zero(self):
+        # The protocol's headline leaves out a severity it has none of (PR #615).
+        self.assertEqual(review.criticals("🟡 1 warning across 1 file.\n"), 0)
+        self.assertEqual(review.criticals("🔵 1 suggestion across 1 file(s).\n"), 0)
+        self.assertEqual(review.criticals("🟡 2 warning(s), 🔵 1 suggestion across 1 file.\n"), 0)
+
+    def test_574_a_lane_s_free_wording_of_nothing_found_is_zero(self):
+        # Wordings of real reports: PR #613, PR #603.
+        self.assertEqual(review.criticals("# reviewer-infra\n\nNo findings. A release.\n"), 0)
+        self.assertEqual(review.criticals("## Findings\n\nNone.\n"), 0)
+
+    def test_574_a_listed_critical_with_no_count_fails_beside_a_clean_wording(self):
+        section = "### 🔴 Critical\n- a finding\n\n🟡 2 warning(s) across 1 file.\n"
+        self.assertEqual(review.criticals(section), 1)
+        self.assertEqual(review.criticals("No findings in a.\n- 🔴 b: a finding\n"), 1)
+
+    def test_574_a_listed_critical_counts_beside_a_document_that_closes_at_zero(self):
+        report = "Review complete: 0 critical.\n## b\n- 🔴 a finding\n"
+        self.assertEqual(review.criticals(report), 1)
+
+    def test_574_a_zero_headline_followed_by_a_list_is_zero(self):
+        report = "🔴 0 critical, 1 warning(s).\n\n- 🟡 a warning\n"
+        self.assertEqual(review.criticals(report), 0)
+
+    def test_574_a_phrase_inside_a_sentence_is_not_a_clean_report(self):
+        self.assertEqual(review.criticals("There were no findings new; see above.\n"), 1)
+
+    def test_574_an_empty_critical_section_is_zero(self):
+        self.assertEqual(review.criticals("### 🔴 Critical\n✅ None.\n🟡 1 warning\n"), 0)
+
     def test_574_a_report_with_no_count_fails(self):
         self.assertEqual(review.criticals("## reviewer-x\n\n### 🔴 Critical\n- a finding\n"), 1)
         self.assertEqual(review.criticals(""), 1)
