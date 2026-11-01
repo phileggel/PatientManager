@@ -511,7 +511,7 @@ async fn test_bsm_036_an_unknown_procedure_refuses_the_selection() {
 async fn test_bsm_036_a_deleted_procedure_refuses_the_selection() {
     let pool = setup_db().await;
     let (orchestrator, _, _) = make_components(&pool);
-    let (_, kept, free_procedure) = direct_scene(&pool, &orchestrator).await;
+    let (entry, kept, free_procedure) = direct_scene(&pool, &orchestrator).await;
     sqlx::query(r#"UPDATE "procedure" SET is_deleted = 1 WHERE id = ?"#)
         .bind(&kept)
         .execute(&pool)
@@ -520,11 +520,21 @@ async fn test_bsm_036_a_deleted_procedure_refuses_the_selection() {
     let before = stored(&pool).await;
 
     let created = orchestrator
-        .create_direct_transfer(account(), date(), CHECK, vec![free_procedure, kept])
+        .create_direct_transfer(account(), date(), CHECK, vec![free_procedure, kept.clone()])
+        .await;
+    // The edit moves the date, so it is not answered unchanged (BSM-031).
+    let edited = orchestrator
+        .update_direct_transfer(entry, date(), vec![kept])
         .await;
 
     assert!(matches!(
         created,
+        Err(BankManualMatchError::Procedure(
+            ProcedureError::ProcedureNotFound { .. }
+        ))
+    ));
+    assert!(matches!(
+        edited,
         Err(BankManualMatchError::Procedure(
             ProcedureError::ProcedureNotFound { .. }
         ))
