@@ -86,7 +86,7 @@ the source.
 ## Infra review
 
 `app:reviewer-infra` adds these to its own checks (`.claude/daneel.json` names this document),
-and the files `guide-ceilings.json` and `.claude/rules/*.md`:
+and the files `guide-ceilings.json`, `.claude/rules/*.md` and `.claude/hooks/*.sh`:
 
 - a ceiling in `guide-ceilings.json` raised without the owner's yes 🔴; the deny list losing a prohibition of `CLAUDE.md` § Core rules 1 🔴;
 - `Bash(python3 -c *)` / `Bash(python3 - *)` are accepted, never widened; another spelling

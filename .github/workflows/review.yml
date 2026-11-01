@@ -127,12 +127,15 @@ jobs:
         Be concise: one line per finding (location, claim, fix); no
         restating of the diff, no narrative, no unrequested alternatives.
       # 60 turns: an 11-file infra diff needed 48 (#139, 4.5 min); the job timeout keeps ample headroom.
+      # The Stop hook is the base branch's copy (the trusted step): on the pull request
+      # that adds it, it does not run, and the retry and the last step stand alone.
       REVIEW_ARGS: |
         --model claude-sonnet-5
         --max-turns 60
-        --allowedTools "Read" "Grep" "Glob" "Edit(.review/**)" "Bash(bash .daneel/plugins/app/scripts/branch.sh *)" "Bash(bash .daneel/plugins/app/scripts/review-path.sh *)" "Bash(git status)" "Bash(git cat-file *)" "Bash(git rev-parse *)" "Bash(git ls-files)" "Bash(git ls-files *)" "Bash(grep *)" "Bash(ls *)" "Bash(wc *)" "Bash(shellcheck *)"
+        --allowedTools "Read" "Grep" "Glob" "Write(.review/**)" "Edit(.review/**)" "Bash(bash .daneel/plugins/app/scripts/branch.sh *)" "Bash(bash .daneel/plugins/app/scripts/review-path.sh *)" "Bash(git status)" "Bash(git cat-file *)" "Bash(git rev-parse *)" "Bash(git ls-files)" "Bash(git ls-files *)" "Bash(grep *)" "Bash(ls *)" "Bash(wc *)" "Bash(shellcheck *)"
         --disallowedTools "WebFetch" "WebSearch" "Skill"
         --add-dir /home/runner/work/_temp/branch
+        --settings '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"bash $CLAUDE_PROJECT_DIR/.claude/hooks/review-report-required.sh ${{ matrix.agent }}"}]}]}}'
     strategy:
       fail-fast: false
       matrix:

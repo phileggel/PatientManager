@@ -60,8 +60,7 @@ reads each generic piece against its line. A piece is a list item opened by its 
 - `scripts/review-criticals.py` — a report's critical count. Never: counts a report with no count as clean.
 - `scripts/usage_log.py` — writes one line per run of a tool, locally. Never: in CI,
   nor anything about the data handled.
-- `scripts/usage-log.sh` — the same line for a shell script. Never: changes the
-  script's exit code.
+- `scripts/usage-log.sh` — the same line for a shell script. Never: changes its exit code.
 
 ### Git hooks
 
@@ -70,13 +69,14 @@ reads each generic piece against its line. A piece is a list item opened by its 
 - `.githooks/commit-msg` — refuses a title outside the commit format, an attribution
   line, or private data. Never: rewrites the message.
 - `.githooks/pre-push` — the fast checks of the pushed commits. Never: what CI owns.
-- `.githooks/pre-merge-commit` — refuses a merge commit, so history stays linear.
-  Never: blocks a fast-forward.
+- `.githooks/pre-merge-commit` — refuses a merge commit. Never: blocks a fast-forward.
 
 ## This project
 
 The pieces only this repository has: the tools of its build.
 
+- `.claude/hooks/review-report-required.sh` — sends a CI reviewer back to save its
+  report. Never: a local session, or a second time.
 - `scripts/start-app.sh` — starts the application in development mode. Never: touches
   the installed application's data.
 - `scripts/core-without-tauri.sh` — proves the core builds without the desktop shell
