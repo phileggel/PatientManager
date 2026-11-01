@@ -41,3 +41,4 @@ pub use excel_codec::{
 // Tauri command today, the command line next, the dev fixture binary and the
 // round-trip tests. It is part of the core's surface (B47).
 pub use parser::ExcelParserService;
+pub use uow::{ExcelImportOperation, ExcelImportTransactionManager, ExcelImportUnitOfWork};
