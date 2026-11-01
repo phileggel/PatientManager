@@ -53,7 +53,7 @@ Represents the link between the original paid procedure and the refund procedure
 
 ### Creation of Refund Records
 
-**REF-050 — Atomic Refund Creation (backend)**: Creating an overpayment is a single database transaction. If any step fails, the entire operation rolls back and no record is persisted.
+**REF-050 — Atomic Refund Creation (backend)**: Creating an overpayment is a single database transaction. If any step fails, the entire operation rolls back and no record is persisted. Not so yet: the code follows ADR-002 until #390 ships (owner, 2026-10-24).
 
 **REF-060 — Refund Payment Method Validation (frontend + backend)**: The user must select a payment method for the refund. Accepted values are `CreditCard`, `Check`, and `OutgoingWire` (domain enum names). `Cash` and `Fund` are not accepted for refunds: `Fund` is an incoming payment type and `Cash` cannot be remitted to an insurance body. The backend rejects any other value with a validation error.
 
@@ -132,7 +132,7 @@ The backend rejects the request if no `bank_account_id` is provided.
 
 ### Deletion
 
-**REF-210 — Cancellation of Overpayment (backend)**: Cancelling a refund is a single database transaction, executed in reverse creation order. The cancellation command always receives the `source_procedure_id` as its identifier. When triggered from the `OverpaymentRefund` modal (REF-200), the frontend resolves the `source_procedure_id` from the `ProcedureRefund` record loaded with the modal. The backend looks up the `ProcedureRefund` record by `source_procedure_id` to obtain all related IDs before proceeding:
+**REF-210 — Cancellation of Overpayment (backend)**: Cancelling a refund is a single database transaction, executed in reverse creation order (not yet a transaction: ADR-002 until #390, owner, 2026-10-24). The cancellation command always receives the `source_procedure_id` as its identifier. When triggered from the `OverpaymentRefund` modal (REF-200), the frontend resolves the `source_procedure_id` from the `ProcedureRefund` record loaded with the modal. The backend looks up the `ProcedureRefund` record by `source_procedure_id` to obtain all related IDs before proceeding:
 
 1. Revert the source procedure's `payment_status` to the value stored in `ProcedureRefund.previous_payment_status`.
 2. Delete the `ProcedureRefund` link entry.

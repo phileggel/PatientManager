@@ -21,8 +21,8 @@ If any step fails mid-cascade, the writes already committed remain in the databa
 automatic rollback. `excel_import`, `bank_manual_match` and `fund_payment_reconciliation` had the
 same limitation when this was written; they now follow ADR-003. This decision describes the
 overpayment cascade only, as the code stands. The owner has decided to supersede it (2026-10-24,
-#390): REF-050, REF-170, REF-210 and the contract already state the single transaction that issue
-ships, so until then they promise more than the code does.
+#390): REF-050, REF-210 and the contract state the single transaction that issue ships, and each says
+it is not so yet.
 
 Wrapping the cascade in a single `sqlx` transaction (`BEGIN` … `COMMIT` / `ROLLBACK`) was
 considered. It would guarantee atomicity but adds meaningful complexity: the entire cascade must
