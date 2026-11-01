@@ -15,15 +15,15 @@ Parses the Excel file at the given path, which must be an existing `.xlsx` file 
 
 ---
 
-### `execute_excel_import` — R8, R9, R10, R15, R16, R17, R18, R19, R20, R24, R25, EXI-270, EXI-280, EXI-281, EXI-290
+### `execute_excel_import` — R8, R9, R10, R15, R16, R17, R18, R19, R20, R24, R25, PRO-300, EXI-175, EXI-176, EXI-177, EXI-178, EXI-179, EXI-270, EXI-280, EXI-281, EXI-290
 
-Executes the import from a previously parsed response. Resolves and creates patients (R8) and funds (R9). Selection is by sheet (EXI-270): the backend filters rows by `ExcelProcedure.sheet_month` equality against `selected_sheets`. For each selected sheet, checks blocking (R15) on the sheet's nominal month and deletes non-blocked month procedures (R16). For each procedure row in a selected sheet, the orchestrator applies the execute-time validation gates before creation: `procedure_date` and `confirmed_payment_date` must parse (EXI-280), and `procedure_date.month` must equal the sheet's nominal month (EXI-281). Rows that fail any gate are added to `ImportExecutionResult.skipped_procedures` (EXI-290) with the source sheet, row number, and a human-readable reason; the import continues with the remaining rows. Accepted procedures are created in the correct initial status (R19) and patient tracking fields are updated (R18). Procedures whose `procedure_type_tmp_id` is absent from `procedure_type_mapping` are skipped (R25). Returns a detailed result report (R20).
+Executes the import from a previously parsed response. Resolves and creates patients (R8) and funds (R9). Selection is by sheet (EXI-270): the backend filters rows by `ExcelProcedure.sheet_month` equality against `selected_sheets`. For each selected sheet, checks blocking (R15) on the sheet's nominal month and lists the non-blocked months to replace (R16); their procedures are deleted before any procedure is created, in one transaction with every other write (EXI-175). For each procedure row in a selected sheet, the orchestrator applies the execute-time validation gates before creation: `procedure_date` and `confirmed_payment_date` must parse (EXI-280), and `procedure_date.month` must equal the sheet's nominal month (EXI-281). Rows that fail any gate are added to `ImportExecutionResult.skipped_procedures` (EXI-290) with the source sheet, row number, and a human-readable reason; the import continues with the remaining rows. Accepted procedures are created in the correct initial status (R19) and patient tracking fields are updated (R18). Procedures whose `procedure_type_tmp_id` is absent from `procedure_type_mapping` are skipped (R25). Returns a detailed result report (R20).
 
 > R7: `parsed_data` must be the original parse response — never re-parsed.
 
 - **Args:** `parsed_data: ParseExcelResponse, procedure_type_mapping: Map<String, String>, selected_sheets: Vec<String>` — `selected_sheets` carries canonical sheet names (`"Jan"`, `"Fév"`, …) matching `ExcelProcedure.sheet_month`.
 - **Returns:** `ImportExecutionResult`
-- **Errors:** `ImportFailed` — catch-all by design; all per-row failures surface via `ImportExecutionResult.skipped_procedures` (EXI-290), so no named hard-fail variants exist at command granularity. `ImportFailed` covers infrastructure-level failures (DB outage, repo write failure) only.
+- **Errors:** `ImportFailed` — catch-all; a skipped row is counted in `procedures_skipped`, and one failing a date gate also gets a `skipped_procedures` entry (EXI-290). Named variants wait on #366. `ImportFailed` covers what EXI-179 lists. On `ImportFailed` nothing was written (EXI-175). A blocked month or a skipped row is no failure (EXI-176).
 
 ---
 
@@ -126,9 +126,13 @@ struct SaveExcelAmountMappingRequest {
 
 ## Events
 
-| Event              | Trigger                                                                 |
-| ------------------ | ----------------------------------------------------------------------- |
-| `ProcedureUpdated` | After `execute_excel_import` — procedures created or deleted (R16, R17) |
+| Event              | Trigger (EXI-177)                                     |
+| ------------------ | ----------------------------------------------------- |
+| `ProcedureUpdated` | `execute_excel_import` deleted or created a procedure |
+| `PatientUpdated`   | `execute_excel_import` wrote a patient                |
+| `FundUpdated`      | `execute_excel_import` created a fund                 |
+
+Each is raised after the commit, at most once per import; a failed import raises none.
 
 ## Changelog
 
@@ -139,3 +143,4 @@ struct SaveExcelAmountMappingRequest {
   - `ImportExecutionResult`: added `skipped_procedures: Vec<SkippedRow>` (execute-time skip report, mirrors parse-time `parsing_issues.skipped_rows`)
 - 2026-06-06 — Typed-error migration: all 4 commands return `ExcelImportError` (flat `#[serde(tag = "code")]` enum) instead of `Result<T, String>`. `get_excel_amount_mappings` / `save_excel_amount_mappings` now surface `DatabaseError` on infra failure (previously `Errors: —`).
 - 2026-10-24 — `parse_excel_file`: a path inside the app's data or log folder is `PathRejected`, a file above 50 MB `InvalidFormat` (#512).
+- 2026-11-01 — `execute_excel_import`: every write is one transaction, so on `ImportFailed` nothing was written (EXI-175, #580); its events are raised after the commit.

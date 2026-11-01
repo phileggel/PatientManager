@@ -142,9 +142,9 @@ any patient whose `latest_procedure_type` references this type has
 **PRO-290 (R22) — Cascading clear on fund deletion**: When a fund is deleted, any patient whose
 `latest_fund` references this fund has `latest_fund` cleared.
 
-**PRO-300 (R23) — Batch creation: single transaction and single event**: `create_batch` persists
-all procedures in a single transaction and publishes exactly one `ProcedureUpdated`
-event, regardless of batch size.
+**PRO-300 (R23) — Batch creation: single transaction and at most one event (backend)**: A
+batch of procedures (the Excel import, EXI-175) is persisted in a single transaction and
+raises at most one `ProcedureUpdated` event, regardless of batch size (EXI-177).
 
 ---
 

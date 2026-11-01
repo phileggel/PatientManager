@@ -161,9 +161,6 @@ mod tests {
         async fn delete_procedure(&self, _: &str) -> anyhow::Result<()> {
             unimplemented!()
         }
-        async fn create_batch(&self, _: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>> {
-            unimplemented!()
-        }
         async fn read_procedures_by_ids(&self, _: &[String]) -> anyhow::Result<Vec<Procedure>> {
             unimplemented!()
         }
@@ -194,9 +191,6 @@ mod tests {
             unimplemented!()
         }
         async fn has_blocking_procedures_in_month(&self, _: &str) -> anyhow::Result<bool> {
-            unimplemented!()
-        }
-        async fn delete_procedures_by_month(&self, _: &str) -> anyhow::Result<u64> {
             unimplemented!()
         }
         async fn find_unreconciled_by_date_range(

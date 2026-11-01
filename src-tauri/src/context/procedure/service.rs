@@ -233,26 +233,6 @@ impl ProcedureService {
         Ok(procedure)
     }
 
-    /// Create multiple procedures in a single transaction (basic CRUD)
-    pub async fn create_batch(
-        &self,
-        procedures: Vec<Procedure>,
-    ) -> Result<Vec<Procedure>, ProcedureError> {
-        let result = self
-            .repository
-            .create_batch(procedures)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "create_batch: repository failed");
-                ProcedureError::DatabaseError
-            })?;
-
-        // Publish a single event for the entire batch
-        let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
-
-        Ok(result)
-    }
-
     /// Update an existing procedure (basic CRUD, no cross-context logic)
     pub async fn update_procedure(
         &self,
@@ -353,13 +333,6 @@ impl ProcedureService {
         self.repository
             .has_blocking_procedures_in_month(month)
             .await
-    }
-
-    /// Hard-delete all procedures for a given month (YYYY-MM) before re-import.
-    pub async fn delete_procedures_by_month(&self, month: &str) -> anyhow::Result<u64> {
-        let deleted = self.repository.delete_procedures_by_month(month).await?;
-        let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
-        Ok(deleted)
     }
 
     /// Find procedures by SSN and date range (for reconciliation)
@@ -720,11 +693,8 @@ mod tests {
         );
         mock.expect_update_procedure().returning(Ok);
         mock.expect_delete_procedure().returning(|_| Ok(()));
-        mock.expect_create_batch().returning(Ok);
         mock.expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        mock.expect_delete_procedures_by_month()
-            .returning(|_| Ok(3));
         mock
     }
 
@@ -764,53 +734,6 @@ mod tests {
             .has_blocking_procedures_in_month("2026-01")
             .await
             .unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_procedure_service_delete_by_month_returns_count() {
-        let service =
-            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
-        assert_eq!(
-            service.delete_procedures_by_month("2026-01").await.unwrap(),
-            3
-        );
-    }
-
-    /// `create_batch` echoes via the mock; verify the service preserves
-    /// every field of the candidates through the factory + repository round
-    /// trip. A regression in `Procedure::new` or the batch path that dropped
-    /// fields must surface here.
-    #[tokio::test]
-    async fn test_procedure_service_create_batch_propagates_fields() {
-        let service =
-            ProcedureService::new(Arc::new(make_mock_proc_repo()), Arc::new(EventBus::new()));
-        let p = Procedure::new(
-            "p1".to_string(),
-            Some("fund-1".to_string()),
-            "t1".to_string(),
-            chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-            15000,
-            PaymentMethod::None,
-            None,
-            None,
-            None,
-            ProcedureStatus::Created,
-        )
-        .unwrap();
-        let result = service
-            .create_batch(vec![p])
-            .await
-            .expect("create_batch should succeed for valid Procedure::new output");
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].patient_id, "p1");
-        assert_eq!(result[0].fund_id.as_deref(), Some("fund-1"));
-        assert_eq!(result[0].procedure_type_id, "t1");
-        assert_eq!(
-            result[0].procedure_date,
-            chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()
-        );
-        assert_eq!(result[0].billed_amount, 15000);
-        assert_eq!(result[0].payment_status, ProcedureStatus::Created);
     }
 
     #[tokio::test]
@@ -1015,18 +938,6 @@ mod tests {
             )
             .await;
         assert!(matches!(result, Err(ProcedureError::DatabaseError)));
-    }
-
-    #[tokio::test]
-    async fn procedure_create_batch_translates_repo_failure_to_database_error() {
-        let mut mock = MockProcedureRepository::new();
-        mock.expect_create_batch()
-            .returning(|_| Err(anyhow!("conn refused")));
-        let service = ProcedureService::new(Arc::new(mock), Arc::new(EventBus::new()));
-        assert!(matches!(
-            service.create_batch(vec![make_proc()]).await,
-            Err(ProcedureError::DatabaseError)
-        ));
     }
 
     #[tokio::test]

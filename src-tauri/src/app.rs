@@ -239,6 +239,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         fund_service.clone(),
         context_procedure_service.clone(),
         procedure_orchestration_service.clone(),
+        Arc::new(SqlxTransactionManager::new(db.get_pool().clone())),
     ));
     tracing::info!(target: BACKEND, "Excel import orchestrator created");
 

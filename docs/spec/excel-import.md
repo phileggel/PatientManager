@@ -79,14 +79,26 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-170 (R16) — Pre-import deletion (backend)**: If a sheet's nominal month is not blocked (see EXI-160), **all** existing procedures for that month are permanently deleted before the new data is imported. This mechanism allows a corrected sheet to be re-imported without accumulating duplicates.
 
+**EXI-175 — A failed import writes nothing (backend)**: Every write of an import — the patients and funds it creates (EXI-080, EXI-090), the procedures of the months it replaces (EXI-170), the procedures it creates and the patients' tracking fields (EXI-190) — happens in one transaction. If any of them fails, none applies and the import is rejected with an error: every procedure of every month, selected or not, is as it was before the import.
+
+**EXI-176 — What is not a failure (backend)**: A blocked month (EXI-160) does not fail the import, nor does a skipped row: one whose amount has no mapping (EXI-150), whose patient reference matches no patient of the workbook, or whose dates fail a gate (EXI-280, EXI-281). Nor does a patient kept with an invalid SSN (EXI-030), or a fund without its required fields (EXI-040), which the parser skips and reports.
+
+**EXI-177 — Events of an import (backend)**: Once the transaction is committed, an import raises `PatientUpdated` if it wrote a patient, `FundUpdated` if it created a fund, and `ProcedureUpdated` if it deleted or created a procedure, each at most once. A failed import raises none.
+
+**EXI-178 — What a failed import does not undo (frontend + backend)**: The mapping preferences (EXI-230) and the procedure types created on the mapping screen (EXI-140) remain after a failed import.
+
+**EXI-179 — What fails an import (backend)**: An import fails, as EXI-175 says, when a read or a write fails, when the domain refuses a patient or fund that passed parsing, or when the database refuses a patient, fund or procedure.
+
 ### Import orchestration
 
-**EXI-180 (R17) — Execution order (backend)**: Import execution follows a strict order:
+**EXI-180 (R17) — Execution order (backend)**: The writes of an import follow a strict order; everything they need is read before the first of them:
 
 1. Resolve and create patients (existing reused, new ones created)
 2. Resolve and create funds (existing reused, new ones created)
-3. Validate selected sheets: identify blocked months (per EXI-160) and delete procedures of non-blocked months (per EXI-170)
+3. Validate selected sheets: identify blocked months (per EXI-160) and list the non-blocked months as the months to replace (per EXI-170); the procedures of the months to replace are deleted before any procedure is created. No month is listed when no row has a valid date
 4. For each procedure row in a selected sheet: first drop rows whose amount has no mapping (per EXI-150), then apply the execute-time validation gates (EXI-280 format, EXI-281 month-match) before creating the procedure; rows that fail any gate are reported per EXI-290
+
+The writes of these steps and of EXI-190 apply as one (EXI-175).
 
 **EXI-190 (R18) — Patient tracking-field update (backend)**: After procedures are created, the patient's tracking fields (`latest_date`, `latest_procedure_type`, `latest_fund`, `latest_procedure_amount`) are updated to reflect the most recent imported procedure (see R19 of procedure-orchestration.md).
 
@@ -173,7 +185,8 @@ None — all questions have been resolved.
 [Run the import] (backend)
   → Resolve patients (reuse or create)
   → Resolve funds (reuse or create)
-  → For each selected sheet: check blocking (EXI-160); delete non-blocked months (EXI-170)
+  → For each selected sheet: check blocking (EXI-160); list the non-blocked months to replace (EXI-170)
+  → Delete the procedures of the months to replace
   → For each procedure row in a selected sheet:
        → Validate date formats (EXI-280); skip + report on failure
        → Validate procedure_date.month == sheet.month (EXI-281); skip + report on mismatch

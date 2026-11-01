@@ -1,26 +1,30 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use chrono::{Datelike, NaiveDate};
 
-use crate::context::fund::FundService;
-use crate::context::patient::{PatientCandidate, PatientService};
+use crate::context::fund::{Fund, FundService};
+use crate::context::patient::{Patient, PatientService};
 use crate::context::procedure::{ProcedureCandidate, ProcedureService};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::excel_import::dto::{ImportExecutionResult, ParseExcelResponse};
 use crate::use_cases::excel_import::error::ExcelImportError;
 use crate::use_cases::excel_import::excel_codec::{sheet_nominal_month, SkipReason, SkippedRow};
+use crate::use_cases::excel_import::uow::ExcelImportTransactionManager;
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
 /// Orchestrates the full Excel import workflow on the backend.
 ///
 /// Replaces the frontend orchestration logic: resolves temp_ids, finds or creates
 /// patients/funds, then batch-creates procedures (which updates patient latest_xx fields).
+/// Everything it reads comes first; everything it writes is one unit of work (EXI-175).
 pub struct ExcelImportOrchestrator {
     patient_service: Arc<PatientService>,
     fund_service: Arc<FundService>,
     procedure_service: Arc<ProcedureService>,
     procedure_orchestration: Arc<ProcedureOrchestrationService>,
+    transaction_manager: Arc<dyn ExcelImportTransactionManager>,
 }
 
 impl ExcelImportOrchestrator {
@@ -29,12 +33,14 @@ impl ExcelImportOrchestrator {
         fund_service: Arc<FundService>,
         procedure_service: Arc<ProcedureService>,
         procedure_orchestration: Arc<ProcedureOrchestrationService>,
+        transaction_manager: Arc<dyn ExcelImportTransactionManager>,
     ) -> Self {
         Self {
             patient_service,
             fund_service,
             procedure_service,
             procedure_orchestration,
+            transaction_manager,
         }
     }
 
@@ -45,7 +51,8 @@ impl ExcelImportOrchestrator {
     /// the user chose to import (EXI-270 — sheet-based selection).
     /// For each selected sheet: derive its nominal month, check blocking; if blocking
     /// procedures exist for that month the sheet is skipped, otherwise existing
-    /// procedures for that month are deleted before re-import.
+    /// procedures for that month are deleted before re-import, in the same unit of
+    /// work as every creation (EXI-175).
     /// The year of each (year, month) DB key is derived once from the first valid
     /// `procedure_date` in the parsed payload. If no valid date exists, block + delete
     /// are skipped entirely.
@@ -66,7 +73,7 @@ impl ExcelImportOrchestrator {
         // ── Step 1: Patients ─────────────────────────────────────────────────
         let mut patients_map: HashMap<String, String> = HashMap::new();
         let mut patients_reused = 0u32;
-        let mut new_patient_candidates: Vec<PatientCandidate> = Vec::new();
+        let mut new_patients: Vec<Patient> = Vec::new();
 
         for excel_patient in &parsed_data.patients {
             // EXI-080: prefer SSN-based lookup when an SSN is present;
@@ -100,33 +107,21 @@ impl ExcelImportOrchestrator {
                 continue;
             }
 
-            new_patient_candidates.push(PatientCandidate {
-                temp_id: excel_patient.temp_id.clone(),
-                name: if excel_patient.name.is_empty() {
-                    None
-                } else {
-                    Some(excel_patient.name.clone())
-                },
-                ssn: if excel_patient.ssn.is_empty() {
-                    None
-                } else {
-                    Some(excel_patient.ssn.clone())
-                },
-            });
+            let patient = Patient::new_with_temp_id(
+                false,
+                (!excel_patient.name.is_empty()).then(|| excel_patient.name.clone()),
+                (!excel_patient.ssn.is_empty()).then(|| excel_patient.ssn.clone()),
+                excel_patient.temp_id.clone(),
+            )
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "Invalid patient in the workbook");
+                ExcelImportError::ImportFailed
+            })?;
+            patients_map.insert(excel_patient.temp_id.clone(), patient.id.clone());
+            new_patients.push(patient);
         }
 
-        let patients_created = new_patient_candidates.len() as u32;
-        if !new_patient_candidates.is_empty() {
-            let (_, created_map) = self
-                .patient_service
-                .create_batch(new_patient_candidates)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "Failed to create patient batch");
-                    ExcelImportError::ImportFailed
-                })?;
-            patients_map.extend(created_map);
-        }
+        let patients_created = new_patients.len() as u32;
 
         tracing::info!(
             target: BACKEND,
@@ -138,7 +133,7 @@ impl ExcelImportOrchestrator {
         // ── Step 2: Funds ─────────────────────────────────────────────────────
         let mut funds_map: HashMap<String, String> = HashMap::new();
         let mut funds_reused = 0u32;
-        let mut new_fund_candidates: Vec<crate::context::fund::FundCandidate> = Vec::new();
+        let mut new_funds: Vec<Fund> = Vec::new();
 
         for excel_fund in &parsed_data.funds {
             if let Some(existing) = self
@@ -153,26 +148,21 @@ impl ExcelImportOrchestrator {
                 funds_reused += 1;
                 funds_map.insert(excel_fund.temp_id.clone(), existing.id);
             } else {
-                new_fund_candidates.push(crate::context::fund::FundCandidate {
-                    temp_id: excel_fund.temp_id.clone(),
-                    fund_identifier: excel_fund.fund_identifier.clone(),
-                    fund_name: excel_fund.fund_name.clone(),
-                });
+                let fund = Fund::new_with_temp_id(
+                    excel_fund.fund_identifier.clone(),
+                    excel_fund.fund_name.clone(),
+                    excel_fund.temp_id.clone(),
+                )
+                .map_err(|e| {
+                    tracing::error!(target: BACKEND, err = ?e, "Invalid fund in the workbook");
+                    ExcelImportError::ImportFailed
+                })?;
+                funds_map.insert(excel_fund.temp_id.clone(), fund.id.clone());
+                new_funds.push(fund);
             }
         }
 
-        let funds_created = new_fund_candidates.len() as u32;
-        if !new_fund_candidates.is_empty() {
-            let (_, created_map) = self
-                .fund_service
-                .create_batch(new_fund_candidates)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "Failed to create fund batch");
-                    ExcelImportError::ImportFailed
-                })?;
-            funds_map.extend(created_map);
-        }
+        let funds_created = new_funds.len() as u32;
 
         tracing::info!(
             target: BACKEND,
@@ -181,7 +171,7 @@ impl ExcelImportOrchestrator {
             "Funds resolved"
         );
 
-        // ── Step 3: Sheet validation & cleanup ───────────────────────────────
+        // ── Step 3: Sheet validation ─────────────────────────────────────────
         //
         // Block/delete is per-month at the DB level (procedure_service keys on
         // "YYYY-MM"), but selection is per-sheet (EXI-270). Derive the workbook
@@ -196,7 +186,7 @@ impl ExcelImportOrchestrator {
 
         let mut blocked_months: Vec<String> = Vec::new();
         let mut allowed_sheets: HashSet<String> = HashSet::new();
-        let mut procedures_deleted = 0u32;
+        let mut months_to_clear: Vec<String> = Vec::new();
 
         if let Some(year) = workbook_year {
             for sheet in &selected_sheets {
@@ -221,16 +211,7 @@ impl ExcelImportOrchestrator {
                     tracing::warn!(target: BACKEND, month = %month_key, sheet = %sheet, "Month blocked: it holds procedures with a blocking status");
                     blocked_months.push(month_key);
                 } else {
-                    let deleted = self
-                        .procedure_service
-                        .delete_procedures_by_month(&month_key)
-                        .await
-                        .map_err(|e| {
-                            tracing::error!(target: BACKEND, err = ?e, month = %month_key, "Failed to delete procedures for month");
-                            ExcelImportError::ImportFailed
-                        })?;
-                    procedures_deleted += deleted as u32;
-                    tracing::debug!(target: BACKEND, month = %month_key, sheet = %sheet, deleted = deleted, "Cleared procedures for month before re-import");
+                    months_to_clear.push(month_key);
                     allowed_sheets.insert(sheet.clone());
                 }
             }
@@ -405,23 +386,66 @@ impl ExcelImportOrchestrator {
             });
         }
 
-        let procedures_created = if candidates.is_empty() {
-            0u32
-        } else {
-            let created = self
-                .procedure_orchestration
-                .create_batch(candidates)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "Failed to create procedure batch");
-                    ExcelImportError::ImportFailed
-                })?;
-            created.len() as u32
-        };
+        let procedures = ProcedureOrchestrationService::prepare_batch(candidates);
+        let tracked_patients = self
+            .procedure_orchestration
+            .patient_tracking_updates(&procedures, &new_patients)
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "Failed to compute patient tracking");
+                ExcelImportError::ImportFailed
+            })?;
+
+        // ── Step 5: Writes — all of them, or none (EXI-175) ──────────────────
+        let procedures_created = procedures.len() as u32;
+        let patients_written = !new_patients.is_empty() || !tracked_patients.is_empty();
+        let funds_written = !new_funds.is_empty();
+        let deleted = Arc::new(AtomicU64::new(0));
+        let deleted_in_run = deleted.clone();
+
+        self.transaction_manager
+            .run(Box::new(move |uow| {
+                Box::pin(async move {
+                    for patient in &new_patients {
+                        uow.insert_patient(patient).await?;
+                    }
+                    for fund in &new_funds {
+                        uow.insert_fund(fund).await?;
+                    }
+                    for month in &months_to_clear {
+                        let count = uow.delete_procedures_of_month(month).await?;
+                        deleted_in_run.fetch_add(count, Ordering::Relaxed);
+                    }
+                    for procedure in &procedures {
+                        uow.insert_procedure(procedure).await?;
+                    }
+                    for patient in &tracked_patients {
+                        uow.update_patient(patient).await?;
+                    }
+                    Ok(())
+                })
+            }))
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "Excel import unit of work failed");
+                ExcelImportError::ImportFailed
+            })?;
+
+        if patients_written {
+            self.patient_service.notify_patients_updated();
+        }
+        if funds_written {
+            self.fund_service.notify_funds_updated();
+        }
+        let procedures_deleted = deleted.load(Ordering::Relaxed) as u32;
+        if procedures_deleted > 0 || procedures_created > 0 {
+            self.procedure_service.notify_procedures_updated();
+        }
 
         tracing::info!(
             target: BACKEND,
             created = procedures_created,
+            deleted = procedures_deleted,
             skipped = procedures_skipped,
             skip_report_entries = skipped_procedures.len(),
             "Procedures created"
@@ -444,6 +468,8 @@ impl ExcelImportOrchestrator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
     use crate::context::fund::{FundService, MockFundRepository};
     use crate::context::patient::{MockPatientRepository, PatientService};
     use crate::context::procedure::{
@@ -454,7 +480,79 @@ mod tests {
     use crate::use_cases::excel_import::excel_codec::{
         ExcelFund, ExcelPatient, ExcelProcedure, ParsingIssues,
     };
+    use crate::use_cases::excel_import::uow::{ExcelImportOperation, ExcelImportUnitOfWork};
     use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
+
+    /// What the orchestrator asked the unit of work to write.
+    #[derive(Default)]
+    struct Writes {
+        months_cleared: Vec<String>,
+        procedures: usize,
+    }
+
+    /// The test double of the manager: records the writes, or refuses them.
+    struct FakeTransactionManager {
+        writes: Arc<Mutex<Writes>>,
+        deleted_per_month: u64,
+        fails: bool,
+    }
+
+    struct FakeUnitOfWork {
+        writes: Arc<Mutex<Writes>>,
+        deleted_per_month: u64,
+        fails: bool,
+    }
+
+    impl FakeUnitOfWork {
+        fn check(&self) -> anyhow::Result<()> {
+            if self.fails {
+                anyhow::bail!("db down");
+            }
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl ExcelImportUnitOfWork for FakeUnitOfWork {
+        async fn insert_patient(&mut self, _: &Patient) -> anyhow::Result<()> {
+            self.check()
+        }
+        async fn insert_fund(&mut self, _: &Fund) -> anyhow::Result<()> {
+            self.check()
+        }
+        async fn delete_procedures_of_month(&mut self, month: &str) -> anyhow::Result<u64> {
+            self.check()?;
+            self.writes
+                .lock()
+                .unwrap()
+                .months_cleared
+                .push(month.to_string());
+            Ok(self.deleted_per_month)
+        }
+        async fn insert_procedure(
+            &mut self,
+            _: &crate::context::procedure::Procedure,
+        ) -> anyhow::Result<()> {
+            self.check()?;
+            self.writes.lock().unwrap().procedures += 1;
+            Ok(())
+        }
+        async fn update_patient(&mut self, _: &Patient) -> anyhow::Result<()> {
+            self.check()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl ExcelImportTransactionManager for FakeTransactionManager {
+        async fn run(&self, operation: ExcelImportOperation) -> anyhow::Result<()> {
+            let mut uow = FakeUnitOfWork {
+                writes: self.writes.clone(),
+                deleted_per_month: self.deleted_per_month,
+                fails: self.fails,
+            };
+            operation(&mut uow).await
+        }
+    }
 
     struct OrchestratorMocks {
         patient_repo: MockPatientRepository,
@@ -465,6 +563,9 @@ mod tests {
         orch_fund_repo: MockFundRepository,
         orch_type_repo: MockProcedureTypeRepository,
         orch_refund_repo: MockProcedureRefundRepository,
+        writes: Arc<Mutex<Writes>>,
+        deleted_per_month: u64,
+        writes_fail: bool,
     }
 
     impl Default for OrchestratorMocks {
@@ -478,6 +579,9 @@ mod tests {
                 orch_fund_repo: MockFundRepository::new(),
                 orch_type_repo: MockProcedureTypeRepository::new(),
                 orch_refund_repo: MockProcedureRefundRepository::new(),
+                writes: Arc::default(),
+                deleted_per_month: 0,
+                writes_fail: false,
             }
         }
     }
@@ -504,7 +608,17 @@ mod tests {
             Arc::new(mocks.orch_fund_repo),
             Arc::new(mocks.orch_refund_repo),
         ));
-        ExcelImportOrchestrator::new(patient_svc, fund_svc, proc_svc, proc_orch)
+        ExcelImportOrchestrator::new(
+            patient_svc,
+            fund_svc,
+            proc_svc,
+            proc_orch,
+            Arc::new(FakeTransactionManager {
+                writes: mocks.writes,
+                deleted_per_month: mocks.deleted_per_month,
+                fails: mocks.writes_fail,
+            }),
+        )
     }
 
     fn empty_parse_result() -> ParseExcelResponse {
@@ -595,7 +709,6 @@ mod tests {
                 None,
             )))
         });
-        patient_repo.expect_create_batch().times(0); // never called: reuse
 
         let mut parse_result = empty_parse_result();
         parse_result.patients = vec![ExcelPatient {
@@ -627,7 +740,6 @@ mod tests {
         patient_repo
             .expect_find_patient_by_name()
             .returning(|_| Ok(None));
-        patient_repo.expect_create_batch().returning(Ok);
 
         let mut parse_result = empty_parse_result();
         parse_result.patients = vec![ExcelPatient {
@@ -656,7 +768,6 @@ mod tests {
         patient_repo
             .expect_find_patient_by_ssn()
             .returning(|_| Ok(None));
-        patient_repo.expect_create_batch().returning(Ok);
 
         let mut parse_result = empty_parse_result();
         parse_result.patients = vec![ExcelPatient {
@@ -756,7 +867,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(true));
-        proc_repo.expect_delete_procedures_by_month().times(0);
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -772,8 +882,7 @@ mod tests {
             )))
         });
 
-        let mut orch_proc_repo = MockProcedureRepository::new();
-        orch_proc_repo.expect_create_batch().times(0);
+        let orch_proc_repo = MockProcedureRepository::new();
 
         let mut parse_result = empty_parse_result();
         parse_result.patients = vec![ExcelPatient {
@@ -799,7 +908,9 @@ mod tests {
         let mut type_mapping = HashMap::new();
         type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
 
+        let writes: Arc<Mutex<Writes>> = Arc::default();
         let orchestrator = make_orchestrator(OrchestratorMocks {
+            writes: writes.clone(),
             patient_repo,
             proc_repo,
             orch_proc_repo,
@@ -813,6 +924,8 @@ mod tests {
         assert_eq!(result.blocked_months, vec!["2026-01"]);
         assert_eq!(result.procedures_deleted, 0);
         assert_eq!(result.procedures_created, 0);
+        assert!(writes.lock().unwrap().months_cleared.is_empty());
+        assert_eq!(writes.lock().unwrap().procedures, 0);
     }
 
     #[tokio::test]
@@ -821,9 +934,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut parse_result = empty_parse_result();
         parse_result.procedures = vec![ExcelProcedure {
@@ -862,7 +972,6 @@ mod tests {
         fund_repo
             .expect_find_fund_by_identifier()
             .returning(|_| Ok(None));
-        fund_repo.expect_create_batch().returning(Ok);
 
         let mut parse_result = empty_parse_result();
         parse_result.funds = vec![ExcelFund {
@@ -891,9 +1000,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(3));
 
         // A well-formed procedure anchors workbook_year so block + delete runs.
         // The procedure gets filtered at step 4 (no matching patient in map) —
@@ -915,6 +1021,7 @@ mod tests {
 
         let orchestrator = make_orchestrator(OrchestratorMocks {
             proc_repo,
+            deleted_per_month: 3,
             ..Default::default()
         });
         let result = orchestrator
@@ -946,9 +1053,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut parse_result = empty_parse_result();
         parse_result.patients = vec![ExcelPatient {
@@ -995,9 +1099,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut parse_result = empty_parse_result();
         // Row is from "Fév" but only "Jan" is selected — must be skipped.
@@ -1042,9 +1143,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut parse_result = empty_parse_result();
         // Row is from "Jan" and "Jan" is selected — must pass the sheet filter.
@@ -1090,9 +1188,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -1165,9 +1260,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -1240,9 +1332,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -1258,8 +1347,7 @@ mod tests {
             )))
         });
 
-        let mut orch_proc_repo = MockProcedureRepository::new();
-        orch_proc_repo.expect_create_batch().returning(Ok);
+        let orch_proc_repo = MockProcedureRepository::new();
 
         let mut orch_patient_repo = MockPatientRepository::new();
         orch_patient_repo.expect_read_patient().returning(|_| {
@@ -1328,9 +1416,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -1403,9 +1488,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -1421,8 +1503,7 @@ mod tests {
             )))
         });
 
-        let mut orch_proc_repo = MockProcedureRepository::new();
-        orch_proc_repo.expect_create_batch().returning(Ok);
+        let orch_proc_repo = MockProcedureRepository::new();
 
         let mut orch_patient_repo = MockPatientRepository::new();
         orch_patient_repo.expect_read_patient().returning(|_| {
@@ -1491,9 +1572,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -1509,8 +1587,7 @@ mod tests {
             )))
         });
 
-        let mut orch_proc_repo = MockProcedureRepository::new();
-        orch_proc_repo.expect_create_batch().returning(Ok);
+        let orch_proc_repo = MockProcedureRepository::new();
 
         let mut orch_patient_repo = MockPatientRepository::new();
         orch_patient_repo.expect_read_patient().returning(|_| {
@@ -1580,9 +1657,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -1672,9 +1746,6 @@ mod tests {
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Ok(0));
 
         let mut patient_repo = MockPatientRepository::new();
         patient_repo.expect_find_patient_by_ssn().returning(|_| {
@@ -1754,7 +1825,7 @@ mod tests {
 
     /// When every row's `procedure_date` is malformed the orchestrator cannot
     /// derive a workbook year. Block + delete steps must be entirely skipped
-    /// (no calls to `has_blocking_procedures_in_month` / `delete_procedures_by_month`),
+    /// (no call to `has_blocking_procedures_in_month`, no month cleared),
     /// the import must return successfully with `procedures_created = 0` and
     /// `blocked_months = []`, and every row must appear in `skipped_procedures`.
     #[tokio::test]
@@ -1773,11 +1844,10 @@ mod tests {
             )))
         });
 
-        // Strict mock: has_blocking_procedures_in_month and delete_procedures_by_month
-        // must NEVER be called when workbook_year cannot be derived.
+        // Strict mock: has_blocking_procedures_in_month must NEVER be called
+        // when workbook_year cannot be derived.
         let mut proc_repo = MockProcedureRepository::new();
         proc_repo.expect_has_blocking_procedures_in_month().times(0);
-        proc_repo.expect_delete_procedures_by_month().times(0);
 
         let mut parse_result = empty_parse_result();
         parse_result.patients = vec![ExcelPatient {
@@ -1819,7 +1889,9 @@ mod tests {
         let mut type_mapping = HashMap::new();
         type_mapping.insert("type-1".to_string(), "real-type-id".to_string());
 
+        let writes: Arc<Mutex<Writes>> = Arc::default();
         let orchestrator = make_orchestrator(OrchestratorMocks {
+            writes: writes.clone(),
             patient_repo,
             proc_repo,
             ..Default::default()
@@ -1833,6 +1905,8 @@ mod tests {
         assert!(result.blocked_months.is_empty());
         // All rows must be in skipped_procedures (EXI-280 date parse failures).
         assert_eq!(result.skipped_procedures.len(), 2);
+        assert!(writes.lock().unwrap().months_cleared.is_empty());
+        assert_eq!(writes.lock().unwrap().procedures, 0);
     }
 
     /// Edge case: empty `parsed_data.procedures` (no procedures at all) — the
@@ -1843,9 +1917,10 @@ mod tests {
         // Strict mock: block/delete must never be called on an empty procedures list.
         let mut proc_repo = MockProcedureRepository::new();
         proc_repo.expect_has_blocking_procedures_in_month().times(0);
-        proc_repo.expect_delete_procedures_by_month().times(0);
 
+        let writes: Arc<Mutex<Writes>> = Arc::default();
         let orchestrator = make_orchestrator(OrchestratorMocks {
+            writes: writes.clone(),
             proc_repo,
             ..Default::default()
         });
@@ -1861,6 +1936,8 @@ mod tests {
         assert_eq!(result.procedures_created, 0);
         assert!(result.blocked_months.is_empty());
         assert!(result.skipped_procedures.is_empty());
+        assert!(writes.lock().unwrap().months_cleared.is_empty());
+        assert_eq!(writes.lock().unwrap().procedures, 0);
     }
 
     // --- Error paths: infrastructure failures collapse to ImportFailed ---
@@ -1945,14 +2022,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn execute_import_patient_create_batch_db_error_returns_import_failed() {
+    async fn execute_import_patient_write_error_returns_import_failed() {
         let mut patient_repo = MockPatientRepository::new();
         patient_repo
             .expect_find_patient_by_ssn()
             .returning(|_| Ok(None));
-        patient_repo
-            .expect_create_batch()
-            .returning(|_| Err(anyhow::anyhow!("db down")));
 
         let mut parse_result = empty_parse_result();
         parse_result.patients = vec![ExcelPatient {
@@ -1964,6 +2038,7 @@ mod tests {
 
         let orchestrator = make_orchestrator(OrchestratorMocks {
             patient_repo,
+            writes_fail: true,
             ..Default::default()
         });
         let err = orchestrator
@@ -1974,20 +2049,45 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn execute_import_fund_create_batch_db_error_returns_import_failed() {
+    async fn execute_import_fund_write_error_returns_import_failed() {
         let mut fund_repo = MockFundRepository::new();
         fund_repo
             .expect_find_fund_by_identifier()
             .returning(|_| Ok(None));
-        fund_repo
-            .expect_create_batch()
-            .returning(|_| Err(anyhow::anyhow!("db down")));
 
         let mut parse_result = empty_parse_result();
         parse_result.funds = vec![ExcelFund {
             temp_id: "fund-tmp-1".to_string(),
             fund_identifier: "CPAM".to_string(),
             fund_name: "CPAM France".to_string(),
+            fund_address: None,
+        }];
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            fund_repo,
+            writes_fail: true,
+            ..Default::default()
+        });
+        let err = orchestrator
+            .execute_import(parse_result, HashMap::new(), vec![])
+            .await
+            .unwrap_err();
+        assert_eq!(err, ExcelImportError::ImportFailed);
+    }
+
+    /// EXI-179: a workbook fund that fails validation fails the import.
+    #[tokio::test]
+    async fn exi_179_a_fund_that_fails_validation_fails_the_import() {
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+
+        let mut parse_result = empty_parse_result();
+        parse_result.funds = vec![ExcelFund {
+            temp_id: "fund-tmp-1".to_string(),
+            fund_identifier: String::new(),
+            fund_name: String::new(),
             fund_address: None,
         }];
 
@@ -2045,17 +2145,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn execute_import_delete_procedures_db_error_returns_import_failed() {
+    async fn execute_import_month_clearing_error_returns_import_failed() {
         let mut proc_repo = MockProcedureRepository::new();
         proc_repo
             .expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
-        proc_repo
-            .expect_delete_procedures_by_month()
-            .returning(|_| Err(anyhow::anyhow!("db down")));
 
         let orchestrator = make_orchestrator(OrchestratorMocks {
             proc_repo,
+            writes_fail: true,
             ..Default::default()
         });
         let err = orchestrator

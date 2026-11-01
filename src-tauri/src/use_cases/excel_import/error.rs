@@ -32,11 +32,9 @@ pub enum ExcelImportError {
     #[error("The Excel file could not be parsed")]
     ParseError,
 
-    /// `execute_excel_import` — catch-all for infrastructure failures (repo /
-    /// service writes). Per the contract, all per-row failures surface via
-    /// `ImportExecutionResult.skipped_procedures`, so this covers only
-    /// infrastructure-level faults. Logged at the call site; the wire surface
-    /// carries no detail.
+    /// `execute_excel_import` — catch-all for what EXI-179 lists. Nothing was
+    /// written (EXI-175).
+    /// Logged at the call site; the wire surface carries no detail.
     #[error("The import could not be completed")]
     ImportFailed,
 

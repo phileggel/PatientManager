@@ -544,7 +544,6 @@ pub trait ProcedureRepository: Send + Sync {
         billed_amount: i64,
     ) -> anyhow::Result<Option<Procedure>>;
 
-    async fn create_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>>;
     async fn update_batch(&self, procedures: Vec<Procedure>) -> anyhow::Result<Vec<Procedure>>;
     async fn find_unpaid_by_fund(&self, fund_id: &str) -> anyhow::Result<Vec<Procedure>>;
 
@@ -557,10 +556,6 @@ pub trait ProcedureRepository: Send + Sync {
     /// Returns true if any non-deleted procedure in the given month (YYYY-MM) has a
     /// blocking status (`ProcedureStatus::is_blocking`), preventing re-import (EXI-160).
     async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool>;
-
-    /// Hard-deletes all procedures (including soft-deleted) for the given month (YYYY-MM).
-    /// Returns the number of deleted rows.
-    async fn delete_procedures_by_month(&self, month: &str) -> anyhow::Result<u64>;
 
     /// Find procedures eligible for a direct bank payment (CHECK/CREDIT_CARD/CASH).
     /// Returns procedures with status CREATED and procedure_date in [date_min, date_max].
