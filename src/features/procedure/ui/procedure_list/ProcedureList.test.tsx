@@ -5,6 +5,9 @@ import { vi } from "vitest";
 import { makeProcedureRow } from "@/tests/procedure.factory";
 import { ProcedureList } from "./ProcedureList";
 
+const firstColumn = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll("tbody tr td:first-child")).map((td) => td.textContent);
+
 describe("ProcedureList", () => {
   test("renders empty-state row when rows are empty (unfiltered)", () => {
     render(<ProcedureList rows={[]} onEdit={vi.fn()} onDelete={vi.fn()} />);
@@ -89,7 +92,7 @@ describe("ProcedureList", () => {
     expect(onDelete).not.toHaveBeenCalled();
   });
 
-  test("clicking sortable header (patient) toggles sort indicator on the right column", () => {
+  test("clicking the patient header sorts the rows by patient", () => {
     const rows = [
       makeProcedureRow({ rowId: "r-b", patientName: "Bob", status: "CREATED" }),
       makeProcedureRow({ rowId: "r-a", patientName: "Alice", status: "CREATED" }),
@@ -105,18 +108,40 @@ describe("ProcedureList", () => {
     expect(rowTexts).toEqual(["Alice", "Bob"]);
   });
 
+  test("PRO-170: on opening only the date header shows the sort, ascending, then descending", () => {
+    const rows = [
+      makeProcedureRow({ rowId: "r-b", patientName: "Bob", procedureDate: "2026-03-10" }),
+      makeProcedureRow({ rowId: "r-a", patientName: "Alice", procedureDate: "2026-01-05" }),
+    ];
+    const { container } = render(<ProcedureList rows={rows} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    const dateHeader = screen.getByText("DATE").closest("th") as Element;
+
+    expect(dateHeader.querySelector(".lucide-arrow-up")).not.toBeNull();
+    expect(container.querySelectorAll("thead svg.lucide-arrow-up")).toHaveLength(1);
+    expect(firstColumn(container)).toEqual(["Alice", "Bob"]);
+
+    fireEvent.click(dateHeader);
+
+    expect(dateHeader.querySelector(".lucide-arrow-down")).not.toBeNull();
+    expect(firstColumn(container)).toEqual(["Bob", "Alice"]);
+  });
+
   test.each([
-    ["DATE", "procedureDate"],
-    ["Amount", "billedAmount"],
-    ["Status", "status"],
-  ])("clicking sortable header '%s' invokes handleSort", (headerText) => {
-    const rows = [makeProcedureRow({ rowId: "r1", patientName: "Alice", status: "CREATED" })];
-    render(<ProcedureList rows={rows} onEdit={vi.fn()} onDelete={vi.fn()} />);
-    const header = screen.getByText(headerText).closest("th");
-    expect(header).not.toBeNull();
-    // Just verifies the handler is wired — assertion would need to inspect aria-sort on
-    // the column; the SortIcon component changes appearance which is the visible signal.
-    fireEvent.click(header as Element);
+    ["Amount", { billedAmount: 2000 }, { billedAmount: 1000 }],
+    ["Status", { status: "RECONCILIATED" }, { status: "CREATED" }],
+  ] as const)("PRO-170A, PRO-170F: the '%s' header sorts the rows and takes the arrow", (headerText, high, low) => {
+    const rows = [
+      makeProcedureRow({ rowId: "r-b", patientName: "Bob", ...high }),
+      makeProcedureRow({ rowId: "r-a", patientName: "Alice", ...low }),
+    ];
+    const { container } = render(<ProcedureList rows={rows} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    const header = screen.getByText(headerText).closest("th") as Element;
+
+    fireEvent.click(header);
+
+    expect(firstColumn(container)).toEqual(["Alice", "Bob"]);
+    expect(header.querySelector(".lucide-arrow-up")).not.toBeNull();
+    expect(container.querySelectorAll("thead svg.lucide-arrow-up")).toHaveLength(1);
   });
 
   test("renders formatted Stage 1 + Stage 2 dates when both are set", () => {

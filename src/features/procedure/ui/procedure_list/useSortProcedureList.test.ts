@@ -6,14 +6,31 @@ import { useSortProcedureList } from "./useSortProcedureList";
 const makeRow = makeProcedureRow;
 
 describe("useSortProcedureList", () => {
-  it("returns rows unchanged with no sort applied", () => {
+  it("PRO-170: opens sorted by procedure date, oldest first", () => {
     const rows = [
-      makeRow({ rowId: "r-1", patientName: "Dupont" }),
-      makeRow({ rowId: "r-2", patientName: "Arnaud" }),
+      makeRow({ rowId: "r-1", procedureDate: "2026-03-10" }),
+      makeRow({ rowId: "r-2", procedureDate: "2026-01-05" }),
+      makeRow({ rowId: "r-3", procedureDate: "2026-02-20" }),
     ];
     const { result } = renderHook(() => useSortProcedureList(rows));
-    expect(result.current.sortedRows).toEqual(rows);
-    expect(result.current.sortConfig).toEqual({ key: null, direction: null });
+    expect(result.current.sortedRows.map((r) => r.rowId)).toEqual(["r-2", "r-3", "r-1"]);
+    expect(result.current.sortConfig).toEqual({ key: "procedureDate", direction: "asc" });
+  });
+
+  it("PRO-170B: the date column goes from the default to descending, then back", () => {
+    const rows = [
+      makeRow({ rowId: "r-1", procedureDate: "2026-01-05" }),
+      makeRow({ rowId: "r-2", procedureDate: "2026-03-10" }),
+    ];
+    const { result } = renderHook(() => useSortProcedureList(rows));
+
+    act(() => result.current.handleSort("procedureDate"));
+    expect(result.current.sortConfig).toEqual({ key: "procedureDate", direction: "desc" });
+    expect(result.current.sortedRows[0]?.rowId).toBe("r-2");
+
+    act(() => result.current.handleSort("procedureDate"));
+    expect(result.current.sortConfig).toEqual({ key: "procedureDate", direction: "asc" });
+    expect(result.current.sortedRows[0]?.rowId).toBe("r-1");
   });
 
   it("sorts by patientName asc on first click", () => {
@@ -45,15 +62,19 @@ describe("useSortProcedureList", () => {
     expect(result.current.sortedRows[0]?.patientName).toBe("Dupont");
   });
 
-  it("resets sort on third click (same key)", () => {
-    const rows = [makeRow({ rowId: "r-1" }), makeRow({ rowId: "r-2" })];
+  it("PRO-170B: leaving another column's sort returns to the default", () => {
+    const rows = [
+      makeRow({ rowId: "r-1", procedureDate: "2026-03-10" }),
+      makeRow({ rowId: "r-2", procedureDate: "2026-01-05" }),
+    ];
     const { result } = renderHook(() => useSortProcedureList(rows));
 
     act(() => result.current.handleSort("patientName"));
     act(() => result.current.handleSort("patientName"));
     act(() => result.current.handleSort("patientName"));
 
-    expect(result.current.sortConfig).toEqual({ key: null, direction: null });
+    expect(result.current.sortConfig).toEqual({ key: "procedureDate", direction: "asc" });
+    expect(result.current.sortedRows[0]?.rowId).toBe("r-2");
   });
 
   it("resets to asc when switching to a different key", () => {
@@ -95,7 +116,7 @@ describe("useSortProcedureList", () => {
     expect(result.current.sortedRows[0]?.rowId).toBe("r-2");
   });
 
-  it("puts null patientName last when sorting asc", () => {
+  it("PRO-170D: puts null patientName last when sorting asc", () => {
     const rows = [
       makeRow({ rowId: "r-1", patientName: null }),
       makeRow({ rowId: "r-2", patientName: "Arnaud" }),
@@ -106,6 +127,37 @@ describe("useSortProcedureList", () => {
 
     expect(result.current.sortedRows[0]?.rowId).toBe("r-2");
     expect(result.current.sortedRows[1]?.rowId).toBe("r-1");
+  });
+
+  it("PRO-170C: rows with an equal date keep the order they came in", () => {
+    const rows = [
+      makeRow({ rowId: "r-1", procedureDate: "2026-01-05" }),
+      makeRow({ rowId: "r-2", procedureDate: "2026-01-05" }),
+    ];
+    const { result } = renderHook(() => useSortProcedureList(rows));
+    expect(result.current.sortedRows.map((r) => r.rowId)).toEqual(["r-1", "r-2"]);
+  });
+
+  it("PRO-170E: a new list opens on the default again", () => {
+    const rows = [makeRow({ rowId: "r-1" })];
+    const first = renderHook(() => useSortProcedureList(rows));
+    act(() => first.result.current.handleSort("status"));
+    first.unmount();
+
+    const { result } = renderHook(() => useSortProcedureList(rows));
+
+    expect(result.current.sortConfig).toEqual({ key: "procedureDate", direction: "asc" });
+  });
+
+  it("PRO-170G: text ignores case and accents", () => {
+    const rows = [
+      makeRow({ rowId: "r-1", patientName: "Zoé" }),
+      makeRow({ rowId: "r-2", patientName: "émile" }),
+      makeRow({ rowId: "r-3", patientName: "Alice" }),
+    ];
+    const { result } = renderHook(() => useSortProcedureList(rows));
+    act(() => result.current.handleSort("patientName"));
+    expect(result.current.sortedRows.map((r) => r.rowId)).toEqual(["r-3", "r-2", "r-1"]);
   });
 
   it("does not mutate the original array", () => {
