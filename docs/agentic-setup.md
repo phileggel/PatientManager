@@ -56,8 +56,8 @@ reads each generic piece against its line. A piece is a list item opened by its 
   here per piece, one ceiling per guide. Never: judges what a document says.
 - `scripts/privacy-check.py` — keeps private data out of logs, files and commit
   messages. Never: prints the data it found.
-- `scripts/review-stop-reason.py` — says in one line why a reviewer session stopped in
-  CI. Never: fails the job it explains.
+- `scripts/review-stop-reason.py` — why a reviewer session stopped in CI. Never: fails its job.
+- `scripts/review-criticals.py` — a report's critical count. Never: counts a report with no count as clean.
 - `scripts/usage_log.py` — writes one line per run of a tool, locally. Never: in CI,
   nor anything about the data handled.
 - `scripts/usage-log.sh` — the same line for a shell script. Never: changes the
