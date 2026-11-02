@@ -145,6 +145,7 @@ Recorded in [`docs/adr/`](docs/adr/). Each ADR ratifies a non-obvious design cho
 - [ADR-005](docs/adr/005-combobox-feasibility-investigation.md) — Combobox feasibility — investigation result.
 - [ADR-006](docs/adr/006-frontend-resolves-pdf-translations.md) — Frontend resolves PDF translations (backend places strings, never i18n).
 - [ADR-007](docs/adr/007-e2e-native-dialog-override.md) — E2E native-dialog override (Tauri WebDriver friction workaround).
+- [ADR-008](docs/adr/008-native-dialog-modal-system.md) — Native `<dialog>` top layer for the modal system.
 - [ADR-009](docs/adr/009-soft-delete-leaves-table-by-table.md) — Soft delete leaves the project table by table, bank statement labels first.
 
 ---
