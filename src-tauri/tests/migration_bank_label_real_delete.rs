@@ -14,6 +14,10 @@ fn migrations() -> Vec<Migration> {
 }
 
 async fn pool_before_the_migration() -> SqlitePool {
+    pool_at(VERSION).await
+}
+
+async fn pool_at(version: i64) -> SqlitePool {
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect(":memory:")
@@ -23,7 +27,7 @@ async fn pool_before_the_migration() -> SqlitePool {
         .execute(&pool)
         .await
         .expect("foreign keys off");
-    for migration in migrations().iter().filter(|m| m.version < VERSION) {
+    for migration in migrations().iter().filter(|m| m.version < version) {
         sqlx::raw_sql(migration.sql.clone())
             .execute(&pool)
             .await
@@ -68,6 +72,47 @@ async fn label_ids(pool: &SqlitePool) -> Vec<String> {
         .fetch_all(pool)
         .await
         .expect("read labels")
+}
+
+/// BAS-046 across the upgrades an installed database goes through: the labels of an
+/// account deleted before the rule go, and BAC-060 restoring the account does not
+/// bring them back.
+#[tokio::test]
+async fn test_583_bas_046_old_deleted_accounts_lose_their_labels_for_good() {
+    const LABEL_CASCADE: i64 = 20260929;
+    let pool = pool_at(LABEL_CASCADE).await;
+    for (id, deleted) in [("live", 0), ("restored", 1), ("gone", 1)] {
+        sqlx::query("INSERT INTO bank_account (id, name, is_deleted) VALUES (?, ?, ?)")
+            .bind(id)
+            .bind(id)
+            .bind(deleted)
+            .execute(&pool)
+            .await
+            .unwrap();
+        insert_label_before(&pool, &format!("label-{id}"), id, "VIR", 0).await;
+    }
+    sqlx::query(
+        "INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
+         VALUES ('t-1', '2026-03-10', 120000, 'CHECK', 'restored')",
+    )
+    .execute(&pool)
+    .await
+    .expect("insert transfer");
+
+    for migration in migrations().iter().filter(|m| m.version >= LABEL_CASCADE) {
+        sqlx::raw_sql(migration.sql.clone())
+            .execute(&pool)
+            .await
+            .unwrap_or_else(|e| panic!("migration {}: {e}", migration.version));
+    }
+
+    let restored: i64 =
+        sqlx::query_scalar("SELECT is_deleted FROM bank_account WHERE id = 'restored'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(restored, 0, "BAC-060 brought the account back");
+    assert_eq!(label_ids(&pool).await, vec!["label-live".to_string()]);
 }
 
 #[tokio::test]

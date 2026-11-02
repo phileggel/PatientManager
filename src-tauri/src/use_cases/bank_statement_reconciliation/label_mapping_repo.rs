@@ -17,24 +17,24 @@ pub struct BankFundLabelMapping {
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BankFundLabelMappingRepository: Send + Sync {
-    /// Find all active mappings for a bank account
+    /// Find all mappings for a bank account
     async fn find_mappings_for_account(
         &self,
         bank_account_id: &str,
     ) -> anyhow::Result<Vec<BankFundLabelMapping>>;
 
-    /// BAS-041 — every active mapping, all accounts, ordered by account then label.
+    /// BAS-041 — every mapping, all accounts, ordered by account then label.
     async fn find_all_mappings(&self) -> anyhow::Result<Vec<BankFundLabelMapping>>;
 
-    /// BAS-042 — set an active mapping's fund (`None` = rejected, BAS-030).
-    /// `None` when no active mapping has this id.
+    /// BAS-042 — set a mapping's fund (`None` = rejected, BAS-030).
+    /// `None` when no mapping has this id.
     async fn reassign_mapping(
         &self,
         id: &str,
         fund_id: Option<String>,
     ) -> anyhow::Result<Option<BankFundLabelMapping>>;
 
-    /// BAS-043 — soft-delete an active mapping; `false` when none has this id.
+    /// BAS-043 — really delete a mapping; `false` when none has this id.
     async fn delete_mapping(&self, id: &str) -> anyhow::Result<bool>;
 
     /// Save a new mapping (or update if label already mapped for this account)
@@ -323,7 +323,7 @@ mod tests {
         assert!(found.is_empty());
     }
 
-    /// R8: rejected labels are stored with fund_id = NULL (ADR-001)
+    /// R8: rejected labels are stored with fund_id = NULL (ADR-009)
     #[tokio::test]
     async fn test_save_rejected_mapping_stores_null_fund_id() {
         let (repo, pool) = setup_test_repo().await;

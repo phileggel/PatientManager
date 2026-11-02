@@ -139,13 +139,13 @@ The non-obvious facts that constrain future work — things you'd never guess fr
 Recorded in [`docs/adr/`](docs/adr/). Each ADR ratifies a non-obvious design choice that future sessions must respect (or supersede explicitly).
 
 - [ADR-001](docs/adr/001-bank-fund-label-mapping-persistence.md) — Bank-fund-label mapping persistence (per-account learned mapping vs. global). Superseded by ADR-009.
-- [ADR-009](docs/adr/009-bank-statement-labels-really-deleted.md) — Bank statement labels are really deleted; soft delete leaves table by table (#579).
 - [ADR-002](docs/adr/002-overpayment-cascade-no-transaction.md) — Overpayment cascade — no DB transaction (split-step rollback design).
 - [ADR-003](docs/adr/003-unit-of-work.md) — Unit of Work — explicit pattern across multi-context writes.
 - [ADR-004](docs/adr/004-e2e-rtl-test-boundary-combobox.md) — E2E / RTL test boundary for HeadlessUI `ComboboxField`.
 - [ADR-005](docs/adr/005-combobox-feasibility-investigation.md) — Combobox feasibility — investigation result.
 - [ADR-006](docs/adr/006-frontend-resolves-pdf-translations.md) — Frontend resolves PDF translations (backend places strings, never i18n).
 - [ADR-007](docs/adr/007-e2e-native-dialog-override.md) — E2E native-dialog override (Tauri WebDriver friction workaround).
+- [ADR-009](docs/adr/009-soft-delete-leaves-table-by-table.md) — Soft delete leaves the project table by table, bank statement labels first.
 
 ---
 
