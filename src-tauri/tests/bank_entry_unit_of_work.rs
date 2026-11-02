@@ -166,8 +166,8 @@ async fn seed_fund_group(
     for proc_id in proc_ids {
         let line_id = Uuid::new_v4().to_string();
         sqlx::query(
-            "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id, is_deleted)
-             VALUES (?, ?, ?, 0)",
+            "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id)
+             VALUES (?, ?, ?)",
         )
         .bind(&line_id)
         .bind(&group_id)

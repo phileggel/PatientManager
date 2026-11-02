@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT p.id AS procedure_id,\n                   p.procedure_date AS \"procedure_date: NaiveDate\",\n                   p.billed_amount, pat.name AS patient_name\n            FROM \"procedure\" p\n            JOIN patient pat ON p.patient_id = pat.id\n            WHERE p.fund_id = $1\n              AND p.is_deleted = 0\n              AND p.payment_status = 'CREATED'\n              AND p.billed_amount > 0\n              AND p.id NOT IN (\n                  SELECT procedure_id FROM fund_payment_line WHERE is_deleted = 0\n              )\n            ORDER BY p.procedure_date ASC, p.id ASC\n            ",
+  "query": "\n            SELECT p.id AS procedure_id,\n                   p.procedure_date AS \"procedure_date: NaiveDate\",\n                   p.billed_amount, pat.name AS patient_name\n            FROM \"procedure\" p\n            JOIN patient pat ON p.patient_id = pat.id\n            WHERE p.fund_id = $1\n              AND p.is_deleted = 0\n              AND p.payment_status = 'CREATED'\n              AND p.billed_amount > 0\n              AND p.id NOT IN (\n                  SELECT procedure_id FROM fund_payment_line\n              )\n            ORDER BY p.procedure_date ASC, p.id ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -58,5 +58,5 @@
       true
     ]
   },
-  "hash": "64553504b3ca2c795a854032542f59d552a3d7e71cb4010a2868e277e091e831"
+  "hash": "8b0b2b1ff81ee685a3daba58a657d4509b695bf63c2c6594daef91a8094bbab8"
 }

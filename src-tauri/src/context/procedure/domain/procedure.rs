@@ -553,8 +553,9 @@ pub trait ProcedureRepository: Send + Sync {
         end_date: NaiveDate,
     ) -> anyhow::Result<Vec<UnreconciledProcedure>>;
 
-    /// Returns true if any non-deleted procedure in the given month (YYYY-MM) has a
-    /// blocking status (`ProcedureStatus::is_blocking`), preventing re-import (EXI-160).
+    /// Returns true if a non-deleted procedure of the month (YYYY-MM) has a blocking
+    /// status (`ProcedureStatus::is_blocking`, EXI-160), or any procedure of it is held
+    /// by a fund payment line (EXI-161), preventing re-import.
     async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool>;
 
     /// Find procedures eligible for a direct bank payment (CHECK/CREDIT_CARD/CASH).

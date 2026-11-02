@@ -421,6 +421,12 @@ async fn manual_delete_unlocked_group_resets_all_procedures() -> anyhow::Result<
         group_after.is_none(),
         "group should be soft-deleted after cleanup"
     );
+
+    // FPM-400 — the lines are really deleted, whatever the group's flag.
+    let lines: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM fund_payment_line")
+        .fetch_one(&ctx.pool)
+        .await?;
+    assert_eq!(lines, 0);
     Ok(())
 }
 

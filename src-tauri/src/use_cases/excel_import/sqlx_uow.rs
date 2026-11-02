@@ -60,7 +60,9 @@ mod tests {
     use sqlx::sqlite::SqlitePoolOptions;
     use sqlx::SqlitePool;
 
-    use crate::context::fund::{FundService, SqliteFundRepository};
+    use crate::context::fund::{
+        FundPaymentRepository, FundService, SqliteFundPaymentRepository, SqliteFundRepository,
+    };
     use crate::context::patient::{PatientService, SqlitePatientRepository};
     use crate::context::procedure::{
         ProcedureService, SqliteProcedureRefundRepository, SqliteProcedureRepository,
@@ -76,8 +78,8 @@ mod tests {
     use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
     /// January and February each hold one `Created` procedure, neither blocking.
-    /// February's is still referenced by the line of a deleted fund payment, so
-    /// the database refuses to purge that month (the failure #435 removes).
+    /// February's is still referenced by a refund record, so the database refuses
+    /// to purge that month: the failure these tests need.
     async fn seeded_pool() -> SqlitePool {
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
@@ -94,8 +96,10 @@ mod tests {
             "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('fund-1', '75', 'Caisse 75', 0)",
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('jan-old', 'known', 'type-1', '2026-01-10', 100000, 'CREATED', 0)"#,
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('feb-old', 'known', 'type-1', '2026-02-10', 100000, 'CREATED', 0)"#,
-            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES ('group-1', 'fund-1', '2026-02-20', 100000, 'ACTIVE', 1)",
-            "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id, is_deleted) VALUES ('line-1', 'group-1', 'feb-old', 1)",
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES ('group-1', 'fund-1', '2026-02-20', 100000, 'ACTIVE', 0)",
+            "INSERT INTO bank_account (id, name, is_deleted) VALUES ('acc-1', 'Compte', 0)",
+            "INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id) VALUES ('transfer-1', '2026-02-20', 100000, 'CHECK', 'acc-1')",
+            "INSERT INTO procedure_refund (id, source_procedure_id, refund_procedure_id, refund_fund_payment_group_id, refund_bank_transfer_id, refund_date, previous_payment_status) VALUES ('refund-1', 'feb-old', 'feb-old', 'group-1', 'transfer-1', '2026-02-20', 'CREATED')",
         ] {
             sqlx::query(statement)
                 .execute(&pool)
@@ -312,6 +316,78 @@ mod tests {
             crate::use_cases::excel_import::ExcelImportError::PatientInvalid
         );
         assert_eq!(stored(&pool).await, untouched());
+    }
+
+    async fn deleted_fund_payment_on(pool: &SqlitePool, procedure_id: &str) {
+        sqlx::query("INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES ('deleted-group', 'fund-1', '2026-01-20', 100000, 'ACTIVE', 0)")
+            .execute(pool)
+            .await
+            .expect("seed the group");
+        sqlx::query("INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id) VALUES ('deleted-line', 'deleted-group', ?)")
+            .bind(procedure_id)
+            .execute(pool)
+            .await
+            .expect("seed the line");
+        let payments = SqliteFundPaymentRepository::new(pool.clone());
+        payments
+            .delete_lines_by_group("deleted-group")
+            .await
+            .expect("delete the lines");
+        payments
+            .delete_group("deleted-group")
+            .await
+            .expect("delete the group");
+    }
+
+    /// #585: a month re-imports after one of its fund payments was deleted.
+    #[tokio::test]
+    async fn test_585_a_month_re_imports_after_its_fund_payment_was_deleted() {
+        let pool = seeded_pool().await;
+        deleted_fund_payment_on(&pool, "jan-old").await;
+
+        let result = orchestrator(&pool)
+            .execute_import(
+                workbook(vec![row("Jan", "2026-01-15")]),
+                mapping("type-1"),
+                vec!["Jan".to_string()],
+            )
+            .await
+            .expect("the import succeeds");
+
+        assert!(result.blocked_months.is_empty());
+        assert_eq!(result.procedures_deleted, 1);
+        assert_eq!(result.procedures_created, 1);
+    }
+
+    /// EXI-161: a line blocks its month whatever its procedure's status: the import never
+    /// touches a real payment.
+    #[tokio::test]
+    async fn test_585_exi_161_a_line_on_a_created_procedure_blocks_its_month() {
+        let pool = seeded_pool().await;
+        for statement in [
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES ('live-group', 'fund-1', '2026-01-20', 100000, 'ACTIVE', 0)",
+            "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id) VALUES ('live-line', 'live-group', 'jan-old')",
+        ] {
+            sqlx::query(statement).execute(&pool).await.expect("seed");
+        }
+
+        let result = orchestrator(&pool)
+            .execute_import(
+                workbook(vec![row("Jan", "2026-01-15")]),
+                mapping("type-1"),
+                vec!["Jan".to_string()],
+            )
+            .await
+            .expect("the import succeeds");
+
+        assert_eq!(result.blocked_months, vec!["2026-01"]);
+        assert_eq!(result.procedures_deleted, 0);
+        let lines: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM fund_payment_line WHERE id = 'live-line'")
+                .fetch_one(&pool)
+                .await
+                .expect("count");
+        assert_eq!(lines, 1);
     }
 
     /// EXI-176: a blocked month is left alone while the other month is imported.

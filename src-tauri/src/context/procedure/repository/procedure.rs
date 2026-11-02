@@ -659,7 +659,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
               AND p.is_deleted = 0
               AND p.payment_status = 'CREATED'
               AND p.id NOT IN (
-                  SELECT procedure_id FROM fund_payment_line WHERE is_deleted = 0
+                  SELECT procedure_id FROM fund_payment_line
               )
             ORDER BY p.procedure_date
             "#,
@@ -686,8 +686,10 @@ impl ProcedureRepository for SqliteProcedureRepository {
             r#"
             SELECT COUNT(*) FROM procedure
             WHERE procedure_date LIKE ?
-              AND payment_status IN (SELECT value FROM json_each(?))
-              AND is_deleted = 0
+              AND (
+                  (payment_status IN (SELECT value FROM json_each(?)) AND is_deleted = 0)
+                  OR id IN (SELECT procedure_id FROM fund_payment_line)
+              )
             "#,
             pattern,
             blocking
@@ -788,7 +790,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
               AND p.payment_status = 'CREATED'
               AND p.billed_amount > 0
               AND p.id NOT IN (
-                  SELECT procedure_id FROM fund_payment_line WHERE is_deleted = 0
+                  SELECT procedure_id FROM fund_payment_line
               )
             ORDER BY p.procedure_date ASC, p.id ASC
             "#,
@@ -1771,7 +1773,7 @@ mod tests {
     }
 
     // D1 anti-join — a CREATED procedure of the right fund with billed > 0 is
-    // still excluded once it belongs to a (non-deleted) fund_payment_line: the
+    // still excluded once it belongs to a fund_payment_line: the
     // anti-join is mandatory because group creation and the status flip are
     // separate, non-atomic writes (same rationale as
     // find_unreconciled_by_date_range).
@@ -1807,7 +1809,7 @@ mod tests {
         .await
         .unwrap();
         sqlx::query!(
-            "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id, is_deleted) VALUES (?, ?, ?, 0)",
+            "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id) VALUES (?, ?, ?)",
             "line-1",
             "grp-1",
             grouped.id

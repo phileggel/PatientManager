@@ -66,10 +66,23 @@ async fn make_pool() -> SqlitePool {
         .connect(":memory:")
         .await
         .expect("in-memory SQLite pool");
-    sqlx::migrate!("./migrations")
-        .run(&pool)
+    // The backfill is a copy of a shipped migration and reads `fund_payment_line.is_deleted`,
+    // so it runs on the schema before migration 20261103 removed that column.
+    sqlx::query("PRAGMA foreign_keys = OFF")
+        .execute(&pool)
         .await
-        .expect("migrations");
+        .expect("foreign keys off");
+    let migrator = sqlx::migrate!("./migrations");
+    for migration in migrator.iter().filter(|m| m.version < 20261103) {
+        sqlx::raw_sql(migration.sql.clone())
+            .execute(&pool)
+            .await
+            .unwrap_or_else(|e| panic!("migration {}: {e}", migration.version));
+    }
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
+        .await
+        .expect("foreign keys on");
     pool
 }
 

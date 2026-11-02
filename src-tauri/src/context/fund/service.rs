@@ -273,7 +273,7 @@ impl FundPaymentService {
             FundError::DatabaseError
         })?;
 
-        // Soft-delete old lines
+        // Delete old lines
         self.repository
             .delete_lines_by_group(&group_id)
             .await
