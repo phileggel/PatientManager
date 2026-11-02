@@ -39,7 +39,7 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM
 
 **FPM-300 (R6) — Editable fields (frontend + backend)**: The payment date and the procedure list can be edited. The fund associated with the group cannot be changed. The total amount is not editable — it is always recomputed automatically (see FPM-210).
 
-**FPM-310 (R7) — Removing a procedure (backend)**: When a procedure is removed from the group at validation time, its status reverts to `Created`, its actual payment amount (`actual_payment_amount`) and its `fund_reconciliation_date` are cleared, and the group total is recomputed accordingly.
+**FPM-310 (R7) — Removing a procedure (backend)**: When a procedure is removed from the group at validation time, its line is really deleted, its status reverts to `Created`, its actual payment amount (`actual_payment_amount`) and its `fund_reconciliation_date` are cleared, and the group total is recomputed accordingly.
 
 **FPM-320 (R8) — Adding a procedure (backend)**: When a `Created` procedure is added to the group at validation time, its status moves to `Reconciliated` (default), its `fund_reconciliation_date` is set to the group's payment date, its `actual_payment_amount` is set to its procedure amount, and the group total is recomputed accordingly. ⚠️ Letting the user pick the target status (`Reconciliated` or `PartiallyReconciled`) is a future enhancement and is not implemented.
 
@@ -53,7 +53,7 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM
 
 ### Group deletion (400–410)
 
-**FPM-400 (R11) — Deletion with reset (backend)**: Deleting a group resets all associated procedures to their initial state: their status reverts to `Created`, the `fund_reconciliation_date` and the actual payment amount are cleared. Deletion is blocked if the group is locked (see FPM-330).
+**FPM-400 (R11) — Deletion with reset (backend)**: Deleting a group marks it as deleted, really deletes its lines and resets all associated procedures to their initial state: their status reverts to `Created`, the `fund_reconciliation_date` and the actual payment amount are cleared. Deletion is blocked if the group is locked (see FPM-330).
 
 **FPM-410 (R12) — Confirmation required (frontend)**: Deleting a fund-payment group requires explicit user confirmation before being executed.
 

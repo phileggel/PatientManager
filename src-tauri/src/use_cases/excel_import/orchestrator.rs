@@ -208,7 +208,7 @@ impl ExcelImportOrchestrator {
                         ExcelImportError::ImportFailed
                     })?
                 {
-                    tracing::warn!(target: BACKEND, month = %month_key, sheet = %sheet, "Month blocked: it holds procedures with a blocking status");
+                    tracing::warn!(target: BACKEND, month = %month_key, sheet = %sheet, "Month blocked: it holds a fund payment or a procedure with a blocking status");
                     blocked_months.push(month_key);
                 } else {
                     months_to_clear.push(month_key);

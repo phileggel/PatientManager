@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, fund_payment_group_id, procedure_id\n            FROM fund_payment_line\n            WHERE fund_payment_group_id = $1 AND is_deleted = 0\n            ",
+  "query": "\n                SELECT id, fund_payment_group_id, procedure_id\n                FROM fund_payment_line\n                WHERE fund_payment_group_id = $1\n                ",
   "describe": {
     "columns": [
       {
@@ -46,5 +46,5 @@
       false
     ]
   },
-  "hash": "d15f59eca35c6c0be2c3ecf425a80058aad94f3b4e7e3571846106073bcbf10e"
+  "hash": "3f3c12a428eed0bd48be6f06af15760961e5ff49b765c5f64635ef13562f1ef2"
 }

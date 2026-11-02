@@ -311,9 +311,9 @@ impl SqliteFundPaymentRepository {
             sqlx::query!(
                 r#"
                     INSERT INTO fund_payment_line (
-                        id, fund_payment_group_id, procedure_id, is_deleted
+                        id, fund_payment_group_id, procedure_id
                     )
-                    VALUES ($1, $2, $3, 0)
+                    VALUES ($1, $2, $3)
                     "#,
                 line.id,
                 line.fund_payment_group_id,
@@ -412,9 +412,9 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             sqlx::query!(
                 r#"
                 INSERT INTO fund_payment_line (
-                    id, fund_payment_group_id, procedure_id, is_deleted
+                    id, fund_payment_group_id, procedure_id
                 )
-                VALUES ($1, $2, $3, 0)
+                VALUES ($1, $2, $3)
                 "#,
                 line.id,
                 line.fund_payment_group_id,
@@ -451,9 +451,9 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             sqlx::query!(
                 r#"
                 INSERT INTO fund_payment_line (
-                    id, fund_payment_group_id, procedure_id, is_deleted
+                    id, fund_payment_group_id, procedure_id
                 )
-                VALUES ($1, $2, $3, 0)
+                VALUES ($1, $2, $3)
                 "#,
                 line.id,
                 line.fund_payment_group_id,
@@ -490,7 +490,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
                 r#"
                 SELECT id, fund_payment_group_id, procedure_id
                 FROM fund_payment_line
-                WHERE fund_payment_group_id = $1 AND is_deleted = 0
+                WHERE fund_payment_group_id = $1
                 "#,
                 id,
             )
@@ -515,7 +515,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             SELECT l.fund_payment_group_id
             FROM fund_payment_line l
             JOIN fund_payment_group g ON g.id = l.fund_payment_group_id
-            WHERE l.procedure_id = $1 AND l.is_deleted = 0 AND g.is_deleted = 0
+            WHERE l.procedure_id = $1 AND g.is_deleted = 0
             "#,
             procedure_id,
         )
@@ -532,7 +532,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             r#"
             SELECT id, fund_payment_group_id, procedure_id
             FROM fund_payment_line
-            WHERE fund_payment_group_id = $1 AND is_deleted = 0
+            WHERE fund_payment_group_id = $1
             "#,
             group_id,
         )
@@ -564,7 +564,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
                 r#"
                 SELECT id, fund_payment_group_id, procedure_id
                 FROM fund_payment_line
-                WHERE fund_payment_group_id = $1 AND is_deleted = 0
+                WHERE fund_payment_group_id = $1
                 "#,
                 row.id,
             )
@@ -613,10 +613,10 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     async fn delete_lines_by_group(&self, group_id: &str) -> anyhow::Result<()> {
-        tracing::trace!(target: BACKEND, group_id = %group_id, "Soft-deleting fund payment lines");
+        tracing::trace!(target: BACKEND, group_id = %group_id, "Deleting fund payment lines");
 
         sqlx::query!(
-            r#"UPDATE fund_payment_line SET is_deleted = 1 WHERE fund_payment_group_id = ?"#,
+            "DELETE FROM fund_payment_line WHERE fund_payment_group_id = ?",
             group_id
         )
         .execute(&self.pool)
@@ -707,9 +707,9 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             sqlx::query!(
                 r#"
                 INSERT INTO fund_payment_line (
-                    id, fund_payment_group_id, procedure_id, is_deleted
+                    id, fund_payment_group_id, procedure_id
                 )
-                VALUES ($1, $2, $3, 0)
+                VALUES ($1, $2, $3)
                 "#,
                 line.id,
                 line.fund_payment_group_id,
