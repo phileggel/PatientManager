@@ -37,13 +37,14 @@ decision stays an open question in its spec.
 
 ## Index
 
-| ADR                                                   | Title                                                                              | Status   |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------- | -------- |
-| [ADR-001](001-bank-fund-label-mapping-persistence.md) | Persistance des mappings label→fonds (BankFundLabelMapping)                        | Accepted |
-| [ADR-002](002-overpayment-cascade-no-transaction.md)  | Accept Partial-State Risk in the Overpayment Cascade (No DB Transaction)           | Accepted |
-| [ADR-003](003-unit-of-work.md)                        | Unit of Work for cross-aggregate atomicity                                         | Accepted |
-| [ADR-004](004-e2e-rtl-test-boundary-combobox.md)      | E2E / RTL test boundary for HeadlessUI ComboboxField                               | Accepted |
-| [ADR-005](005-combobox-feasibility-investigation.md)  | ComboboxField replacement feasibility investigation                                | Accepted |
-| [ADR-006](006-frontend-resolves-pdf-translations.md)  | Frontend pre-resolves all translations and formatting for the backend PDF renderer | Accepted |
-| [ADR-007](007-e2e-native-dialog-override.md)          | E2E native-dialog override pattern (`window.__e2e` + `e2eOverride()`)              | Accepted |
-| [ADR-008](008-native-dialog-modal-system.md)          | Native `<dialog>` top layer for the modal system                                   | Accepted |
+| ADR                                                   | Title                                                                              | Status                        |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------- |
+| [ADR-001](001-bank-fund-label-mapping-persistence.md) | Persistence of label→fund mappings (BankFundLabelMapping)                          | Superseded by ADR-009         |
+| [ADR-002](002-overpayment-cascade-no-transaction.md)  | Accept Partial-State Risk in the Overpayment Cascade (No DB Transaction)           | Accepted                      |
+| [ADR-003](003-unit-of-work.md)                        | Unit of Work for cross-aggregate atomicity                                         | Accepted                      |
+| [ADR-004](004-e2e-rtl-test-boundary-combobox.md)      | E2E / RTL test boundary for HeadlessUI ComboboxField                               | Accepted                      |
+| [ADR-005](005-combobox-feasibility-investigation.md)  | ComboboxField replacement feasibility investigation                                | Accepted                      |
+| [ADR-006](006-frontend-resolves-pdf-translations.md)  | Frontend pre-resolves all translations and formatting for the backend PDF renderer | Accepted                      |
+| [ADR-007](007-e2e-native-dialog-override.md)          | E2E native-dialog override pattern (`window.__e2e` + `e2eOverride()`)              | Accepted                      |
+| [ADR-008](008-native-dialog-modal-system.md)          | Native `<dialog>` top layer for the modal system                                   | Accepted                      |
+| [ADR-009](009-soft-delete-leaves-table-by-table.md)   | Soft delete leaves the project table by table, bank statement labels first         | Accepted — supersedes ADR-001 |

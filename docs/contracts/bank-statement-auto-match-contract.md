@@ -1,7 +1,7 @@
 # Contract — Bank Statement Auto-Match
 
 > Domain: bank-statement-auto-match
-> Last updated by: label-mapping review (BAS-041–044), 2026-09-29
+> Last updated by: `bank-statement-auto-match` spec, BAS-043 and BAS-046 (#583), 2026-11-02
 
 > Wire errors are the composite `BankStatementReconciliationError` (untagged union of `BankError`, `FundError`, and the use-case `BankStatementReconciliationTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
@@ -107,7 +107,7 @@ Commits the reconciliation. **Recomputes the reconciliation server-side** from `
 
 ### `list_bank_label_mappings` — BAS-041
 
-Every saved label → fund mapping of every bank account, active only, ordered by account then label. Read-only; feeds the management screen's « Libellés bancaires » section.
+Every saved label → fund mapping of every bank account, ordered by account then label. Read-only; feeds the management screen's « Libellés bancaires » section.
 
 - **Args:** none
 - **Returns:** `Vec<BankFundLabelMapping>`
@@ -127,7 +127,7 @@ Sets a saved mapping's assignment to another fund or to rejected (BAS-030). The 
 
 ### `delete_bank_label_mapping` — BAS-043, BAS-044
 
-Soft-deletes a saved mapping. The label is unknown again at the next import of that account (BAS-036, BAS-032); a later import may save it anew (the unique index covers active rows only).
+Really deletes a saved bank statement label. The label is unknown again at the next import of that account (BAS-036, BAS-032); a later import may save it anew.
 
 - **Args:** `id: String`
 - **Returns:** `()`
@@ -308,3 +308,4 @@ struct BankStatementProcedureCandidate {
 - 2026-08-03 — Two-screen flow + display window (BAS-116 rev, BAS-118–123): **comment-only refresh — no signature, type, or error change.** The single behavioral delta is engine status derivation: a zero-item acknowledged remainder now resolves the line (`Matched`, left aside, BAS-123B); `NeedsGroup` gains the "no acknowledged remainder" conjunct. Screen 1 (label association) and all BAS-118 window filtering are frontend-derived from the existing wire shape.
 - 2026-07-31 — Bank-born groups (BAS-110–117): added `AssignProcedures` correction variant, `assigned_procedure_ids` + `candidate_procedures` on `BankStatementLine`, and `BankStatementProcedureCandidate`; new error codes `ProcedureNotEligible` (subsumes not-found) / `ProcedureAlreadyConsumed` on both live commands. `compute_bank_statement_reconciliation` additionally reads open procedures (BAS-112 predicate) + patient names for linked lines; `validate_bank_statement_reconciliation` births the `FundPaymentGroup` from assigned procedures (BAS-115 field mapping, stale-draft recheck) before settling it through the standard BAS-070–073 path. Group/procedure mutual exclusion per line resolved as a correction-list cascade (never an error); procedure consumption mirrors BAS-067. BAS-114 auto-select NOT RETAINED. `FundPaymentGroupUpdated` also fires for born groups (new record, not a status flip).
 - 2026-09-29 — Label-mapping review (BAS-041–044): added `list_bank_label_mappings`, `reassign_bank_label_mapping`, `delete_bank_label_mapping`, the `BankFundLabelMapping` shared type, and the `LabelMappingNotFound` error code. No event: the review screen reloads after each change. BAS-046 (a deleted bank account deletes its labels) is a database trigger, not a command.
+- 2026-11-02 — `delete_bank_label_mapping` really deletes the bank statement label; no signature change (#583).

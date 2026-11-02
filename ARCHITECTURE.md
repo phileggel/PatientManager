@@ -53,7 +53,7 @@ Parses the PDF into `NormalizedPdfLine`s grouped by `(fund, payment_date)`, matc
 
 Source: PDF bank statement from the practitioner's bank. Specs: [`docs/spec/bank-statement-auto-match.md`](docs/spec/bank-statement-auto-match.md), [`docs/spec/bank-statement-manual-match.md`](docs/spec/bank-statement-manual-match.md).
 
-Parses bank credit lines, resolves fund labels via `BankFundLabelMapping` (user-trained per bank account; ADR-001), matches each line to a `FundPaymentGroup`. Confirmed matches create `BankTransfer`s and **lock** the fund payment group (`is_locked = true`). Direct payments (cash/check/card) follow a separate manual-match flow that links bank transfers directly to procedures.
+Parses bank credit lines, resolves fund labels via `BankFundLabelMapping` (user-trained per bank account; ADR-009), matches each line to a `FundPaymentGroup`. Confirmed matches create `BankTransfer`s and **lock** the fund payment group (`is_locked = true`). Direct payments (cash/check/card) follow a separate manual-match flow that links bank transfers directly to procedures.
 
 The auto-match flow runs through an **ephemeral draft-recompute engine** (BAS-060–103): after parsing, `compute_bank_statement_reconciliation` derives a per-line draft (status + ranked candidates + heuristic fund suggestion) as a _pure function_ of the parsed statement plus an ordered list of correction commands (link-fund / assign-groups / acknowledge-remainder). The frontend replays a correction on every edit and revert — the draft is never persisted; `validate_bank_statement_reconciliation` recomputes server-side then commits (upserts mappings, creates one `BankTransfer` per assigned group, locks groups). This handles composite credits (one line → N groups, plus an acknowledged untracked remainder; formerly issue #62). For funds that never issue a bordereau (e.g. RATP), a line can instead be settled from the fund's **open procedures** (assign-procedures correction, BAS-110–117): validate then births the missing `FundPaymentGroup` and settles it in the same pass. The UI is a two-screen flow (BAS-120–123): label→fund association first (one row per distinct label), then a document-order settlement list with per-line correction dialogs + a settlement-only guided wizard (see [`docs/reconciliation-ux-pattern.md`](docs/reconciliation-ux-pattern.md)).
 
@@ -138,13 +138,15 @@ The non-obvious facts that constrain future work — things you'd never guess fr
 
 Recorded in [`docs/adr/`](docs/adr/). Each ADR ratifies a non-obvious design choice that future sessions must respect (or supersede explicitly).
 
-- [ADR-001](docs/adr/001-bank-fund-label-mapping-persistence.md) — Bank-fund-label mapping persistence (per-account learned mapping vs. global).
+- [ADR-001](docs/adr/001-bank-fund-label-mapping-persistence.md) — Bank-fund-label mapping persistence (per-account learned mapping vs. global). Superseded by ADR-009.
 - [ADR-002](docs/adr/002-overpayment-cascade-no-transaction.md) — Overpayment cascade — no DB transaction (split-step rollback design).
 - [ADR-003](docs/adr/003-unit-of-work.md) — Unit of Work — explicit pattern across multi-context writes.
 - [ADR-004](docs/adr/004-e2e-rtl-test-boundary-combobox.md) — E2E / RTL test boundary for HeadlessUI `ComboboxField`.
 - [ADR-005](docs/adr/005-combobox-feasibility-investigation.md) — Combobox feasibility — investigation result.
 - [ADR-006](docs/adr/006-frontend-resolves-pdf-translations.md) — Frontend resolves PDF translations (backend places strings, never i18n).
 - [ADR-007](docs/adr/007-e2e-native-dialog-override.md) — E2E native-dialog override (Tauri WebDriver friction workaround).
+- [ADR-008](docs/adr/008-native-dialog-modal-system.md) — Native `<dialog>` top layer for the modal system.
+- [ADR-009](docs/adr/009-soft-delete-leaves-table-by-table.md) — Soft delete leaves the project table by table, bank statement labels first.
 
 ---
 

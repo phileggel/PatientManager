@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            UPDATE bank_fund_label_mapping\n            SET fund_id = $1\n            WHERE id = $2 AND is_deleted = 0\n            RETURNING id AS \"id!\", bank_account_id AS \"bank_account_id!\", bank_label AS \"bank_label!\", fund_id AS \"fund_id?\"\n            ",
+  "query": "\n            UPDATE bank_fund_label_mapping\n            SET fund_id = $1\n            WHERE id = $2\n            RETURNING id AS \"id!\", bank_account_id AS \"bank_account_id!\", bank_label AS \"bank_label!\", fund_id AS \"fund_id?\"\n            ",
   "describe": {
     "columns": [
       {
@@ -58,5 +58,5 @@
       false
     ]
   },
-  "hash": "caf77bd24520dda8de602f2695006f543e0ca7b1b35b8024a4b0afb38b912f51"
+  "hash": "beb04b465d980bc53130aedf1e0840d53668b09a1d30d3e27eb8aecf15d206b9"
 }

@@ -8,14 +8,13 @@ This document covers the **automatic flow** — PDF parsing, fund-label resoluti
 
 ## Entity Definition
 
-**Bank statement label** (`BankFundLabelMapping` in code; ADR-001) — unique per bank account and label among live rows.
+**Bank statement label** (`BankFundLabelMapping` in code; ADR-009) — unique per bank account and label.
 
-| Field        | Business meaning                                        |
-| ------------ | ------------------------------------------------------- |
-| bank account | The account whose statements carry the label            |
-| label        | The label text of a bank statement line, as imported    |
-| assignment   | A fund, or ignored (BAS-030); stored as no fund         |
-| deleted      | Soft-deleted by BAS-043 or BAS-046; never shown or used |
+| Field        | Business meaning                                     |
+| ------------ | ---------------------------------------------------- |
+| bank account | The account whose statements carry the label         |
+| label        | The label text of a bank statement line, as imported |
+| assignment   | A fund, or ignored (BAS-030); stored as no fund      |
 
 ---
 
@@ -97,13 +96,13 @@ A **bank statement label** is the label of a bank statement line, remembered per
 
 **BAS-042A — Fund picker (frontend)**: The picker offers « Ignoré » first, then the active funds in the order every fund list uses.
 
-**BAS-043 — Deleting (frontend + backend)**: Deleting a label asks for confirmation, whatever its past use. Afterwards the label is unknown again: the next import of that account shows it with an empty field (BAS-036) and, if one exists, a suggestion (BAS-032). Nothing cascades: bank transfers and groups reconciled while it existed are unaffected.
+**BAS-043 — Deleting (frontend + backend)**: Deleting a label asks for confirmation, whatever its past use. The label is really deleted, and unknown again: the next import of that account shows it with an empty field (BAS-036) and, if one exists, a suggestion (BAS-032). Nothing cascades: bank transfers and groups reconciled while it existed are unaffected.
 
 **BAS-044 — Label gone (frontend + backend)**: Reassigning or deleting a deleted or unknown label is refused and nothing is written; the screen says so and reloads the list.
 
 **BAS-045 — Action feedback (frontend)**: A successful reassign or delete shows a confirmation message; any other failure shows an error message and leaves the list unchanged.
 
-**BAS-046 — Deleted bank account (backend)**: Deleting a bank account deletes its bank statement labels. A deleted account's labels never come back, even when BAC-060 restores the account. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is never resolved from an IBAN (BAS-010), so no import can add labels to it; the list therefore holds live accounts only.
+**BAS-046 — Deleted bank account (backend)**: Deleting a bank account really deletes its bank statement labels. A deleted account's labels never come back, even when BAC-060 restores the account. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is never resolved from an IBAN (BAS-010), so no import can add labels to it; the list therefore holds live accounts only.
 
 ### Matching algorithm (050–059)
 

@@ -1,7 +1,7 @@
 # ADR 001 — Persistence of label→fund mappings (BankFundLabelMapping)
 
 **Date**: 2026-04-07
-**Status**: Accepted
+**Status**: Superseded by ADR-009
 
 ## Context
 

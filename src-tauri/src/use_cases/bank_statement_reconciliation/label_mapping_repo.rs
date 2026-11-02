@@ -17,24 +17,24 @@ pub struct BankFundLabelMapping {
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BankFundLabelMappingRepository: Send + Sync {
-    /// Find all active mappings for a bank account
+    /// Find all mappings for a bank account
     async fn find_mappings_for_account(
         &self,
         bank_account_id: &str,
     ) -> anyhow::Result<Vec<BankFundLabelMapping>>;
 
-    /// BAS-041 — every active mapping, all accounts, ordered by account then label.
+    /// BAS-041 — every mapping, all accounts, ordered by account then label.
     async fn find_all_mappings(&self) -> anyhow::Result<Vec<BankFundLabelMapping>>;
 
-    /// BAS-042 — set an active mapping's fund (`None` = rejected, BAS-030).
-    /// `None` when no active mapping has this id.
+    /// BAS-042 — set a mapping's fund (`None` = rejected, BAS-030).
+    /// `None` when no mapping has this id.
     async fn reassign_mapping(
         &self,
         id: &str,
         fund_id: Option<String>,
     ) -> anyhow::Result<Option<BankFundLabelMapping>>;
 
-    /// BAS-043 — soft-delete an active mapping; `false` when none has this id.
+    /// BAS-043 — really delete a mapping; `false` when none has this id.
     async fn delete_mapping(&self, id: &str) -> anyhow::Result<bool>;
 
     /// Save a new mapping (or update if label already mapped for this account)
@@ -66,7 +66,7 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             r#"
             SELECT id, bank_account_id, bank_label, fund_id
             FROM bank_fund_label_mapping
-            WHERE bank_account_id = $1 AND is_deleted = 0
+            WHERE bank_account_id = $1
             "#,
             bank_account_id,
         )
@@ -90,7 +90,6 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             r#"
             SELECT id, bank_account_id, bank_label, fund_id
             FROM bank_fund_label_mapping
-            WHERE is_deleted = 0
             ORDER BY bank_account_id, bank_label
             "#,
         )
@@ -118,7 +117,7 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             r#"
             UPDATE bank_fund_label_mapping
             SET fund_id = $1
-            WHERE id = $2 AND is_deleted = 0
+            WHERE id = $2
             RETURNING id AS "id!", bank_account_id AS "bank_account_id!", bank_label AS "bank_label!", fund_id AS "fund_id?"
             "#,
             fund_id,
@@ -137,13 +136,10 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
     }
 
     async fn delete_mapping(&self, id: &str) -> anyhow::Result<bool> {
-        let result = sqlx::query!(
-            "UPDATE bank_fund_label_mapping SET is_deleted = 1 WHERE id = $1 AND is_deleted = 0",
-            id,
-        )
-        .execute(&self.pool)
-        .await
-        .context("Failed to delete label mapping")?;
+        let result = sqlx::query!("DELETE FROM bank_fund_label_mapping WHERE id = $1", id,)
+            .execute(&self.pool)
+            .await
+            .context("Failed to delete label mapping")?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -165,7 +161,7 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
         let existing = sqlx::query!(
             r#"
             SELECT id FROM bank_fund_label_mapping
-            WHERE bank_account_id = $1 AND bank_label = $2 AND is_deleted = 0
+            WHERE bank_account_id = $1 AND bank_label = $2
             "#,
             bank_account_id,
             bank_label,
@@ -200,8 +196,8 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             let id = Uuid::new_v4().to_string();
             sqlx::query!(
                 r#"
-                INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id, is_deleted)
-                VALUES ($1, $2, $3, $4, 0)
+                INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id)
+                VALUES ($1, $2, $3, $4)
                 "#,
                 id,
                 bank_account_id,
@@ -327,7 +323,7 @@ mod tests {
         assert!(found.is_empty());
     }
 
-    /// R8: rejected labels are stored with fund_id = NULL (ADR-001)
+    /// R8: rejected labels are stored with fund_id = NULL (ADR-009)
     #[tokio::test]
     async fn test_save_rejected_mapping_stores_null_fund_id() {
         let (repo, pool) = setup_test_repo().await;
