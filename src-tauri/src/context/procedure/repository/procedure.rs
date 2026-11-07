@@ -311,7 +311,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
     }
 
     async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-        tracing::trace!(target: BACKEND, "Fetching all active procedures from database");
+        tracing::trace!(target: BACKEND, "Fetching all procedures from database");
 
         let rows = sqlx::query_as!(
             ProcedureRow,
@@ -431,26 +431,16 @@ impl ProcedureRepository for SqliteProcedureRepository {
     async fn delete_procedure(&self, id: &str) -> anyhow::Result<bool> {
         tracing::trace!(target: BACKEND, procedure_id = %id, "Deleting procedure from database");
 
-        // PRO-030 — never a row a payment line, a bank link or a refund record still
-        // refers to: false says the delete was refused, or found nothing.
-        let result = sqlx::query!(
-            r#"
-            DELETE FROM procedure
-            WHERE id = $1
-              AND NOT EXISTS (SELECT 1 FROM fund_payment_line WHERE procedure_id = $1)
-              AND NOT EXISTS (SELECT 1 FROM bank_transfer_procedure_link WHERE procedure_id = $1)
-              AND NOT EXISTS (
-                  SELECT 1 FROM procedure_refund
-                  WHERE source_procedure_id = $1 OR refund_procedure_id = $1
-              )
-            "#,
-            id
-        )
-        .execute(&self.pool)
-        .await
-        .with_context(|| anyhow!("Failed to delete procedure"))?;
-
-        Ok(result.rows_affected() > 0)
+        // PRO-030 — the foreign keys refuse a row a payment line, a bank link or a refund
+        // record still refers to, so this repository names no other context's table.
+        match sqlx::query!("DELETE FROM procedure WHERE id = $1", id)
+            .execute(&self.pool)
+            .await
+        {
+            Ok(result) => Ok(result.rows_affected() > 0),
+            Err(sqlx::Error::Database(e)) if e.is_foreign_key_violation() => Ok(false),
+            Err(e) => Err(e).with_context(|| anyhow!("Failed to delete procedure")),
+        }
     }
 
     async fn find_procedures_by_ssn_and_date_range(
@@ -967,6 +957,11 @@ mod tests {
             let created = created_procedure(&repo).await;
             sqlx::query(reference)
                 .bind(&created.id)
+                .execute(&repo.pool)
+                .await
+                .unwrap();
+            // The application's pool enforces them (shared/infrastructure/db.rs).
+            sqlx::query("PRAGMA foreign_keys = ON")
                 .execute(&repo.pool)
                 .await
                 .unwrap();

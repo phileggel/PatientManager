@@ -79,6 +79,36 @@ async fn test_588_pro_031_flagged_procedures_go_unless_referred_to() {
     );
 }
 
+/// PRO-032 — a kept procedure comes back as it was stored.
+#[tokio::test]
+async fn test_588_pro_032_a_kept_procedure_keeps_what_it_stored() {
+    let pool = pool_before_the_migration().await;
+    for statement in [
+        "INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('old-with-line', 'pat', 'fund', 'type', '2026-01-20', 100, 'FUND_PAYED', 1)",
+        "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id) VALUES ('l', 'g', 'old-with-line')",
+    ] {
+        sqlx::query(statement).execute(&pool).await.expect("seed");
+    }
+
+    run_the_migration(&pool).await;
+
+    let kept: (String, String, String, String) = sqlx::query_as(
+        "SELECT patient_id, fund_id, procedure_type_id, payment_status FROM procedure WHERE id = 'old-with-line'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("read the kept procedure");
+    assert_eq!(
+        kept,
+        (
+            "pat".to_string(),
+            "fund".to_string(),
+            "type".to_string(),
+            "FUND_PAYED".to_string()
+        )
+    );
+}
+
 #[tokio::test]
 async fn test_588_the_column_and_its_index_are_gone() {
     let pool = pool_before_the_migration().await;
