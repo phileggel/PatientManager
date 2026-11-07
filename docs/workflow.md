@@ -21,7 +21,8 @@ phileggel --url <url>`. An old `TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` is found by 
 ## Design
 
 Mocks live in `phileggel/PatientManager-design` (`design-proposal.repo` of
-`.claude/daneel.json`).
+`.claude/daneel.json`). The validated mocks are the only description of the screens (owner,
+2026-11-07, #638); a screen's mock is found through its issue, which links it.
 
 ## Ending a batch
 

@@ -2,7 +2,9 @@
 
 A spec is `docs/spec/{feature}.md`, in English: the business rules of one feature, written
 or amended by the agent from the issue and the code and checked by `spec-reviewer` before anything is
-built from it (owner, 2026-10-18).
+built from it (owner, 2026-10-18). A business rule is what the backend enforces whatever the
+client — the window, a CLI or an MCP. The screens are not in a spec (`docs/workflow.md`
+§ Design). Specs written before this migrate in #638's slices.
 
 ## Numbering
 
@@ -50,9 +52,9 @@ When referencing a rule in code, documentation, or tests, use the full code:
 
 ## Reference Documents
 
-Cross-spec conventions a spec author MUST honor when the relevant trigramme is in scope.
+Cross-spec conventions, each for what it names.
 
-- [`reconciliation-ux-pattern.md`](../reconciliation-ux-pattern.md) — **applies to FPA · BAS · BSM.** The shared reconciliation **UX** convention: whole-document list (not bit-by-bit), per-line correction modal + batch action, live update, single validate. UX converges across the flows; code stays per-bounded-context (no shared component).
+- [`reconciliation-ux-pattern.md`](../reconciliation-ux-pattern.md) — **applies to the mocks of FPA · BAS · BSM.** The shared reconciliation **UX** convention: whole-document list (not bit-by-bit), per-line correction modal + batch action, live update, single validate. UX converges across the flows; code stays per-bounded-context (no shared component).
 
 ---
 
@@ -89,17 +91,17 @@ Cross-spec conventions a spec author MUST honor when the relevant trigramme is i
 
 ### Eligibility and Initiation (010–019)
 
-**{TRIGRAM}-010 — {Short Title} (frontend + backend)**: {Precise, testable description of the rule.}
+**{TRIGRAM}-010 — {Short Title} (backend)**: {Precise, testable description of the rule.}
 
 **{TRIGRAM}-011 — {Short Title} (backend)**: {Description.}
 
 ### Creation (020–029)
 
-**{TRIGRAM}-020 — {Short Title} (frontend)**: {Description.}
+**{TRIGRAM}-020 — {Short Title} (backend)**: {Description.}
 
 ### Status Updates (030–039)
 
-**{TRIGRAM}-030 — {Short Title} (frontend + backend)**: {Description.}
+**{TRIGRAM}-030 — {Short Title} (backend)**: {Description.}
 
 ---
 
@@ -110,32 +112,7 @@ Cross-spec conventions a spec author MUST honor when the relevant trigramme is i
 
 ## Workflow
 
-{ASCII diagram of the main user flow, if relevant}
-
----
-
-## UX Draft
-
-### Entry Point
-
-{How the user accesses the feature: drawer entry, FAB button, contextual action...}
-
-### Main Component
-
-{Type: modal / page / panel / dialog. Notable sub-components.}
-
-### States
-
-- **Empty**: {what the user sees with no data}
-- **Loading**: {loading state}
-- **Error**: {error messages, validation}
-- **Success**: {success feedback}
-
-### User Flow
-
-1. {Step 1}
-2. {Step 2}
-3. ...
+{ASCII diagram of the business flow — the states and who moves them — if relevant}
 
 ---
 
@@ -146,12 +123,12 @@ Cross-spec conventions a spec author MUST honor when the relevant trigramme is i
 
 ## Writing the rules
 
-- Each rule atomic (one behaviour), testable on its own, with its scope: `(frontend)`,
-  `(backend)` or `(frontend + backend)`. A notable edge case is a rule of its own.
-- Every observable behaviour has a rule: one the Workflow or UX Draft shows without a rule
-  gets one — form defaults, sort toggles, a modal staying open on error, empty state versus
-  no search result. What the project's existing patterns settle (navigation, success
-  feedback, network errors) is written as a rule without asking.
+- Each rule atomic (one behaviour), testable on its own against the backend: its scope is
+  `(backend)`. A notable edge case is a rule of its own.
+- Every business outcome has a rule: a refusal, a state change, a computed amount, the
+  default order when it is a business rule. What the screen shows and how — a modal or a
+  panel, a disabled control, an empty state — is no rule: the mock holds it. A clause about
+  the screen is a finding.
 - An active ADR's choice is applied without asking; the owner is asked only when the
   feature must break one.
 - Every assumption is an open question, asked before the work (`method.md` § 2);

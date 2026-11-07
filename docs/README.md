@@ -40,6 +40,7 @@ reconciled.
 ## Where a new statement goes
 
 - A business behaviour → a spec rule (and the vocabulary if a new word appears).
+- What a screen shows → its validated mock (`workflow.md` § Design), never a spec rule.
 - How to write code, tests, strings or commits → the matching `*-rules.md`, with an ID
   where it can be checked.
 - A technical choice costly to reverse → an ADR with its guard; code organisation is
