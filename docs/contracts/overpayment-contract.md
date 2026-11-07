@@ -26,7 +26,7 @@ Validates eligibility (REF-010), refund date (REF-030), reason length (REF-040),
 
 ### `cancel_overpayment` — REF-210
 
-Atomic transaction (not yet: ADR-002 until #390). Reversal cascade in order: revert source procedure status (from `ProcedureRefund.previous_payment_status`), delete `ProcedureRefund` link, delete `BankTransferLink`, delete refund bank transfer, delete refund fund-payment group, delete refund procedure. Always identified by `source_procedure_id`. If any step fails, all changes roll back.
+Atomic transaction (not yet: ADR-002 until #390). Reversal cascade in order: revert source procedure status (from `ProcedureRefund.previous_payment_status`), delete `ProcedureRefund` link, delete `BankTransferLink`, delete refund bank transfer, delete refund fund-payment group and its lines, delete refund procedure. Always identified by `source_procedure_id`. If any step fails, all changes roll back.
 
 - **Args:** `CancelOverpaymentRequest`
 - **Returns:** `()`

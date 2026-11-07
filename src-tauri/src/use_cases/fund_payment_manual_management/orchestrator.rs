@@ -272,7 +272,7 @@ impl FundPaymentManualManagementOrchestrator {
     ///    group (REF-240)
     /// 2. Reject if any linked procedure is bank-reconciled (R9)
     /// 3. Reset each procedure: status → Created, clear confirmed_payment_date, clear paid_amount
-    /// 4. Really delete the lines, soft-delete the group
+    /// 4. Really delete the lines, then the group
     pub async fn delete_group_with_cleanup(
         &self,
         group_id: &str,
@@ -326,7 +326,7 @@ impl FundPaymentManualManagementOrchestrator {
                 .await?;
         }
 
-        // Step 4: Delete the lines, soft-delete the group
+        // Step 4: Delete the lines, then the group
         self.fund_payment_service
             .delete_lines_by_group(group_id)
             .await?;

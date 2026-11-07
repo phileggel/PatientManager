@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, fund_id, payment_date AS \"payment_date: chrono::NaiveDate\", total_amount, status, origin\n            FROM fund_payment_group\n            WHERE is_deleted = 0\n            ",
+  "query": "\n            SELECT id, fund_id, payment_date AS \"payment_date: chrono::NaiveDate\", total_amount, status, origin\n            FROM fund_payment_group\n            ",
   "describe": {
     "columns": [
       {
@@ -82,5 +82,5 @@
       false
     ]
   },
-  "hash": "f9a68b951e187ddf5fabf7ba0b4f1c0d89215a7a0e52bace2ca27901e601359a"
+  "hash": "b3b5be69a94d5c310758d7f206145e21e6ca33c5b67fd4b809d6ecde31a2bdf9"
 }

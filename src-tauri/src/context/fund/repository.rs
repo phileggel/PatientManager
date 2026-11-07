@@ -293,9 +293,9 @@ impl SqliteFundPaymentRepository {
         sqlx::query!(
             r#"
                 INSERT INTO fund_payment_group (
-                    id, fund_id, payment_date, total_amount, status, origin, is_deleted
+                    id, fund_id, payment_date, total_amount, status, origin
                 )
-                VALUES ($1, $2, $3, $4, 'ACTIVE', $5, 0)
+                VALUES ($1, $2, $3, $4, 'ACTIVE', $5)
                 "#,
             group.id,
             group.fund_id,
@@ -393,9 +393,9 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         sqlx::query!(
             r#"
             INSERT INTO fund_payment_group (
-                id, fund_id, payment_date, total_amount, status, origin, is_deleted
+                id, fund_id, payment_date, total_amount, status, origin
             )
-            VALUES ($1, $2, $3, $4, 'ACTIVE', $5, 0)
+            VALUES ($1, $2, $3, $4, 'ACTIVE', $5)
             "#,
             group.id,
             group.fund_id,
@@ -477,7 +477,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             r#"
             SELECT id, fund_id, payment_date AS "payment_date: chrono::NaiveDate", total_amount, status, origin
             FROM fund_payment_group
-            WHERE id = $1 AND is_deleted = 0
+            WHERE id = $1
             "#,
             id,
         )
@@ -515,7 +515,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             SELECT l.fund_payment_group_id
             FROM fund_payment_line l
             JOIN fund_payment_group g ON g.id = l.fund_payment_group_id
-            WHERE l.procedure_id = $1 AND g.is_deleted = 0
+            WHERE l.procedure_id = $1
             "#,
             procedure_id,
         )
@@ -550,7 +550,6 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             r#"
             SELECT id, fund_id, payment_date AS "payment_date: chrono::NaiveDate", total_amount, status, origin
             FROM fund_payment_group
-            WHERE is_deleted = 0
             "#,
         )
         .fetch_all(&self.pool)
@@ -627,15 +626,12 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
     }
 
     async fn delete_group(&self, group_id: &str) -> anyhow::Result<()> {
-        tracing::trace!(target: BACKEND, group_id = %group_id, "Soft-deleting fund payment group");
+        tracing::trace!(target: BACKEND, group_id = %group_id, "Deleting fund payment group");
 
-        sqlx::query!(
-            r#"UPDATE fund_payment_group SET is_deleted = 1 WHERE id = ?"#,
-            group_id
-        )
-        .execute(&self.pool)
-        .await
-        .with_context(|| format!("Failed to soft-delete fund payment group {}", group_id))?;
+        sqlx::query!(r#"DELETE FROM fund_payment_group WHERE id = ?"#, group_id)
+            .execute(&self.pool)
+            .await
+            .with_context(|| format!("Failed to delete fund payment group {}", group_id))?;
 
         Ok(())
     }
@@ -650,7 +646,7 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             r#"
             SELECT COUNT(*) as "count: i32"
             FROM fund_payment_group
-            WHERE fund_id = $1 AND payment_date = $2 AND total_amount = $3 AND is_deleted = 0
+            WHERE fund_id = $1 AND payment_date = $2 AND total_amount = $3
             "#,
             fund_id,
             payment_date,
@@ -688,9 +684,9 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
         sqlx::query!(
             r#"
             INSERT INTO fund_payment_group (
-                id, fund_id, payment_date, total_amount, status, origin, is_deleted
+                id, fund_id, payment_date, total_amount, status, origin
             )
-            VALUES ($1, $2, $3, $4, $5, $6, 0)
+            VALUES ($1, $2, $3, $4, $5, $6)
             "#,
             group.id,
             group.fund_id,
@@ -973,7 +969,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_group_soft_deletes() {
+    async fn test_586_delete_group_really_deletes_it() {
         let (fund_repo, payment_repo) = setup_payment_repos().await;
         let fund = fund_repo.create_fund("75", "CPAM 75").await.unwrap();
         let group = payment_repo
@@ -984,6 +980,12 @@ mod tests {
         payment_repo.delete_group(&group.id).await.unwrap();
         assert!(payment_repo.read_group(&group.id).await.unwrap().is_none());
         assert!(payment_repo.read_all_groups().await.unwrap().is_empty());
+        let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM fund_payment_group WHERE id = ?")
+            .bind(&group.id)
+            .fetch_one(&payment_repo.pool)
+            .await
+            .unwrap();
+        assert_eq!(rows, 0, "the row is gone, not flagged");
     }
 
     #[tokio::test]

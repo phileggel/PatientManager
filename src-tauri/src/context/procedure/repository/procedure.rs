@@ -1799,7 +1799,7 @@ mod tests {
             .unwrap();
 
         sqlx::query!(
-            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, is_deleted) VALUES (?, ?, ?, ?, 0)",
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount) VALUES (?, ?, ?, ?)",
             "grp-1",
             "fund-1",
             "2026-01-05",

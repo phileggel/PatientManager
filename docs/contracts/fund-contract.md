@@ -2,7 +2,7 @@
 
 > Domain: fund
 > Backend module: context/fund; `delete_fund` in use_cases/procedure_orchestration
-> Last updated by: `fund-payment-manual-match` spec, FPM-400 (#585), 2026-11-02
+> Last updated by: `fund-payment-manual-match` spec, FPM-400 (#586), 2026-11-07
 
 ## Commands
 
@@ -80,9 +80,9 @@ Updates the payment date and/or procedure composition of an existing group. Remo
 
 ---
 
-### `delete_fund_payment_group` — FPM R9, R11, REF-240
+### `delete_fund_payment_group` — FPM R9, R11, FPM-401, REF-240
 
-Soft-deletes the group, really deletes its lines and resets all linked procedures to `Created`, clearing their `fund_reconciliation_date` and `paid_amount`. Blocked if the group is `BankPayed` (FPM R9). Also rejects deletion of a group whose `origin` is `Refund` (REF-240), whoever calls the use case.
+Really deletes the group and its lines, and resets all linked procedures to `Created`, clearing their `fund_reconciliation_date` and `paid_amount`. Blocked if the group is `BankPayed` (FPM R9). Also rejects deletion of a group whose `origin` is `Refund` (REF-240), whoever calls the use case.
 
 - **Args:** `group_id: String`
 - **Returns:** `()`
@@ -140,6 +140,7 @@ enum FundPaymentGroupStatus {
 
 ## Changelog
 
+- 2026-11-07 — Modified by `fund-payment-manual-match` spec (FPM-400, #586): `delete_fund_payment_group` really deletes the group; no signature change.
 - 2026-11-02 — Modified by `fund-payment-manual-match` spec (FPM-400, #585): `delete_fund_payment_group` really deletes the group's lines; no signature change.
 - 2026-10-18 — Modified by `overpayment` spec (REF-240, ticket #355): `FundPaymentGroup` carries `origin` (`GroupOrigin`); `delete_fund_payment_group` answers `RefundGroupProtected` from the use case, its errors listed as the code sends them
 - 2026-10-14 — Modified by `procedure-orchestration` spec (DEBT-042): delete_fund

@@ -138,7 +138,7 @@ The backend rejects the request if no `bank_account_id` is provided.
 2. Delete the `ProcedureRefund` link entry.
 3. Delete the `BankTransferLink` entry.
 4. Delete the refund bank transfer.
-5. Delete the refund fund payment group.
+5. Delete the refund fund payment group and its lines.
 6. Delete the refund procedure.
 
 If any step fails, the entire operation rolls back.
@@ -182,7 +182,7 @@ If any step fails, the entire operation rolls back.
   → Delete ProcedureRefund link
   → Delete BankTransferLink
   → Delete refund bank transfer
-  → Delete refund fund payment group
+  → Delete refund fund payment group and its lines
   → Delete refund procedure
 ```
 

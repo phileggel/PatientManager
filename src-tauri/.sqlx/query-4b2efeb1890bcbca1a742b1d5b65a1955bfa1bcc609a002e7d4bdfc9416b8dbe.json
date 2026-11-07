@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM fund_payment_group WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "4b2efeb1890bcbca1a742b1d5b65a1955bfa1bcc609a002e7d4bdfc9416b8dbe"
+}
