@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, name, default_amount, category, is_deleted\n            FROM procedure_type\n            WHERE is_deleted = 0\n            ",
+  "query": "\n            SELECT id, name, default_amount, category\n            FROM procedure_type\n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -46,29 +46,17 @@
             "name": "category"
           }
         }
-      },
-      {
-        "name": "is_deleted",
-        "ordinal": 4,
-        "type_info": "Integer",
-        "origin": {
-          "Table": {
-            "table": "procedure_type",
-            "name": "is_deleted"
-          }
-        }
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
       false,
       false,
-      true,
-      false
+      true
     ]
   },
-  "hash": "b93f65676f6c21f35fab319cdbcc9c9eff5d3fefbe0975be3421583c72bdda8f"
+  "hash": "a7b02a2aa94341596edc975ab0e5c4863197ec4876391e819193fb25dc5baa97"
 }

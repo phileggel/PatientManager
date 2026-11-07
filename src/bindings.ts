@@ -2391,6 +2391,10 @@ export type ProcedureError =
  */
 { code: "ReservedTypeNotMutable" } | 
 /**
+ * R24 — the deletion use case refused a procedure type procedures still use.
+ */
+{ code: "ProcedureTypeInUse"; procedure_count: number } | 
+/**
  * `ProcedureRefund::validate` rejected a reason exceeding the 255-char cap.
  */
 { code: "RefundReasonTooLong" } | 

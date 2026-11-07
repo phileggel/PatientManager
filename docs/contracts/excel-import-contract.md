@@ -29,7 +29,7 @@ Executes the import from a previously parsed response. Resolves and creates pati
 
 ### `get_excel_amount_mappings` — R23, R24
 
-Returns the user's saved amount → procedure type preferences. Excludes mappings whose procedure type no longer exists (soft-deleted), unless the mapped type is `imported-from-excel` (R24). Used to pre-fill the mapping screen on subsequent imports.
+Returns the user's saved amount → procedure type preferences. A deleted procedure type takes its mappings with it, so each names a procedure type or `imported-from-excel` (R24). Used to pre-fill the mapping screen on subsequent imports.
 
 - **Args:** —
 - **Returns:** `Vec<ExcelAmountMapping>`
@@ -168,6 +168,7 @@ Each is raised after the commit, at most once per import; a failed import raises
 
 ## Changelog
 
+- 2026-11-07 — `get_excel_amount_mappings` (#589, EXI-250): no filter; a procedure type's deletion deletes its mappings.
 - 2026-11-07 — `execute_excel_import` stores the default type `imported-from-excel` as the reserved `import-pdf` type (EXI-131).
 - 2026-11-01 — `SkippedRow.reason` documented as the `SkipReason` the wire already carries (EXI-290); EXI-171's exception stated on `execute_excel_import`.
 - 2026-05-02 — Added by `excel-import` spec: parse_excel_file, execute_excel_import, get_excel_amount_mappings, save_excel_amount_mappings

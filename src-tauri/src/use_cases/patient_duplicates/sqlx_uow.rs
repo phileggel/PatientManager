@@ -71,7 +71,7 @@ mod tests {
             "INSERT INTO patient (id, name, is_anonymous, is_deleted) VALUES ('kept', 'Marie Dupont', 0, 0)",
             "INSERT INTO patient (id, name, ssn, is_anonymous, is_deleted) VALUES ('other', 'Marie Dupont', '1234567890123', 0, 0)",
             "INSERT INTO patient (id, name, is_anonymous, is_deleted) VALUES ('third', 'Marie Dupont', 0, 0)",
-            "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES ('type-1', 'Type 1', 100000, 0)",
+            "INSERT INTO procedure_type (id, name, default_amount) VALUES ('type-1', 'Type 1', 100000)",
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('live', 'other', 'type-1', '2026-03-10', 100000, 'RECONCILIATED')"#,
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('second', 'other', 'type-1', '2026-03-11', 100000, 'NONE')"#,
             "INSERT INTO patient_duplicate_dismissal (id, patient_a_id, patient_b_id) VALUES ('d1', 'other', 'third')",

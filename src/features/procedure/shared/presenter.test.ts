@@ -184,6 +184,7 @@ describe("formatProcedureOrchestrationError - F27 Layer 3 (pure code → key map
       [{ code: "ReservedTypeNotMutable" }, "procedure:errors.reserved_type_not_mutable"],
       [{ code: "RefundReasonTooLong" }, "procedure:errors.refund_reason_too_long"],
       [{ code: "InvalidRefundDateFormat" }, "procedure:errors.invalid_refund_date_format"],
+      [{ code: "ProcedureTypeInUse", procedure_count: 2 }, "procedure:errors.database_error"],
       [{ code: "DatabaseError" }, "procedure:errors.database_error"],
     ];
     for (const [err, key] of cases) {

@@ -140,6 +140,7 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     case "ProcedureTypeNotFound":
     case "ProcedureTypeNameDuplicate":
     case "ReservedTypeNotMutable":
+    case "ProcedureTypeInUse":
     case "RefundReasonTooLong":
     case "InvalidRefundDateFormat":
       return { key: "fund-payment-match:errors.unexpected" };

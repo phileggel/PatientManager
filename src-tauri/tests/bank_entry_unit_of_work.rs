@@ -105,7 +105,7 @@ async fn seed_base(pool: &SqlitePool) -> (String, String, String) {
     .await
     .unwrap();
     sqlx::query(
-        "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES (?, 'Consultation', 100000, 0)",
+        "INSERT INTO procedure_type (id, name, default_amount) VALUES (?, 'Consultation', 100000)",
     )
     .bind(&proc_type_id)
     .execute(pool)
