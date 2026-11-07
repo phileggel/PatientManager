@@ -29,7 +29,7 @@ status inference, and patient tracking-field updates as side effects.
 
 **PRO-032 — A deleted procedure still referred to comes back (backend)**: A procedure PRO-031 keeps, because a payment record still refers to it, is listed again as it was stored: its status, its patient, its type and its fund (owner, 2026-11-01, #579).
 
-**PRO-040 (R6) — Modal routing by status (frontend)**: A double-click on a row, or a click on the Edit button, opens the modal in the mode matching the procedure's status. Procedures whose status is non-blocking (`None`, `Created`, `ImportDirectlyPayed`, `ImportFundPayed`) open in edit mode (see PRO-050). Procedures whose deletion is blocked (`Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`, `OverpaymentRefund`) open in partial-view mode (see PRO-190). Procedures in `Overpaid` status open in a dedicated partial-edit mode (see REF-190): the `procedure_type_id` field is editable, with propagation to the linked refund (see REF-170); all other fields are read-only; the "Cancel refund" button is present.
+**PRO-040 (R6) — Modal routing by status (frontend)**: A double-click on a row, or a click on the Edit button, opens the modal in the mode matching the procedure's status. Procedures whose status is non-blocking (`None`, `Created`, `ImportDirectlyPaid`, `ImportFundPaid`) open in edit mode (see PRO-050). Procedures whose deletion is blocked (`Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `OverpaymentRefund`) open in partial-view mode (see PRO-190). Procedures in `Overpaid` status open in a dedicated partial-edit mode (see REF-190): the `procedure_type_id` field is editable, with propagation to the linked refund (see REF-170); all other fields are read-only; the "Cancel refund" button is present.
 
 **PRO-050 (R30) — Modal contents in edit mode (frontend)**: In edit mode, the modal pre-fills all fields from the existing procedure. Editable fields: `patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`. Patient selection happens through a ComboboxField (see PRO-150, PRO-160). Payment information (`payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `payment_status`, `actual_payment_amount`) is not displayed — those fields are edited exclusively through the management of bank transfers and transactions. The procedure's technical id is not displayed. While saving, the button is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed (an unchanged edit: PRO-121); on backend or network error, the modal stays open and an error snackbar is displayed (a refused field: PRO-122).
 
@@ -100,7 +100,7 @@ content width.
 
 **PRO-180 (R25) — Status filter**: A dedicated selector restricts the display to a specific payment status. This filter is independent of the text search (PRO-100); both filters are applied cumulatively to the rows of the period.
 
-**PRO-190 (R26) — Partial view (blocking-status procedures)**: Procedures whose deletion is blocked (see PRO-030 — statuses `Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `DirectlyPayed`, `OverpaymentRefund`) open in a partial-view modal (mode="view"). The `procedure_type_id` field stays editable; all other fields are displayed read-only. Read-only fields displayed: the patient's name (with SSN in parentheses if set, see PRO-130), the procedure date, the billed amount, and the fund. Payment information is not displayed. The procedure's technical id is not displayed. A save button is present so that the procedure type can be edited; while saving, it is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed (an unchanged edit: PRO-121); on backend or network error, the modal stays open and an error snackbar is displayed (a refused field: PRO-122). The delete button is absent or disabled.
+**PRO-190 (R26) — Partial view (blocking-status procedures)**: Procedures whose deletion is blocked (see PRO-030 — statuses `Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `OverpaymentRefund`) open in a partial-view modal (mode="view"). The `procedure_type_id` field stays editable; all other fields are displayed read-only. Read-only fields displayed: the patient's name (with SSN in parentheses if set, see PRO-130), the procedure date, the billed amount, and the fund. Payment information is not displayed. The procedure's technical id is not displayed. A save button is present so that the procedure type can be edited; while saving, it is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed (an unchanged edit: PRO-121); on backend or network error, the modal stays open and an error snackbar is displayed (a refused field: PRO-122). The delete button is absent or disabled.
 
 ---
 
@@ -123,8 +123,8 @@ with an error.
 **PRO-230 (R16) — Initial status determination**: The status is computed by the orchestration,
 never accepted as-is from the caller. A procedure is "paid" if (`confirmed_payment_date`
 is present AND `actual_payment_amount > 0`) OR (`actual_payment_amount >= procedure_amount`).
-Unpaid → `Created`. Paid + (ES/CH method OR no fund) → `ImportDirectlyPayed`. Paid +
-non-ES/CH method + fund present → `ImportFundPayed`. `None` is never assigned at creation.
+Unpaid → `Created`. Paid + (ES/CH method OR no fund) → `ImportDirectlyPaid`. Paid +
+non-ES/CH method + fund present → `ImportFundPaid`. `None` is never assigned at creation.
 
 **PRO-240 (R17) — `awaited_amount` ignored**: The `awaited_amount` value sent by the caller is
 always ignored and never persisted.
@@ -170,7 +170,7 @@ raises at most one `ProcedureUpdated` event, regardless of batch size (EXI-177).
 
 > An **`Overdue`** _derived_ display attribute layered on `Created` procedures — **not** a `ProcedureStatus` value (see the note in **Status lifecycle**). It exists purely to emphasise procedures that should normally have been paid by now.
 
-**PRO-310 (frontend) — Overdue derived state**: A procedure is **overdue** when its `payment_status` is `Created` **and** its `procedure_date` is strictly earlier than the **reconciliation high-water mark** — the most recent `procedure_date` among all fund-reconciled procedures (`Reconciliated`, `PartiallyReconciled`, `FundPayed`, `PartiallyFundPayed`, `ImportFundPayed`) across the **full loaded procedure set** (the complete list returned by `read_all_procedures`, before the PRO-010 period filter is applied). The high-water mark is **global**: it is never scoped by patient or fund, and direct payments (`DirectlyPayed`, `ImportDirectlyPayed`) never contribute to it. Overdue is **derived in the frontend** — recomputed from the loaded procedures on each render; it is never persisted, needs no backend or contract change, and is not a `ProcedureStatus`. The procedure stays `Created` for every other purpose (reconciliation eligibility, deletion, editing). When no fund-reconciled procedure exists the high-water mark is undefined and nothing is overdue. Because it is recomputed live, a later-reverted reconciliation lowers the high-water mark and the overdue set follows automatically — there is no stored flag to reconcile. `Overpaid` and `OverpaymentRefund` are deliberately excluded from the contributor set — the former is a rare terminal overpayment end-state, the latter a synthetic mirror procedure, so neither defines the normal fund-payment frontier; this edge is left to the pending status-model review (see `docs/todo.md`).
+**PRO-310 (frontend) — Overdue derived state**: A procedure is **overdue** when its `payment_status` is `Created` **and** its `procedure_date` is strictly earlier than the **reconciliation high-water mark** — the most recent `procedure_date` among all fund-reconciled procedures (`Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `ImportFundPaid`) across the **full loaded procedure set** (the complete list returned by `read_all_procedures`, before the PRO-010 period filter is applied). The high-water mark is **global**: it is never scoped by patient or fund, and direct payments (`DirectlyPaid`, `ImportDirectlyPaid`) never contribute to it. Overdue is **derived in the frontend** — recomputed from the loaded procedures on each render; it is never persisted, needs no backend or contract change, and is not a `ProcedureStatus`. The procedure stays `Created` for every other purpose (reconciliation eligibility, deletion, editing). When no fund-reconciled procedure exists the high-water mark is undefined and nothing is overdue. Because it is recomputed live, a later-reverted reconciliation lowers the high-water mark and the overdue set follows automatically — there is no stored flag to reconcile. `Overpaid` and `OverpaymentRefund` are deliberately excluded from the contributor set — the former is a rare terminal overpayment end-state, the latter a synthetic mirror procedure, so neither defines the normal fund-payment frontier; this edge is left to the pending status-model review (see `docs/todo.md`).
 
 **PRO-320 (frontend) — Overdue warning row**: In the procedure list, a row whose procedure is overdue (see PRO-310) is rendered with a **warning background** — a subtle **low-opacity** amber/gold row tint (amber in light mode, gold in dark mode), deliberately distinct from the full-strength `m3-tertiary-container` used by the PRO-090 reconciled **badge** so the two never read as the same signal; the exact token is finalised at `/app:visual-proof` time. Only overdue rows are tinted; every other row (including the partially-paid statuses) keeps its default background. The status badge (PRO-090) is unaffected — it still shows `Created`, since overdue is a derived emphasis, not a status.
 
@@ -188,25 +188,25 @@ This feature is responsible for procedure **creation** only. Subsequent status t
 
 ### Statuses created by this feature
 
-| Initial status        | Condition                                       | Trigger                       |
-| --------------------- | ----------------------------------------------- | ----------------------------- |
-| `Created`             | Procedure with no confirmed payment             | Frontend form or Excel import |
-| `ImportDirectlyPayed` | Confirmed payment + ES/CH method or no fund     | Excel import only             |
-| `ImportFundPayed`     | Confirmed payment + other method + fund present | Excel import only             |
+| Initial status       | Condition                                       | Trigger                       |
+| -------------------- | ----------------------------------------------- | ----------------------------- |
+| `Created`            | Procedure with no confirmed payment             | Frontend form or Excel import |
+| `ImportDirectlyPaid` | Confirmed payment + ES/CH method or no fund     | Excel import only             |
+| `ImportFundPaid`     | Confirmed payment + other method + fund present | Excel import only             |
 
 ### Transitions handled by other features
 
-| From                               | To                                              | Owner feature                                               |
-| ---------------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
-| `Created`                          | `Reconciliated` / `PartiallyReconciled`         | fund-payment-auto-match, fund-payment-manual-match          |
-| `Created`                          | `DirectlyPayed`                                 | bank-statement-manual-match                                 |
-| `Reconciliated`                    | `FundPayed`                                     | bank-statement-auto-match, bank-statement-manual-match      |
-| `PartiallyReconciled`              | `PartiallyFundPayed`                            | bank-statement-auto-match, bank-statement-manual-match      |
-| `FundPayed`                        | → `Reconciliated` (rollback)                    | Transfer deletion — bank-statement-manual-match (R8)        |
-| `PartiallyFundPayed`               | → `PartiallyReconciled` (rollback)              | Transfer deletion — bank-statement-manual-match (R8)        |
-| `DirectlyPayed`                    | → `Created` (rollback)                          | Direct-payment deletion — bank-statement-manual-match (R16) |
-| `FundPayed` / `PartiallyFundPayed` | `Overpaid`                                      | Refund recording — overpayment (REF-160)                    |
-| `Overpaid`                         | → `FundPayed` / `PartiallyFundPayed` (rollback) | Refund cancellation — overpayment (REF-210)                 |
+| From                             | To                                            | Owner feature                                               |
+| -------------------------------- | --------------------------------------------- | ----------------------------------------------------------- |
+| `Created`                        | `Reconciled` / `PartiallyReconciled`          | fund-payment-auto-match, fund-payment-manual-match          |
+| `Created`                        | `DirectlyPaid`                                | bank-statement-manual-match                                 |
+| `Reconciled`                     | `FundPaid`                                    | bank-statement-auto-match, bank-statement-manual-match      |
+| `PartiallyReconciled`            | `PartiallyFundPaid`                           | bank-statement-auto-match, bank-statement-manual-match      |
+| `FundPaid`                       | → `Reconciled` (rollback)                     | Transfer deletion — bank-statement-manual-match (R8)        |
+| `PartiallyFundPaid`              | → `PartiallyReconciled` (rollback)            | Transfer deletion — bank-statement-manual-match (R8)        |
+| `DirectlyPaid`                   | → `Created` (rollback)                        | Direct-payment deletion — bank-statement-manual-match (R16) |
+| `FundPaid` / `PartiallyFundPaid` | `Overpaid`                                    | Refund recording — overpayment (REF-160)                    |
+| `Overpaid`                       | → `FundPaid` / `PartiallyFundPaid` (rollback) | Refund cancellation — overpayment (REF-210)                 |
 
 ### Allowed actions per status (this feature)
 
@@ -214,15 +214,17 @@ This feature is responsible for procedure **creation** only. Subsequent status t
 | --------------------- | ----------------------- | ------------------------------------------------------------------------------- |
 | `None`                | yes (with confirmation) | yes                                                                             |
 | `Created`             | yes (with confirmation) | yes                                                                             |
-| `ImportDirectlyPayed` | yes (with confirmation) | yes                                                                             |
-| `ImportFundPayed`     | yes (with confirmation) | yes                                                                             |
-| `DirectlyPayed`       | no — blocked            | partial — procedure type only (PRO-190)                                         |
-| `Reconciliated`       | no — blocked            | partial — procedure type only (PRO-190)                                         |
+| `ImportDirectlyPaid`  | yes (with confirmation) | yes                                                                             |
+| `ImportFundPaid`      | yes (with confirmation) | yes                                                                             |
+| `DirectlyPaid`        | no — blocked            | partial — procedure type only (PRO-190)                                         |
+| `Reconciled`          | no — blocked            | partial — procedure type only (PRO-190)                                         |
 | `PartiallyReconciled` | no — blocked            | partial — procedure type only (PRO-190)                                         |
-| `FundPayed`           | no — blocked            | partial — procedure type only (PRO-190)                                         |
-| `PartiallyFundPayed`  | no — blocked            | partial — procedure type only (PRO-190)                                         |
+| `FundPaid`            | no — blocked            | partial — procedure type only (PRO-190)                                         |
+| `PartiallyFundPaid`   | no — blocked            | partial — procedure type only (PRO-190)                                         |
 | `Overpaid`            | no — blocked (REF-220)  | partial — procedure type only with propagation to the refund (REF-190, REF-170) |
 | `OverpaymentRefund`   | no — blocked (REF-230)  | no — read-only (REF-200)                                                        |
+
+Whatever the status, a deletion is refused while a fund payment line, a bank entry or a refund record still refers to the procedure (PRO-030).
 
 ---
 

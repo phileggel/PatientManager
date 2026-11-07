@@ -44,7 +44,7 @@ struct PatientSummary {
     id: String,
     name: String,
     ssn: Option<String>,
-    procedure_count: u32,                   // procedures that are not deleted
+    procedure_count: u32,                   // its procedures (PDU-012)
     latest_procedure_date: Option<String>,  // "YYYY-MM-DD"
 }
 
