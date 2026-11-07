@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """Every document has one location, every rule one home (TODO-015).
 
-Two checks against drift:
+Four checks against drift:
 
 1. The doc map. `docs/README.md` lists each kind of document with its locations
    (backticked paths, relative to `docs/`). Every tracked Markdown file must sit in
    a listed location, every listed location must exist, and the Rules kind holds
    exactly the `*-rules.md` files.
-2. Rule homes. A rule or lesson is defined where its ID opens a line followed by
-   an em dash — `**B24** —`, `## E11 —`, `**BAS-010 (R1) —`, `### TL-001 —`.
+2. Rule homes. A rule is defined where its ID opens a line followed by an em
+   dash — `**B24** —`, `## E11 —`, `**BAS-010 (R1) —`.
    Anywhere else an ID is a mention. One ID defined in two places fails: the copy is
    removed and the other document links to the home.
 3. The agentic setup (FLOW-036). `docs/agentic-setup.md` gives one list item to each
-   piece, opened by its backticked path. Every script, skill, agent prompt and git
-   hook that exists is listed once, and everything listed exists.
+   piece, opened by its backticked path. Every script, skill, agent prompt, git
+   hook and Claude Code hook that exists is listed once, and everything listed exists.
 4. Guide ceilings (FLOW-044). `guide-ceilings.json` records the length in lines each
    guide may not exceed — `CLAUDE.md`, the workflow, the setup document, the rules
    docs, every prompt. A guide past its ceiling fails; a skill or agent prompt with no
@@ -36,8 +36,7 @@ MAP = "docs/README.md"
 DEFINITION = re.compile(
     r"^(?:\*\*([A-Z]{1,3}\d+)\*\* —"
     r"|#{2,3} ([A-Z]{1,3}\d+) —"
-    r"|\*\*([A-Z]{3}-\d{3}[A-Z]?)(?: \([^)]*\))? —"
-    r"|#{1,3} (TL-\d{3}) —)"
+    r"|\*\*([A-Z]{3}-\d{3}[A-Z]?)(?: \([^)]*\))? —)"
 )
 KIND = re.compile(r"^- \*\*([^*]+)\*\* — (.*)$")
 PATH = re.compile(r"`([^`\s]+(?:\.md|/))`")
@@ -232,6 +231,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    # `python3 -I` leaves the script's folder off the path; usage_log lives there.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     import usage_log
 
     usage_log.start()

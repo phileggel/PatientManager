@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # usage-log.sh — sourced by a script: one line in the usage log when it exits.
 #
 # Use, after `set -euo pipefail`:   . "$(dirname "${BASH_SOURCE[0]}")/usage-log.sh"

@@ -16,9 +16,11 @@ class Definitions(unittest.TestCase):
             "## E1 — selectors",
             "**BAS-010 (R1) — Title**: text",
             "**BAS-113A — Sub-rule**",
-            "### TL-001 — A lesson",
         ])
-        self.assertEqual(homes.defined_ids(text), ["B7", "E1", "BAS-010", "BAS-113A", "TL-001"])
+        self.assertEqual(homes.defined_ids(text), ["B7", "E1", "BAS-010", "BAS-113A"])
+
+    def test_a_lesson_heading_is_no_longer_a_definition(self):
+        self.assertEqual(homes.defined_ids("### TL-001 — A lesson"), [])
 
     def test_an_old_entry_heading_is_no_longer_a_definition(self):
         self.assertEqual(homes.defined_ids("# TODO-003 — An entry\n# 2026-07-29 — DEBT-008 — x\n# FLOW-004 — y"), [])
