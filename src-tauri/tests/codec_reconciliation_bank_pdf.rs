@@ -196,7 +196,7 @@ async fn insert_fund_payment_group(
     status: &str,
 ) {
     sqlx::query(
-        "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES (?, ?, ?, ?, ?, 0)",
+        "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status) VALUES (?, ?, ?, ?, ?)",
     )
     .bind(id)
     .bind(fund_id)

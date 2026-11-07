@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT l.fund_payment_group_id\n            FROM fund_payment_line l\n            JOIN fund_payment_group g ON g.id = l.fund_payment_group_id\n            WHERE l.procedure_id = $1 AND g.is_deleted = 0\n            ",
+  "query": "\n            SELECT l.fund_payment_group_id\n            FROM fund_payment_line l\n            JOIN fund_payment_group g ON g.id = l.fund_payment_group_id\n            WHERE l.procedure_id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "c8b3b1e9a504646cf09bed4f897b89d194a831cd60ef4c93c1d6e5adc04f0c54"
+  "hash": "c8595484dff2e2cee1ad49b01e74ed2ae94630bcb76ca5556219d5b6b0fbda28"
 }
