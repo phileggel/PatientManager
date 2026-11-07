@@ -142,7 +142,7 @@ mod tests {
             "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('fund-1', 'F1', 'Fund 1', 0)",
             "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES ('type-1', 'Type 1', 100000, 0)",
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('procedure-1', 'patient-1', 'type-1', '2026-03-10', 100000, 'RECONCILIATED', 0)"#,
-            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status) VALUES ('group-1', 'fund-1', '2026-03-12', 100000, 'ACTIVE')",
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES ('group-1', 'fund-1', '2026-03-12', 100000, 'ACTIVE', 0)",
         ] {
             sqlx::query(statement)
                 .execute(&pool)
