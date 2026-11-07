@@ -97,7 +97,7 @@ mod tests {
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('jan-old', 'known', 'type-1', '2026-01-10', 100000, 'CREATED', 0)"#,
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('feb-old', 'known', 'type-1', '2026-02-10', 100000, 'CREATED', 0)"#,
             "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status) VALUES ('group-1', 'fund-1', '2026-02-20', 100000, 'ACTIVE')",
-            "INSERT INTO bank_account (id, name, is_deleted) VALUES ('acc-1', 'Compte', 0)",
+            "INSERT INTO bank_account (id, name) VALUES ('acc-1', 'Compte')",
             "INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id) VALUES ('transfer-1', '2026-02-20', 100000, 'CHECK', 'acc-1')",
             "INSERT INTO procedure_refund (id, source_procedure_id, refund_procedure_id, refund_fund_payment_group_id, refund_bank_transfer_id, refund_date, previous_payment_status) VALUES ('refund-1', 'feb-old', 'feb-old', 'group-1', 'transfer-1', '2026-02-20', 'CREATED')",
         ] {

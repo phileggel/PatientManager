@@ -120,7 +120,7 @@ impl BankEntryRepository for SqliteBankEntryRepository {
                 ba.iban as account_iban
             FROM bank_transfer bt
             JOIN bank_account ba ON bt.bank_account_id = ba.id
-            WHERE bt.id = $1 AND ba.is_deleted = 0
+            WHERE bt.id = $1
             "#,
             id,
         )
@@ -156,7 +156,6 @@ impl BankEntryRepository for SqliteBankEntryRepository {
                 ba.iban as account_iban
             FROM bank_transfer bt
             JOIN bank_account ba ON bt.bank_account_id = ba.id
-            WHERE ba.is_deleted = 0
             ORDER BY bt.transfer_date DESC
             "#,
         )

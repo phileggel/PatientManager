@@ -1,17 +1,14 @@
 //! TODO-003 — the database refuses a second bank account with an IBAN already
-//! used by another account, active or soft-deleted (BAC-014).
+//! used by another account, active or soft-deleted (BAC-014, until #584).
+//!
+//! Upgrade history: the schema is the one before 20261108, which really deletes
+//! accounts and replaces these triggers with a full unique index (#584).
 //!
 //! The partial index `idx_bank_account_iban_active` only covers active rows; the
 //! triggers of migration 20260928_bank_account_iban_unique.sql cover the rest.
 //! Triggers, not a full unique index: an installed database may already hold a
 //! legacy duplicate among soft-deleted rows, and the migration must not fail on it.
 
-use std::sync::Arc;
-
-use patient_manager_app::{
-    context::bank::{BankAccountService, BankError, SqliteBankAccountRepository},
-    shared::event_bus::EventBus,
-};
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
 
@@ -23,10 +20,13 @@ async fn make_pool() -> SqlitePool {
         .connect(":memory:")
         .await
         .expect("in-memory SQLite pool");
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("migrations");
+    let migrations = sqlx::migrate!("./migrations");
+    for migration in migrations.iter().filter(|m| m.version < 20261108) {
+        sqlx::raw_sql(migration.sql.clone())
+            .execute(&pool)
+            .await
+            .unwrap_or_else(|e| panic!("migration {}: {e}", migration.version));
+    }
     pool
 }
 
@@ -124,24 +124,4 @@ async fn test_todo_003_legacy_duplicates_survive_the_migration_and_can_still_be_
     insert(&pool, "new", Some("TEST-IBAN-3"), false)
         .await
         .expect_err("duplicate IBAN must be refused");
-}
-
-#[tokio::test]
-async fn test_todo_003_the_app_still_reports_a_duplicate_iban_as_already_used() {
-    let pool = make_pool().await;
-    let service = BankAccountService::new(
-        Arc::new(SqliteBankAccountRepository::new(pool.clone())),
-        Arc::new(EventBus::new()),
-    );
-    let first = service
-        .create_account("First".to_string(), Some("TEST-IBAN-9".to_string()))
-        .await
-        .unwrap();
-    service.delete_account(&first.id).await.unwrap();
-
-    let err = service
-        .create_account("Second".to_string(), Some("TEST-IBAN-9".to_string()))
-        .await
-        .expect_err("duplicate IBAN must be refused");
-    assert!(matches!(err, BankError::IbanAlreadyUsed), "{err:?}");
 }

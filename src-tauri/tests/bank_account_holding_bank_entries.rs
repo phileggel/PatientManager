@@ -19,6 +19,7 @@ use sqlx::SqlitePool;
 const MIGRATION: &str =
     include_str!("../migrations/20261024_bank_account_holding_bank_entries.sql");
 const IBAN_TRIGGERS: &str = include_str!("../migrations/20260928_bank_account_iban_unique.sql");
+const REAL_DELETE: i64 = 20261108;
 
 async fn make_pool() -> SqlitePool {
     let pool = SqlitePoolOptions::new()
@@ -33,6 +34,24 @@ async fn make_pool() -> SqlitePool {
     pool
 }
 
+/// The schema an installed database had while accounts were still flagged: every
+/// migration before 20261108 removed the flag (#584).
+async fn legacy_pool() -> SqlitePool {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect(":memory:")
+        .await
+        .expect("in-memory SQLite pool");
+    let migrations = sqlx::migrate!("./migrations");
+    for migration in migrations.iter().filter(|m| m.version < REAL_DELETE) {
+        sqlx::raw_sql(migration.sql.clone())
+            .execute(&pool)
+            .await
+            .unwrap_or_else(|e| panic!("migration {}: {e}", migration.version));
+    }
+    pool
+}
+
 fn service(pool: &SqlitePool) -> BankAccountService {
     BankAccountService::new(
         Arc::new(SqliteBankAccountRepository::new(pool.clone())),
@@ -40,14 +59,31 @@ fn service(pool: &SqlitePool) -> BankAccountService {
     )
 }
 
-async fn insert_account(pool: &SqlitePool, id: &str, name: &str, is_deleted: bool) {
-    sqlx::query("INSERT INTO bank_account (id, name, is_deleted) VALUES (?, ?, ?)")
+async fn insert_account(pool: &SqlitePool, id: &str, name: &str) {
+    sqlx::query("INSERT INTO bank_account (id, name) VALUES (?, ?)")
         .bind(id)
         .bind(name)
-        .bind(is_deleted)
         .execute(pool)
         .await
         .unwrap();
+}
+
+/// A flagged account, on the legacy schema only.
+async fn insert_flagged_account(pool: &SqlitePool, id: &str, name: &str) {
+    sqlx::query("INSERT INTO bank_account (id, name, is_deleted) VALUES (?, ?, 1)")
+        .bind(id)
+        .bind(name)
+        .execute(pool)
+        .await
+        .unwrap();
+}
+
+async fn rows(pool: &SqlitePool, id: &str) -> i64 {
+    sqlx::query_scalar("SELECT COUNT(*) FROM bank_account WHERE id = ?")
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .unwrap()
 }
 
 async fn insert_transfer(pool: &SqlitePool, id: &str, account_id: &str) {
@@ -73,7 +109,7 @@ async fn account(pool: &SqlitePool, id: &str) -> (String, bool) {
 #[tokio::test]
 async fn test_delete_account_holding_a_bank_entry_is_refused() {
     let pool = make_pool().await;
-    insert_account(&pool, "acc-held", "Held", false).await;
+    insert_account(&pool, "acc-held", "Held").await;
     insert_transfer(&pool, "t-1", "acc-held").await;
 
     let err = service(&pool)
@@ -85,45 +121,31 @@ async fn test_delete_account_holding_a_bank_entry_is_refused() {
         matches!(err, BankError::BankAccountHoldsBankEntries),
         "{err:?}"
     );
-    assert_eq!(account(&pool, "acc-held").await, ("Held".into(), false));
+    assert_eq!(rows(&pool, "acc-held").await, 1);
 }
 
 #[tokio::test]
-async fn test_delete_account_with_no_bank_entry_soft_deletes_it() {
+async fn test_584_delete_account_with_no_bank_entry_really_deletes_it() {
     let pool = make_pool().await;
-    insert_account(&pool, "acc-free", "Free", false).await;
+    insert_account(&pool, "acc-free", "Free").await;
 
     service(&pool).delete_account("acc-free").await.unwrap();
 
-    assert_eq!(account(&pool, "acc-free").await, ("Free".into(), true));
+    assert_eq!(rows(&pool, "acc-free").await, 0);
 }
 
 #[tokio::test]
 async fn test_migration_deleted_account_holding_a_bank_entry_is_restored() {
-    let pool = make_pool().await;
-    insert_account(&pool, "acc-held", "Held", true).await;
+    let pool = legacy_pool().await;
+    insert_flagged_account(&pool, "acc-held", "Held").await;
     insert_transfer(&pool, "t-1", "acc-held").await;
-    insert_account(&pool, "acc-empty", "Empty", true).await;
+    insert_flagged_account(&pool, "acc-empty", "Empty").await;
     let entries = SqliteBankEntryRepository::new(pool.clone());
-    let before = entries.read_transfer("t-1").await.unwrap();
-    assert!(
-        before.is_none(),
-        "the entry of a deleted account is not read"
-    );
 
     sqlx::raw_sql(MIGRATION).execute(&pool).await.unwrap();
 
     assert_eq!(account(&pool, "acc-held").await, ("Held".into(), false));
     assert_eq!(account(&pool, "acc-empty").await, ("Empty".into(), true));
-    let listed: Vec<String> = service(&pool)
-        .read_all_accounts()
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|a| a.id)
-        .collect();
-    assert!(listed.contains(&"acc-held".to_string()), "{listed:?}");
-    assert!(!listed.contains(&"acc-empty".to_string()), "{listed:?}");
     let after = entries.read_transfer("t-1").await.unwrap();
     assert!(
         after.is_some(),
@@ -133,12 +155,12 @@ async fn test_migration_deleted_account_holding_a_bank_entry_is_restored() {
 
 #[tokio::test]
 async fn test_migration_restored_namesakes_with_no_active_one_are_suffixed() {
-    let pool = make_pool().await;
-    insert_account(&pool, "0123456789-old-a", "Twin", true).await;
+    let pool = legacy_pool().await;
+    insert_flagged_account(&pool, "0123456789-old-a", "Twin").await;
     insert_transfer(&pool, "t-a", "0123456789-old-a").await;
-    insert_account(&pool, "9876543210-old-b", "Twin", true).await;
+    insert_flagged_account(&pool, "9876543210-old-b", "Twin").await;
     insert_transfer(&pool, "t-b", "9876543210-old-b").await;
-    insert_account(&pool, "acc-alone", "Alone", true).await;
+    insert_flagged_account(&pool, "acc-alone", "Alone").await;
     insert_transfer(&pool, "t-c", "acc-alone").await;
 
     sqlx::raw_sql(MIGRATION).execute(&pool).await.unwrap();
@@ -156,9 +178,9 @@ async fn test_migration_restored_namesakes_with_no_active_one_are_suffixed() {
 
 #[tokio::test]
 async fn test_migration_restored_account_with_a_taken_name_is_suffixed_once() {
-    let pool = make_pool().await;
-    insert_account(&pool, "acc-new", "Main", false).await;
-    insert_account(&pool, "0123456789-old-a", "Main", true).await;
+    let pool = legacy_pool().await;
+    insert_account(&pool, "acc-new", "Main").await;
+    insert_flagged_account(&pool, "0123456789-old-a", "Main").await;
     insert_transfer(&pool, "t-a", "0123456789-old-a").await;
 
     sqlx::raw_sql(MIGRATION).execute(&pool).await.unwrap();
@@ -173,7 +195,7 @@ async fn test_migration_restored_account_with_a_taken_name_is_suffixed_once() {
 
 #[tokio::test]
 async fn test_migration_restored_account_with_a_taken_iban_comes_back_without_it() {
-    let pool = make_pool().await;
+    let pool = legacy_pool().await;
     // A legacy state, from before BAC-014 spanned deleted accounts: the triggers are
     // dropped to write it, then put back for the migration.
     sqlx::raw_sql(
@@ -232,8 +254,8 @@ fn entry_service(pool: &SqlitePool) -> BankEntryService {
 // BAC-060 — a restored account's entries can be edited and deleted again.
 #[tokio::test]
 async fn test_migration_restored_account_entry_can_be_edited_and_deleted() {
-    let pool = make_pool().await;
-    insert_account(&pool, "acc-held", "Held", true).await;
+    let pool = legacy_pool().await;
+    insert_flagged_account(&pool, "acc-held", "Held").await;
     insert_transfer(&pool, "t-1", "acc-held").await;
     sqlx::raw_sql(MIGRATION).execute(&pool).await.unwrap();
     let entries = entry_service(&pool);

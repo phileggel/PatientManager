@@ -31,13 +31,13 @@ This document covers the **automatic flow** — PDF parsing, fund-label resoluti
 - **IBAN** — pre-filled with the IBAN extracted from the statement, read-only.
 - **Name** — empty, required, must be non-empty after trimming whitespace.
 
-**BAS-013 — Inline create — backend submission (backend)**: On submit, the system attempts to create a bank account with the supplied name and the pre-filled IBAN. The result is either the created bank account (success) or a backend error message (failure). IBAN uniqueness across all accounts (including soft-deleted) is enforced by the bank-account aggregate (see `bank-account.md` BAC-014).
+**BAS-013 — Inline create — backend submission (backend)**: On submit, the system attempts to create a bank account with the supplied name and the pre-filled IBAN. The result is either the created bank account (success) or a backend error message (failure). IBAN uniqueness across all accounts is enforced by the bank-account aggregate (see `bank-account.md` BAC-014).
 
 **BAS-014 — Inline create — workflow continuation on success (frontend)**: On successful creation, the import workflow uses the newly created account as the resolved bank account and proceeds directly to fund-label resolution. The user is not required to re-import the PDF.
 
 **BAS-015 — Inline create — submission loading state (frontend)**: While the create call is in progress, the form fields are disabled and the Submit button reflects a loading state. The user cannot resubmit during this period.
 
-**BAS-016 — Inline create — refusal feedback (frontend)**: A refused creation (typical causes include a duplicate IBAN against an existing or deleted account, a name refused by `bank-account.md` BAC-010 or BAC-013, or a persistence failure) shows its reason inline below the form: a taken IBAN and a taken name each have their own message, any other refusal a generic one. The form stays open with the user's input preserved so the input can be corrected or cancelled.
+**BAS-016 — Inline create — refusal feedback (frontend)**: A refused creation (typical causes include a duplicate IBAN against an existing account, a name refused by `bank-account.md` BAC-010 or BAC-013, or a persistence failure) shows its reason inline below the form: a taken IBAN and a taken name each have their own message, any other refusal a generic one. The form stays open with the user's input preserved so the input can be corrected or cancelled.
 
 **BAS-017 — Inline create — cancellation (frontend)**: Cancelling the inline create form closes the import modal entirely and abandons the import. The Cancel button and any other modal-close affordance produce the same effect — there is no fallback dead-end screen.
 
@@ -102,7 +102,7 @@ A **bank statement label** is the label of a bank statement line, remembered per
 
 **BAS-045 — Action feedback (frontend)**: A successful reassign or delete shows a confirmation message; any other failure shows an error message and leaves the list unchanged.
 
-**BAS-046 — Deleted bank account (backend)**: Deleting a bank account really deletes its bank statement labels. A deleted account's labels never come back, even when BAC-060 restores the account. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is never resolved from an IBAN (BAS-010), so no import can add labels to it; the list therefore holds live accounts only.
+**BAS-046 — Deleted bank account (backend)**: Deleting a bank account really deletes it and its bank statement labels. A deleted account's labels never come back, even when BAC-060 restores the account. Labels of accounts deleted before this rule existed are deleted once, on upgrade. A deleted account is gone: no IBAN resolves to it (BAS-010), and validating an import for it is refused (BAS-063A), so no import can add labels to it; the list therefore holds live accounts only.
 
 ### Matching algorithm (050–059)
 
@@ -146,6 +146,8 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 **BAS-062C — A rejection ends the hold (backend)**: Marking the label rejected (BAS-030) ends the hold: a later link of that label re-attempts the auto-match. Reverting the rejection instead (BAS-065, « Rétablir ») replays the corrections still in the list.
 
 **BAS-063 (R18) — Backend validate is skip-based (backend)**: The backend validate never rejects undecided lines: only resolved lines produce transfers (BAS-070); unresolved/needs-\* lines are simply skipped. A rejected line produces no transfer by design.
+
+**BAS-063A — Validating for an unknown account (backend)**: Validating an import for an unknown bank account, a deleted one included, is rejected with a specific error, and no bank entry or label is saved. The screen validates only an account it resolved (BAS-010), so this guards the backend alone.
 
 **BAS-064 — Draft computed by backend recompute (frontend + backend)**: The reconciliation draft (the full line list with per-line status and candidate proposals) is computed by the backend as a pure function of the parsed statement plus the ordered list of applied corrections. The draft is **ephemeral** — no draft state is persisted; closing the flow discards it. Each correction triggers a recompute that replays all corrections in order and returns the complete recomputed draft synchronously as the single observable result. While a recompute is in flight the frontend shows a busy state on the list; if a recompute fails, the error is surfaced and the previously displayed draft is left intact (the failing correction is not applied). A correction that cannot be honored is rejected and the draft is unchanged: assigning a group not eligible for the line (fund / date / already settled, BAS-050–054, BAS-090), assigning a group already consumed by another line (BAS-067), or an assignment that would overflow the line amount (BAS-094) are each rejected with a specific error; the frontend signals it and keeps the prior draft.
 

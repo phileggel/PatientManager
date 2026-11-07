@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, name, iban\n            FROM bank_account\n            WHERE is_deleted = 0\n            ",
+  "query": "\n            SELECT id, name, iban\n            FROM bank_account\n            ",
   "describe": {
     "columns": [
       {
@@ -46,5 +46,5 @@
       true
     ]
   },
-  "hash": "482de3a04444fd04a1f74b210972148efa7ebef72b7f195cd2a029e1c42a7108"
+  "hash": "8dd38d8466803a37a500b00fb2c0f6af95a70a2e1c1ea6758d5b8ce7f362be51"
 }

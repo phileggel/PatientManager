@@ -1,4 +1,4 @@
-//! Ticket #503 — two accounts that are not deleted never share a name
+//! Ticket #503 — two accounts never share a name
 //! (BAC-013): a create or an edit to a taken name is refused with its own
 //! error and saves nothing, while a deleted account's name can be used again;
 //! an unknown or deleted account is not edited (BAC-030). An IBAN typed with
@@ -218,6 +218,47 @@ async fn test_create_account_with_a_taken_iban_typed_with_spaces_is_refused() {
         .expect_err("the IBAN is taken");
 
     assert!(matches!(err, BankError::IbanAlreadyUsed), "{err:?}");
+}
+
+// BAC-041 — a deleted account is really deleted: its IBAN can be used again,
+// by a new account or by an edit (#584).
+#[tokio::test]
+async fn test_584_a_deleted_accounts_iban_can_be_used_again() {
+    let pool = make_pool().await;
+    let accounts = service(&pool);
+    let deleted = accounts
+        .create_account("Main".into(), Some("FR7612345678".into()))
+        .await
+        .expect("the first account is created");
+    accounts
+        .delete_account(&deleted.id)
+        .await
+        .expect("the account is deleted");
+
+    let again = accounts
+        .create_account("Main".into(), Some("FR7612345678".into()))
+        .await
+        .expect("a deleted account's IBAN can be used again");
+    accounts
+        .delete_account(&again.id)
+        .await
+        .expect("the second account is deleted");
+    let other = accounts
+        .create_account("Other".into(), None)
+        .await
+        .expect("an account without IBAN is created");
+    accounts
+        .update_account(other.id, "Other".into(), Some("FR7612345678".into()))
+        .await
+        .expect("an edit can take a deleted account's IBAN");
+
+    let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bank_account WHERE id IN (?, ?)")
+        .bind(&deleted.id)
+        .bind(&again.id)
+        .fetch_one(&pool)
+        .await
+        .expect("the rows are counted");
+    assert_eq!(rows, 0, "a deleted account leaves the database");
 }
 
 // BAC-015 — a create, an edit and a deletion each announce the change.

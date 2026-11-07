@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                bt.id,\n                bt.transfer_date,\n                bt.amount,\n                bt.transfer_type,\n                bt.bank_account_id,\n                ba.id as account_id,\n                ba.name as account_name,\n                ba.iban as account_iban\n            FROM bank_transfer bt\n            JOIN bank_account ba ON bt.bank_account_id = ba.id\n            WHERE bt.id = $1 AND ba.is_deleted = 0\n            ",
+  "query": "\n            SELECT\n                bt.id,\n                bt.transfer_date,\n                bt.amount,\n                bt.transfer_type,\n                bt.bank_account_id,\n                ba.id as account_id,\n                ba.name as account_name,\n                ba.iban as account_iban\n            FROM bank_transfer bt\n            JOIN bank_account ba ON bt.bank_account_id = ba.id\n            WHERE bt.id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -106,5 +106,5 @@
       true
     ]
   },
-  "hash": "018c5e8dd6caf4ae9edd30faa763df5841c01a3bb1f878e8d35d90db564d2db8"
+  "hash": "da2b5ff7d9f31d931e4a8621e64fe9855b0aa4348cff51b59e809df1c1a814f9"
 }

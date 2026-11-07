@@ -31,14 +31,10 @@ impl BankAccountService {
         exempt_id: Option<&str>,
     ) -> Result<(), BankError> {
         let Some(iban) = iban else { return Ok(()) };
-        let other = self
-            .repository
-            .find_by_iban_including_deleted(iban)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "ensure_iban_unique: repository failed");
-                BankError::DatabaseError
-            })?;
+        let other = self.repository.find_by_iban(iban).await.map_err(|e| {
+            tracing::error!(target: BACKEND, err = ?e, "ensure_iban_unique: repository failed");
+            BankError::DatabaseError
+        })?;
         let Some(other) = other else { return Ok(()) };
         if exempt_id.is_some_and(|id| id == other.id) {
             return Ok(());
@@ -46,7 +42,7 @@ impl BankAccountService {
         Err(BankError::IbanAlreadyUsed)
     }
 
-    /// BAC-013 — name uniqueness among the accounts that are not deleted, the
+    /// BAC-013 — name uniqueness among the accounts, the
     /// cash account included; `exempt_id` lets an edit keep its own name.
     /// Names are compared exactly, once the factory has trimmed them.
     async fn ensure_name_free(&self, name: &str, exempt_id: Option<&str>) -> Result<(), BankError> {
@@ -149,7 +145,7 @@ impl BankAccountService {
         Ok(updated)
     }
 
-    /// Soft-delete an account — fails with `ProtectedCashAccount` for the default cash account (BAC-051)
+    /// Really delete an account (BAC-041) — fails with `ProtectedCashAccount` for the default cash account (BAC-051)
     /// and with `BankAccountHoldsBankEntries` while a bank entry is recorded on it (BAC-043).
     pub async fn delete_account(&self, id: &str) -> Result<(), BankError> {
         if id == CASH_ACCOUNT_ID {
@@ -173,10 +169,24 @@ impl BankAccountService {
             return Err(BankError::BankAccountHoldsBankEntries);
         }
 
-        self.repository.delete_account(id).await.map_err(|e| {
+        let deleted = self.repository.delete_account(id).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "delete_account: repository failed");
             BankError::DatabaseError
         })?;
+        if !deleted {
+            // BAC-041 — deleted meanwhile by another call; BAC-043 — an entry
+            // recorded since the check above keeps the account.
+            let still_there = self.repository.read_account(id).await.map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "delete_account: re-read failed");
+                BankError::DatabaseError
+            })?;
+            return Err(match still_there {
+                None => BankError::BankAccountNotFound {
+                    bank_account_id: id.to_string(),
+                },
+                Some(_) => BankError::BankAccountHoldsBankEntries,
+            });
+        }
 
         // Publish event
         let _ = self
@@ -212,12 +222,6 @@ mod tests {
         async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(None)
         }
-        async fn find_by_iban_including_deleted(
-            &self,
-            _: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
-            Ok(None)
-        }
         async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(Some(BankAccount::restore(
                 id.to_string(),
@@ -228,8 +232,15 @@ mod tests {
         async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
             Ok(a)
         }
-        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
-            panic!("an account holding bank entries, or an unknown answer, must not be deleted")
+        async fn delete_account(&self, _: &str) -> anyhow::Result<bool> {
+            // `Some(false)`: the check found no entry, then one was recorded and the
+            // delete kept the account.
+            match self.holds {
+                Some(false) => Ok(false),
+                _ => panic!(
+                    "an account holding bank entries, or an unknown answer, must not be deleted"
+                ),
+            }
         }
         async fn holds_bank_entries(&self, _: &str) -> anyhow::Result<bool> {
             self.holds.ok_or_else(|| anyhow!("Mock repository error"))
@@ -259,16 +270,6 @@ mod tests {
             Ok(None)
         }
 
-        async fn find_by_iban_including_deleted(
-            &self,
-            _iban: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(None)
-        }
-
         async fn read_account(&self, _id: &str) -> anyhow::Result<Option<BankAccount>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
@@ -287,11 +288,11 @@ mod tests {
             Ok(account)
         }
 
-        async fn delete_account(&self, _id: &str) -> anyhow::Result<()> {
+        async fn delete_account(&self, _id: &str) -> anyhow::Result<bool> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            Ok(())
+            Ok(true)
         }
 
         async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
@@ -322,7 +323,7 @@ mod tests {
     // fast-path covered by `test_create_account_success`.
     #[tokio::test]
     async fn test_create_account_with_unique_iban_succeeds() {
-        // MockBankAccountRepository returns None from find_by_iban_including_deleted,
+        // MockBankAccountRepository returns None from find_by_iban,
         // so the supplied IBAN is treated as unique.
         let repo = Arc::new(MockBankAccountRepository { should_fail: false });
         let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
@@ -390,20 +391,14 @@ mod tests {
             async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
                 Ok(None)
             }
-            async fn find_by_iban_including_deleted(
-                &self,
-                _: &str,
-            ) -> anyhow::Result<Option<BankAccount>> {
-                Ok(None)
-            }
             async fn read_account(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
                 Ok(None)
             }
             async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
                 Ok(a)
             }
-            async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
-                Ok(())
+            async fn delete_account(&self, _: &str) -> anyhow::Result<bool> {
+                Ok(true)
             }
 
             async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
@@ -454,6 +449,43 @@ mod tests {
         ));
     }
 
+    // BAC-043 — an entry recorded between the check and the delete keeps the
+    // account, with the same refusal.
+    #[tokio::test]
+    async fn test_584_delete_account_kept_by_the_delete_is_refused() {
+        let repo = Arc::new(HoldsBankEntriesRepo { holds: Some(false) });
+        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+
+        let result = service.delete_account("acc-held").await;
+
+        assert!(matches!(
+            result,
+            Err(BankError::BankAccountHoldsBankEntries)
+        ));
+    }
+
+    // BAC-041 — an account another call deleted meanwhile answers not found.
+    #[tokio::test]
+    async fn test_584_delete_account_deleted_meanwhile_is_not_found() {
+        use crate::context::bank::domain::MockBankAccountRepository as Repo;
+        let mut repo = Repo::new();
+        let reads = std::sync::atomic::AtomicUsize::new(0);
+        repo.expect_read_account().returning(move |id| {
+            let first = reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0;
+            Ok(first.then(|| BankAccount::restore(id.to_string(), "Main".to_string(), None)))
+        });
+        repo.expect_holds_bank_entries().returning(|_| Ok(false));
+        repo.expect_delete_account().returning(|_| Ok(false));
+        let service = BankAccountService::new(Arc::new(repo), Arc::new(EventBus::new()));
+
+        let result = service.delete_account("acc-gone").await;
+
+        assert!(
+            matches!(result, Err(BankError::BankAccountNotFound { .. })),
+            "{result:?}"
+        );
+    }
+
     #[tokio::test]
     async fn test_delete_account_bank_entries_check_failure_returns_database_error() {
         let repo = Arc::new(HoldsBankEntriesRepo { holds: None });
@@ -479,20 +511,14 @@ mod tests {
         async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(None)
         }
-        async fn find_by_iban_including_deleted(
-            &self,
-            _: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
-            Ok(None)
-        }
         async fn read_account(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(None)
         }
         async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
             Ok(a)
         }
-        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
-            Ok(())
+        async fn delete_account(&self, _: &str) -> anyhow::Result<bool> {
+            Ok(true)
         }
 
         async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
@@ -559,7 +585,7 @@ mod tests {
 
     // ============ BAC-014 IBAN uniqueness tests ============
 
-    /// Mock whose `find_by_iban_including_deleted` always returns the fixed account supplied at construction.
+    /// Mock whose `find_by_iban` always returns the fixed account supplied at construction.
     struct IbanUniquenessRepo {
         existing: Option<BankAccount>,
     }
@@ -572,13 +598,7 @@ mod tests {
         async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
             Ok(vec![])
         }
-        async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
-            Ok(None)
-        }
-        async fn find_by_iban_including_deleted(
-            &self,
-            _iban: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
+        async fn find_by_iban(&self, _iban: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(self.existing.clone())
         }
         async fn read_account(&self, _id: &str) -> anyhow::Result<Option<BankAccount>> {
@@ -587,8 +607,8 @@ mod tests {
         async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
             Ok(a)
         }
-        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
-            Ok(())
+        async fn delete_account(&self, _: &str) -> anyhow::Result<bool> {
+            Ok(true)
         }
 
         async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
@@ -596,7 +616,7 @@ mod tests {
         }
     }
 
-    /// Mock that panics if `find_by_iban_including_deleted` is ever called.
+    /// Mock that panics if `find_by_iban` is ever called.
     /// Used to assert the uniqueness check is skipped when iban is None.
     struct IbanCheckMustNotBeCalledRepo;
 
@@ -608,14 +628,8 @@ mod tests {
         async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
             Ok(vec![])
         }
-        async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
-            Ok(None)
-        }
-        async fn find_by_iban_including_deleted(
-            &self,
-            _iban: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
-            panic!("find_by_iban_including_deleted must NOT be called when iban is None");
+        async fn find_by_iban(&self, _iban: &str) -> anyhow::Result<Option<BankAccount>> {
+            panic!("find_by_iban must NOT be called when iban is None");
         }
         async fn read_account(&self, _id: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(None)
@@ -623,8 +637,8 @@ mod tests {
         async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
             Ok(a)
         }
-        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
-            Ok(())
+        async fn delete_account(&self, _: &str) -> anyhow::Result<bool> {
+            Ok(true)
         }
 
         async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
@@ -655,35 +669,9 @@ mod tests {
         assert!(matches!(result, Err(BankError::IbanAlreadyUsed)));
     }
 
-    // BAC-014 — create rejects an IBAN already used by a soft-deleted account
-    #[tokio::test]
-    async fn test_create_account_rejects_duplicate_iban_soft_deleted() {
-        // The soft-deleted account is returned by find_by_iban_including_deleted
-        // regardless of its deletion status — the repo mock does not distinguish.
-        let soft_deleted = BankAccount::restore(
-            "deleted-id".to_string(),
-            "Old Account".to_string(),
-            Some("FR7622222222222222222222222".to_string()),
-        );
-        let repo = Arc::new(IbanUniquenessRepo {
-            existing: Some(soft_deleted),
-        });
-        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
-
-        let result = service
-            .create_account(
-                "New Account".to_string(),
-                Some("FR7622222222222222222222222".to_string()),
-            )
-            .await;
-
-        assert!(matches!(result, Err(BankError::IbanAlreadyUsed)));
-    }
-
-    // BAC-014 — create with iban = None must skip the uniqueness check entirely
     #[tokio::test]
     async fn test_create_account_allows_no_iban() {
-        // IbanCheckMustNotBeCalledRepo panics if find_by_iban_including_deleted is invoked.
+        // IbanCheckMustNotBeCalledRepo panics if find_by_iban is invoked.
         let repo = Arc::new(IbanCheckMustNotBeCalledRepo);
         let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
 
@@ -726,7 +714,7 @@ mod tests {
     // BAC-014 — update with same IBAN on the *same* account must succeed (self-match)
     #[tokio::test]
     async fn test_update_account_allows_self_match_iban() {
-        // The row returned by find_by_iban_including_deleted has the SAME id as the account
+        // The row returned by find_by_iban has the SAME id as the account
         // being updated — this is a self-match and must NOT be treated as a conflict.
         let self_account = BankAccount::restore(
             "my-id".to_string(),
@@ -830,12 +818,6 @@ mod tests {
         async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(None)
         }
-        async fn find_by_iban_including_deleted(
-            &self,
-            _iban: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
-            Ok(None)
-        }
         async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(Some(BankAccount::restore(
                 id.to_string(),
@@ -846,8 +828,8 @@ mod tests {
         async fn update_account(&self, _: BankAccount) -> anyhow::Result<BankAccount> {
             Err(anyhow!("Mock repository error"))
         }
-        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
-            Ok(())
+        async fn delete_account(&self, _: &str) -> anyhow::Result<bool> {
+            Ok(true)
         }
         async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
             Ok(false)

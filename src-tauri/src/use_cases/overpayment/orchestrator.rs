@@ -394,7 +394,7 @@ impl OverpaymentOrchestrator {
     }
 
     /// REF-070 — the bank account of the source's original bank transfer, when it
-    /// resolves to a non-deleted account: procedure → fund group → bank transfer.
+    /// resolves to an existing account: procedure → fund group → bank transfer.
     pub async fn get_source_bank_account(
         &self,
         source_procedure_id: &str,
@@ -531,10 +531,9 @@ mod tests {
 
     fn bank_account_repo_unimplemented() -> MockBankAccountRepository {
         let mut mock = MockBankAccountRepository::new();
-        // The bank-account service queries find_by_iban_including_deleted during
+        // The bank-account service queries find_by_iban during
         // account update — match the previous mock's only non-unimplemented path.
-        mock.expect_find_by_iban_including_deleted()
-            .returning(|_| Ok(None));
+        mock.expect_find_by_iban().returning(|_| Ok(None));
         mock
     }
 
@@ -542,8 +541,7 @@ mod tests {
     /// `BankAccountService::read_account` to emit `BankError::BankAccountNotFound`.
     fn bank_account_repo_returns_none() -> MockBankAccountRepository {
         let mut mock = MockBankAccountRepository::new();
-        mock.expect_find_by_iban_including_deleted()
-            .returning(|_| Ok(None));
+        mock.expect_find_by_iban().returning(|_| Ok(None));
         mock.expect_read_account().returning(|_| Ok(None));
         mock
     }
@@ -663,10 +661,8 @@ mod tests {
             )))
         });
         mock.expect_find_by_iban().returning(|_| Ok(None));
-        mock.expect_find_by_iban_including_deleted()
-            .returning(|_| Ok(None));
         mock.expect_update_account().returning(Ok);
-        mock.expect_delete_account().returning(|_| Ok(()));
+        mock.expect_delete_account().returning(|_| Ok(true));
         mock
     }
 
