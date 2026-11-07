@@ -96,7 +96,7 @@ mod tests {
             "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('fund-1', '75', 'Caisse 75', 0)",
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('jan-old', 'known', 'type-1', '2026-01-10', 100000, 'CREATED', 0)"#,
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('feb-old', 'known', 'type-1', '2026-02-10', 100000, 'CREATED', 0)"#,
-            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES ('group-1', 'fund-1', '2026-02-20', 100000, 'ACTIVE', 0)",
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status) VALUES ('group-1', 'fund-1', '2026-02-20', 100000, 'ACTIVE')",
             "INSERT INTO bank_account (id, name, is_deleted) VALUES ('acc-1', 'Compte', 0)",
             "INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id) VALUES ('transfer-1', '2026-02-20', 100000, 'CHECK', 'acc-1')",
             "INSERT INTO procedure_refund (id, source_procedure_id, refund_procedure_id, refund_fund_payment_group_id, refund_bank_transfer_id, refund_date, previous_payment_status) VALUES ('refund-1', 'feb-old', 'feb-old', 'group-1', 'transfer-1', '2026-02-20', 'CREATED')",
@@ -319,7 +319,7 @@ mod tests {
     }
 
     async fn deleted_fund_payment_on(pool: &SqlitePool, procedure_id: &str) {
-        sqlx::query("INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES ('deleted-group', 'fund-1', '2026-01-20', 100000, 'ACTIVE', 0)")
+        sqlx::query("INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status) VALUES ('deleted-group', 'fund-1', '2026-01-20', 100000, 'ACTIVE')")
             .execute(pool)
             .await
             .expect("seed the group");
@@ -365,7 +365,7 @@ mod tests {
     async fn test_585_exi_161_a_line_on_a_created_procedure_blocks_its_month() {
         let pool = seeded_pool().await;
         for statement in [
-            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status, is_deleted) VALUES ('live-group', 'fund-1', '2026-01-20', 100000, 'ACTIVE', 0)",
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status) VALUES ('live-group', 'fund-1', '2026-01-20', 100000, 'ACTIVE')",
             "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id) VALUES ('live-line', 'live-group', 'jan-old')",
         ] {
             sqlx::query(statement).execute(&pool).await.expect("seed");

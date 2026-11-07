@@ -53,7 +53,9 @@ A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM
 
 ### Group deletion (400–410)
 
-**FPM-400 (R11) — Deletion with reset (backend)**: Deleting a group marks it as deleted, really deletes its lines and resets all associated procedures to their initial state: their status reverts to `Created`, the `fund_reconciliation_date` and the actual payment amount are cleared. Deletion is blocked if the group is locked (see FPM-330).
+**FPM-400 (R11) — Deletion with reset (backend)**: Deleting a group really deletes it and its lines, and resets all associated procedures to their initial state: their status reverts to `Created`, the `fund_reconciliation_date` and the actual payment amount are cleared. Deletion is blocked if the group is locked (see FPM-330).
+
+**FPM-401 — Deleted groups removed on upgrade (backend)**: A group deleted before FPM-400 took effect is deleted once, on upgrade, unless a `FundPaymentLine`, a `BankTransferLink` or a `ProcedureRefund` still refers to it. Such a group is kept and listed again, with the status it had stored (owner, 2026-11-01, #579).
 
 **FPM-410 (R12) — Confirmation required (frontend)**: Deleting a fund-payment group requires explicit user confirmation before being executed.
 
