@@ -29,6 +29,9 @@ impl DeletionUnitOfWork for SqlxDeletionUnitOfWork {
         procedure_type_id: &str,
     ) -> anyhow::Result<()> {
         // The mapping table is the Excel import's, which no context owns (B26).
+        // reviewer-arch FP: its repository belongs to the `excel_import` use case, and
+        // calling it from here is a use-case import (B18, `just arch-check`); no other
+        // writer holds this statement — see PR #650.
         sqlx::query!(
             "DELETE FROM excel_amount_type_mapping WHERE procedure_type_id = ?",
             procedure_type_id,
