@@ -103,7 +103,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **R14 — Creation: procedure selection (frontend + backend)**: The user selects one or more procedures in `Created` status whose execution date (`procedure_date`) is within the 7 days preceding the payment date. The selection UI is similar to the procedure-management UI in fund-payment groups. The payment amount is the sum of the amounts of the selected procedures.
 
-**BSM-036 — Every selected procedure exists (backend)**: Creating or editing a direct bank entry whose selection holds a procedure that does not exist or is deleted is refused, naming the first in the order the selection holds them, even beside procedures that exist. A procedure the edit keeps is judged too, unlike the references of PRO-251: the amount cannot count a deleted procedure (owner, 2026-11-01). The field refusals of BSM-021 come first; an edit answered unchanged (BSM-031) is not judged.
+**BSM-036 — Every selected procedure exists (backend)**: Creating or editing a direct bank entry whose selection holds a procedure that does not exist is refused, naming the first in the order the selection holds them, even beside procedures that exist. A procedure the entry already holds cannot be deleted (PRO-030), so a kept one always exists. The field refusals of BSM-021 come first; an edit answered unchanged (BSM-031) is not judged.
 
 **R15 — Creation: status effects (backend)**: On validation, each procedure receives the corresponding payment method, its date and actual paid amount are set, and its status moves to `DirectlyPayed`. See the "Affected fields — on payment creation" table.
 

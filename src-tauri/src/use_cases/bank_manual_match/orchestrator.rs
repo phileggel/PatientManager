@@ -741,7 +741,7 @@ impl BankManualMatchOrchestrator {
             .procedure_service
             .read_procedures_by_ids(procedure_ids.to_vec())
             .await?;
-        // BSM-036 — a procedure the read did not return is unknown or deleted.
+        // BSM-036 — a procedure the read did not return does not exist.
         if let Some(missing) = procedure_ids
             .iter()
             .find(|id| !procedures.iter().any(|p| &p.id == *id))
@@ -959,7 +959,7 @@ mod tests {
         let proc_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-               billed_amount, payment_status, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)"#,
+               billed_amount, payment_status) VALUES (?, ?, ?, ?, ?, ?)"#,
         )
         .bind(&proc_id)
         .bind(patient_id)

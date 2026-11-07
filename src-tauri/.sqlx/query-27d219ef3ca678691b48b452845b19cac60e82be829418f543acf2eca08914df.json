@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id, hp.procedure_date AS \"procedure_date: NaiveDate\",\n                   hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date AS \"fund_reconciliation_date?: NaiveDate\", hp.confirmed_payment_date AS \"confirmed_payment_date?: NaiveDate\",\n                   hp.paid_amount, hp.payment_status, hp.is_deleted\n            FROM procedure hp\n            WHERE hp.fund_id = $1\n              AND hp.is_deleted = 0\n              AND hp.payment_status = 'CREATED'\n            ORDER BY hp.procedure_date DESC\n            ",
+  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,\n                   hp.procedure_date AS \"procedure_date: NaiveDate\", hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date AS \"fund_reconciliation_date?: NaiveDate\", hp.confirmed_payment_date AS \"confirmed_payment_date?: NaiveDate\", hp.paid_amount, hp.payment_status\n            FROM procedure hp\n            JOIN patient p ON hp.patient_id = p.id\n            WHERE p.ssn = $1\n              AND hp.procedure_date >= $2\n              AND hp.procedure_date <= $3\n              AND p.is_deleted = 0\n            ORDER BY hp.procedure_date ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -123,21 +123,10 @@
             "name": "payment_status"
           }
         }
-      },
-      {
-        "name": "is_deleted",
-        "ordinal": 11,
-        "type_info": "Integer",
-        "origin": {
-          "Table": {
-            "table": "procedure",
-            "name": "is_deleted"
-          }
-        }
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 3
     },
     "nullable": [
       false,
@@ -150,9 +139,8 @@
       true,
       true,
       true,
-      false,
       false
     ]
   },
-  "hash": "350d95a1d698b15e51bd99fb34540cba9c2fff91818cdad64f51e9ac67f1ec09"
+  "hash": "27d219ef3ca678691b48b452845b19cac60e82be829418f543acf2eca08914df"
 }

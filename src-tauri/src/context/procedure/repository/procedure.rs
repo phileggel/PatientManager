@@ -22,7 +22,6 @@ pub struct ProcedureRow {
     pub confirmed_payment_date: Option<NaiveDate>,
     pub paid_amount: Option<i64>,
     pub payment_status: Option<String>,
-    pub is_deleted: i64,
 }
 
 /// Internal row type for procedure queries with SSN (used for reconciliation batching)
@@ -39,7 +38,6 @@ pub struct ProcedureWithSSNRow {
     pub confirmed_payment_date: Option<NaiveDate>,
     pub paid_amount: Option<i64>,
     pub payment_status: Option<String>,
-    pub is_deleted: i64,
     pub ssn: String,
 }
 
@@ -146,8 +144,8 @@ impl SqliteProcedureRepository {
 
         sqlx::query!(
             r#"
-                INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status, is_deleted)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0)
+                INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 "#,
             procedure.id,
             procedure.patient_id,
@@ -168,7 +166,7 @@ impl SqliteProcedureRepository {
         Ok(())
     }
 
-    /// Hard-delete every procedure of a month (YYYY-MM), soft-deleted ones included,
+    /// Delete every procedure of a month (YYYY-MM)
     /// on a connection the caller owns (ADR-003). Returns the number of rows deleted.
     pub async fn delete_by_month_in(
         conn: &mut sqlx::SqliteConnection,
@@ -229,8 +227,7 @@ impl SqliteProcedureRepository {
 }
 
 impl SqliteProcedureRepository {
-    /// PDU-021 — attach every procedure of one patient, deleted ones included,
-    /// to another, on a connection the caller owns (a unit of work, ADR-003).
+    /// PDU-021 — attach every procedure of one patient to another, on a connection the caller owns (a unit of work, ADR-003).
     /// Returns how many moved.
     pub async fn reassign_patient_in(
         conn: &mut sqlx::SqliteConnection,
@@ -290,8 +287,8 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status, is_deleted)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0)
+            INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             "#,
             procedure.id,
             procedure.patient_id,
@@ -314,14 +311,13 @@ impl ProcedureRepository for SqliteProcedureRepository {
     }
 
     async fn read_all_procedures(&self) -> anyhow::Result<Vec<Procedure>> {
-        tracing::trace!(target: BACKEND, "Fetching all active procedures from database");
+        tracing::trace!(target: BACKEND, "Fetching all procedures from database");
 
         let rows = sqlx::query_as!(
             ProcedureRow,
             r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate", billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", paid_amount, payment_status, is_deleted
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate", billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", paid_amount, payment_status
             FROM procedure
-            WHERE is_deleted = 0
             "#,
         )
         .fetch_all(&self.pool)
@@ -336,9 +332,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let row = sqlx::query_as!(
             ProcedureRow,
             r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate", billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", paid_amount, payment_status, is_deleted
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate", billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", paid_amount, payment_status
             FROM procedure
-            WHERE id = $1 AND is_deleted = 0
+            WHERE id = $1
             "#,
             id,
         )
@@ -361,14 +357,14 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let mut builder = sqlx::QueryBuilder::new(
             "SELECT id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount,
                     payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount,
-                    payment_status, is_deleted
+                    payment_status
              FROM procedure WHERE id IN (",
         );
         let mut separated = builder.separated(", ");
         for id in ids {
             separated.push_bind(id);
         }
-        separated.push_unseparated(") AND is_deleted = 0");
+        separated.push_unseparated(")");
 
         let rows = builder
             .build_query_as::<ProcedureRow>()
@@ -388,9 +384,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let rows = sqlx::query_as!(
             ProcedureRow,
             r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate", billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", paid_amount, payment_status, is_deleted
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate", billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", paid_amount, payment_status
             FROM procedure
-            WHERE patient_id = $1 AND is_deleted = 0
+            WHERE patient_id = $1
             "#,
             patient_id,
         )
@@ -432,15 +428,19 @@ impl ProcedureRepository for SqliteProcedureRepository {
         Ok(procedure.clone())
     }
 
-    async fn delete_procedure(&self, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(target: BACKEND, procedure_id = %id, "Soft-deleting procedure from database");
+    async fn delete_procedure(&self, id: &str) -> anyhow::Result<bool> {
+        tracing::trace!(target: BACKEND, procedure_id = %id, "Deleting procedure from database");
 
-        sqlx::query!(r#"UPDATE procedure SET is_deleted = 1 WHERE id = ?"#, id)
+        // PRO-030 — the foreign keys refuse a row a payment line, a bank link or a refund
+        // record still refers to, so this repository names no other context's table.
+        match sqlx::query!("DELETE FROM procedure WHERE id = $1", id)
             .execute(&self.pool)
             .await
-            .with_context(|| anyhow!("Failed to soft-delete procedure"))?;
-
-        Ok(())
+        {
+            Ok(result) => Ok(result.rows_affected() > 0),
+            Err(sqlx::Error::Database(e)) if e.is_foreign_key_violation() => Ok(false),
+            Err(e) => Err(e).with_context(|| anyhow!("Failed to delete procedure")),
+        }
     }
 
     async fn find_procedures_by_ssn_and_date_range(
@@ -456,13 +456,12 @@ impl ProcedureRepository for SqliteProcedureRepository {
             ProcedureRow,
             r#"
             SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
-                   hp.procedure_date AS "procedure_date: NaiveDate", hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", hp.confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", hp.paid_amount, hp.payment_status, hp.is_deleted
+                   hp.procedure_date AS "procedure_date: NaiveDate", hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", hp.confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", hp.paid_amount, hp.payment_status
             FROM procedure hp
             JOIN patient p ON hp.patient_id = p.id
             WHERE p.ssn = $1
               AND hp.procedure_date >= $2
               AND hp.procedure_date <= $3
-              AND hp.is_deleted = 0
               AND p.is_deleted = 0
             ORDER BY hp.procedure_date ASC
             "#,
@@ -500,7 +499,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             "SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,
                     hp.procedure_date, hp.billed_amount, hp.payment_method,
                     hp.fund_reconciliation_date, hp.confirmed_payment_date, hp.paid_amount,
-                    hp.payment_status, hp.is_deleted, p.ssn
+                    hp.payment_status, p.ssn
              FROM procedure hp
              JOIN patient p ON hp.patient_id = p.id
              WHERE p.ssn IN (",
@@ -522,9 +521,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             .push_bind_unseparated(end_date)
             .push_unseparated(" AND hp.payment_status = ")
             .push_bind_unseparated(ProcedureStatus::Created.as_db_str())
-            .push_unseparated(
-                " AND hp.is_deleted = 0 AND p.is_deleted = 0 ORDER BY p.ssn, hp.procedure_date ASC",
-            );
+            .push_unseparated(" AND p.is_deleted = 0 ORDER BY p.ssn, hp.procedure_date ASC");
 
         let rows = builder
             .build_query_as::<ProcedureWithSSNRow>()
@@ -553,7 +550,6 @@ impl ProcedureRepository for SqliteProcedureRepository {
                     confirmed_payment_date: row.confirmed_payment_date,
                     paid_amount: row.paid_amount,
                     payment_status: row.payment_status,
-                    is_deleted: row.is_deleted,
                 };
                 (ssn, Procedure::from(proc_row))
             })
@@ -578,13 +574,12 @@ impl ProcedureRepository for SqliteProcedureRepository {
         let row = sqlx::query_as!(
             ProcedureRow,
             r#"
-            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate", billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", paid_amount, payment_status, is_deleted
+            SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate", billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate", paid_amount, payment_status
             FROM procedure
             WHERE patient_id = $1
               AND fund_id IS $2
               AND procedure_date = $3
               AND billed_amount = $4
-              AND is_deleted = 0
             LIMIT 1
             "#,
             patient_id,
@@ -624,10 +619,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
             r#"
             SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id, hp.procedure_date AS "procedure_date: NaiveDate",
                    hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", hp.confirmed_payment_date AS "confirmed_payment_date?: NaiveDate",
-                   hp.paid_amount, hp.payment_status, hp.is_deleted
+                   hp.paid_amount, hp.payment_status
             FROM procedure hp
             WHERE hp.fund_id = $1
-              AND hp.is_deleted = 0
               AND hp.payment_status = 'CREATED'
             ORDER BY hp.procedure_date DESC
             "#,
@@ -656,7 +650,6 @@ impl ProcedureRepository for SqliteProcedureRepository {
             FROM "procedure" p
             JOIN patient pat ON p.patient_id = pat.id
             WHERE p.procedure_date BETWEEN $1 AND $2
-              AND p.is_deleted = 0
               AND p.payment_status = 'CREATED'
               AND p.id NOT IN (
                   SELECT procedure_id FROM fund_payment_line
@@ -687,7 +680,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             SELECT COUNT(*) FROM procedure
             WHERE procedure_date LIKE ?
               AND (
-                  (payment_status IN (SELECT value FROM json_each(?)) AND is_deleted = 0)
+                  payment_status IN (SELECT value FROM json_each(?))
                   OR id IN (SELECT procedure_id FROM fund_payment_line)
               )
             "#,
@@ -717,10 +710,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
             r#"
             SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate",
                    billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate",
-                   paid_amount, payment_status, is_deleted
+                   paid_amount, payment_status
             FROM "procedure"
-            WHERE is_deleted = 0
-              AND payment_status = 'CREATED'
+            WHERE payment_status = 'CREATED'
               AND procedure_date BETWEEN $1 AND $2
             ORDER BY procedure_date DESC
             "#,
@@ -750,12 +742,11 @@ impl ProcedureRepository for SqliteProcedureRepository {
             r#"
             SELECT id, patient_id, fund_id, procedure_type_id, procedure_date AS "procedure_date: NaiveDate",
                    billed_amount, payment_method, fund_reconciliation_date AS "fund_reconciliation_date?: NaiveDate", confirmed_payment_date AS "confirmed_payment_date?: NaiveDate",
-                   paid_amount, payment_status, is_deleted
+                   paid_amount, payment_status
             FROM "procedure"
             WHERE fund_id = $1
               AND payment_status = 'CREATED'
               AND procedure_date <= $2
-              AND is_deleted = 0
             ORDER BY procedure_date DESC
             "#,
             fund_id,
@@ -786,7 +777,6 @@ impl ProcedureRepository for SqliteProcedureRepository {
             FROM "procedure" p
             JOIN patient pat ON p.patient_id = pat.id
             WHERE p.fund_id = $1
-              AND p.is_deleted = 0
               AND p.payment_status = 'CREATED'
               AND p.billed_amount > 0
               AND p.id NOT IN (
@@ -916,29 +906,72 @@ mod tests {
         assert_eq!(all.len(), 2);
     }
 
-    #[tokio::test]
-    async fn delete_procedure_soft_deletes() {
-        let repo = setup().await;
-        let created = repo
-            .create_procedure(
-                "p1".to_string(),
-                None,
-                "t1".to_string(),
-                d("2026-01-01"),
-                0,
-                PaymentMethod::None,
-                None,
-                None,
-                None,
-                ProcedureStatus::Created,
-            )
+    async fn created_procedure(repo: &SqliteProcedureRepository) -> Procedure {
+        repo.create_procedure(
+            "p1".to_string(),
+            None,
+            "t1".to_string(),
+            d("2026-01-01"),
+            0,
+            PaymentMethod::None,
+            None,
+            None,
+            None,
+            ProcedureStatus::Created,
+        )
+        .await
+        .unwrap()
+    }
+
+    async fn rows_with_id(repo: &SqliteProcedureRepository, id: &str) -> i64 {
+        sqlx::query_scalar("SELECT COUNT(*) FROM procedure WHERE id = ?")
+            .bind(id)
+            .fetch_one(&repo.pool)
             .await
-            .unwrap();
-        repo.delete_procedure(&created.id).await.unwrap();
-        let found = repo.read_procedure(&created.id).await.unwrap();
-        assert!(found.is_none());
-        let all = repo.read_all_procedures().await.unwrap();
-        assert!(all.is_empty());
+            .unwrap()
+    }
+
+    /// PRO-030 — a delete removes the row itself, not a flag.
+    #[tokio::test]
+    async fn test_588_delete_procedure_really_deletes() {
+        let repo = setup().await;
+        let created = created_procedure(&repo).await;
+
+        let deleted = repo.delete_procedure(&created.id).await.unwrap();
+
+        assert!(deleted);
+        assert_eq!(rows_with_id(&repo, &created.id).await, 0);
+    }
+
+    /// PRO-030 — a procedure a payment line, a bank link or a refund record still
+    /// refers to is not deleted, whatever its status.
+    #[tokio::test]
+    async fn test_588_delete_procedure_refused_while_referred_to() {
+        for reference in [
+            "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id) VALUES ('ref', 'g', ?)",
+            "INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id) VALUES ('ref', 't', ?)",
+            "INSERT INTO procedure_refund (id, source_procedure_id, refund_procedure_id, refund_fund_payment_group_id, refund_bank_transfer_id, refund_date, previous_payment_status) VALUES ('ref', ?, 'other', 'g', 't', '2026-01-20', 'CREATED')",
+            "INSERT INTO procedure_refund (id, source_procedure_id, refund_procedure_id, refund_fund_payment_group_id, refund_bank_transfer_id, refund_date, previous_payment_status) VALUES ('ref', 'other', ?, 'g', 't', '2026-01-20', 'CREATED')",
+        ] {
+            let repo = setup().await;
+            let created = created_procedure(&repo).await;
+            sqlx::query(reference)
+                .bind(&created.id)
+                .execute(&repo.pool)
+                .await
+                .unwrap();
+            // The application's pool enforces them (shared/infrastructure/db.rs).
+            sqlx::query("PRAGMA foreign_keys = ON")
+                .execute(&repo.pool)
+                .await
+                .unwrap();
+
+            let deleted = repo.delete_procedure(&created.id).await.unwrap();
+
+            assert!(!deleted, "{reference}");
+
+            assert_eq!(rows_with_id(&repo, &created.id).await, 1, "{reference}");
+        }
     }
 
     #[tokio::test]
@@ -1687,30 +1720,6 @@ mod tests {
             )
             .await
             .unwrap();
-
-        // Soft-deleted (otherwise fully eligible) — excluded (BAS-112).
-        let soft_deleted = repo
-            .create_procedure(
-                "patient-1".into(),
-                Some("fund-1".into()),
-                "t1".into(),
-                d("2026-01-09"),
-                50_000,
-                PaymentMethod::None,
-                None,
-                None,
-                None,
-                ProcedureStatus::Created,
-            )
-            .await
-            .unwrap();
-        sqlx::query!(
-            "UPDATE procedure SET is_deleted = 1 WHERE id = ?",
-            soft_deleted.id
-        )
-        .execute(&repo.pool)
-        .await
-        .unwrap();
 
         // Wrong fund — excluded.
         repo.create_procedure(

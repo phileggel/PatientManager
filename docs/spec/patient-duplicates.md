@@ -49,7 +49,7 @@ candidate.
 patients with the same name give three pairs.
 
 **PDU-012 — Pair content (backend)**: For each patient of a pair the list gives its SSN (or none),
-the number of its procedures that are not deleted, and the date of the latest of them (or none).
+the number of its procedures, and the date of the latest of them (or none).
 The pair shows the name as recorded on the patient that comes first by PDU-013.
 
 **PDU-013 — Order (backend)**: Pairs are ordered by name, ignoring case and accents. Within a
@@ -74,8 +74,8 @@ patient of the pair (PDU-013) is preselected as the one to keep; the user can pi
 dialog states how many procedures move to the kept patient (the other patient's count, PDU-012)
 and that the other patient is deleted, and that the action cannot be undone.
 
-**PDU-021 — Merge (backend)**: Merging moves every procedure of the other patient, deleted ones
-included and whatever their payment status, to the kept patient, and deletes the other patient. Deleted means hidden from every
+**PDU-021 — Merge (backend)**: Merging moves every procedure of the other patient, whatever their
+payment status, to the kept patient, and deletes the other patient. Deleted means hidden from every
 screen and kept in the database, as for any patient deletion.
 
 **PDU-022 — SSN on merge (backend)**: When the kept patient has no SSN and the other has one, the

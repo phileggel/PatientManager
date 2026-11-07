@@ -101,7 +101,7 @@ mod tests {
         for statement in [
             "INSERT INTO patient (id, name, is_anonymous, is_deleted) VALUES ('known', 'Known Patient', 0, 0)",
             "INSERT OR IGNORE INTO procedure_type (id, name, default_amount, is_deleted) VALUES ('type-1', 'Type 1', 100000, 0)",
-            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('existing', 'known', 'type-1', '2026-03-10', 100000, 'CREATED', 0)"#,
+            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('existing', 'known', 'type-1', '2026-03-10', 100000, 'CREATED')"#,
         ] {
             sqlx::query(statement)
                 .execute(&pool)

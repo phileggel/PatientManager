@@ -158,7 +158,7 @@ mod tests {
         async fn update_procedure(&self, _: Procedure) -> anyhow::Result<Procedure> {
             unimplemented!()
         }
-        async fn delete_procedure(&self, _: &str) -> anyhow::Result<()> {
+        async fn delete_procedure(&self, _: &str) -> anyhow::Result<bool> {
             unimplemented!()
         }
         async fn read_procedures_by_ids(&self, _: &[String]) -> anyhow::Result<Vec<Procedure>> {

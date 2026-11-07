@@ -85,7 +85,7 @@ A procedure with none of these anomalies is considered a perfect match.
 
 **FPA-150 (R9) — Too many matches (backend)**: If more than 8 candidate procedures are found without a clear match, the case is marked `TooManyMatchIssue`. This case is blocking — no automatic correction is possible, manual intervention in the database is required.
 
-**FPA-160 (R10) — Not found (backend)**: No matching procedure found after the 8 passes (`NotFoundIssue`). Nearby candidates are searched and proposed to the user for manual linking (see FPA-240). Candidate procedures are those whose date falls within the window `[PDF_start_date - 1 day, PDF_end_date + 1 day]` — for a single-date line, this is ±1 day. The search has no patient or SSN filter. Excluded: deleted procedures (`is_deleted`), procedures with a status other than `CREATED`, procedures already linked to a fund payment (`fund_payment_line`), and procedures already matched in the current pass.
+**FPA-160 (R10) — Not found (backend)**: No matching procedure found after the 8 passes (`NotFoundIssue`). Nearby candidates are searched and proposed to the user for manual linking (see FPA-240). Candidate procedures are those whose date falls within the window `[PDF_start_date - 1 day, PDF_end_date + 1 day]` — for a single-date line, this is ±1 day. The search has no patient or SSN filter. Excluded: procedures with a status other than `CREATED`, procedures already linked to a fund payment (`fund_payment_line`), and procedures already matched in the current pass.
 
 ### Corrections (200–260)
 

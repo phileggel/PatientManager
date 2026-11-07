@@ -656,7 +656,7 @@ mod tests {
         mock.expect_read_procedures_by_patient_id()
             .returning(|_| Ok(vec![]));
         mock.expect_update_procedure().returning(Ok);
-        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_delete_procedure().returning(|_| Ok(true));
         mock.expect_find_procedures_by_ssn_and_date_range()
             .returning(|_, _, _| Ok(vec![]));
         mock.expect_find_procedures_by_ssns_and_date_range_with_ssn()

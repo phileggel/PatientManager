@@ -354,10 +354,15 @@ impl OverpaymentOrchestrator {
                 OverpaymentTask::DatabaseError
             })?;
 
-        // 6. Delete refund Procedure (soft delete)
-        self.procedure_service
+        // 6. Delete refund Procedure; steps 2 and 5 removed what referred to it
+        if !self
+            .procedure_service
             .delete_procedure(&refund_record.refund_procedure_id)
-            .await?;
+            .await?
+        {
+            tracing::error!(target: BACKEND, procedure_id = %refund_record.refund_procedure_id, "Refund procedure not deleted after its records were removed");
+            return Err(OverpaymentTask::DatabaseError.into());
+        }
 
         tracing::info!(
             target: BACKEND,
@@ -517,7 +522,7 @@ mod tests {
         mock.expect_read_procedure()
             .returning(move |_| Ok(proc_result.clone()));
         mock.expect_update_procedure().returning(Ok);
-        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_delete_procedure().returning(|_| Ok(true));
         mock
     }
 
@@ -570,6 +575,15 @@ mod tests {
         source_procedure: Procedure,
         refund_id: &'static str,
     ) -> MockProcedureRepository {
+        proc_repo_deleting(source_procedure, refund_id, true)
+    }
+
+    /// `deleted` is what a delete answers: false when a record still refers to it.
+    fn proc_repo_deleting(
+        source_procedure: Procedure,
+        refund_id: &'static str,
+        deleted: bool,
+    ) -> MockProcedureRepository {
         let mut mock = MockProcedureRepository::new();
         mock.expect_create_procedure().returning(
             move |patient_id,
@@ -605,7 +619,8 @@ mod tests {
         mock.expect_read_procedures_by_patient_id()
             .returning(|_| Ok(vec![]));
         mock.expect_update_procedure().returning(Ok);
-        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_delete_procedure()
+            .returning(move |_| Ok(deleted));
         mock.expect_find_procedures_by_ssn_and_date_range()
             .returning(|_, _, _| Ok(vec![]));
         mock.expect_find_procedures_by_ssns_and_date_range_with_ssn()
@@ -745,6 +760,12 @@ mod tests {
     }
 
     fn make_cancel_orchestrator() -> OverpaymentOrchestrator {
+        make_cancel_orchestrator_with(proc_repo_for_success())
+    }
+
+    fn make_cancel_orchestrator_with(
+        proc_repo: MockProcedureRepository,
+    ) -> OverpaymentOrchestrator {
         let refund_record = crate::context::procedure::ProcedureRefund::restore(
             "refund-id-1".to_string(),
             "source-proc-1".to_string(),
@@ -757,7 +778,7 @@ mod tests {
         );
         let event_bus = Arc::new(EventBus::new());
         let procedure_service = Arc::new(ProcedureService::new(
-            Arc::new(proc_repo_for_success()),
+            Arc::new(proc_repo),
             event_bus.clone(),
         ));
         let fund_payment_service = Arc::new(FundPaymentService::new(
@@ -1457,6 +1478,31 @@ mod tests {
     }
 
     // --- cancel_overpayment success path ---
+
+    /// REF-210 — the refund procedure is deleted last; if a record still refers to it
+    /// the cancel fails as a database error instead of reporting success.
+    #[tokio::test]
+    async fn test_588_cancel_fails_when_the_refund_procedure_is_not_deleted() {
+        let orchestrator = make_cancel_orchestrator_with(proc_repo_deleting(
+            fund_paid_procedure(),
+            "refund-proc-1",
+            false,
+        ));
+
+        let result = orchestrator.cancel_overpayment("source-proc-1").await;
+
+        assert!(
+            matches!(
+                result,
+                Err(
+                    crate::use_cases::overpayment::error::OverpaymentError::Task(
+                        crate::use_cases::overpayment::error::OverpaymentTask::DatabaseError
+                    )
+                )
+            ),
+            "got {result:?}"
+        );
+    }
 
     #[tokio::test]
     async fn cancel_overpayment_success_returns_ok() {

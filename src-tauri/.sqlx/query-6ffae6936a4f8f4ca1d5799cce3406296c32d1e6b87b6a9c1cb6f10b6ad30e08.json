@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_method, fund_reconciliation_date, confirmed_payment_date, paid_amount, payment_status)\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "6ffae6936a4f8f4ca1d5799cce3406296c32d1e6b87b6a9c1cb6f10b6ad30e08"
+}

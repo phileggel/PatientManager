@@ -276,16 +276,19 @@ impl ProcedureService {
         let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
     }
 
-    /// Delete a procedure (soft-delete)
-    pub async fn delete_procedure(&self, id: &str) -> Result<(), ProcedureError> {
-        self.repository.delete_procedure(id).await.map_err(|e| {
+    /// Delete a procedure (PRO-030): false when a payment record still refers to
+    /// it, or no row matched; nothing is published then.
+    pub async fn delete_procedure(&self, id: &str) -> Result<bool, ProcedureError> {
+        let deleted = self.repository.delete_procedure(id).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "delete_procedure: repository failed");
             ProcedureError::DatabaseError
         })?;
 
-        let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
+        if deleted {
+            let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
+        }
 
-        Ok(())
+        Ok(deleted)
     }
 
     /// Get unpaid procedures by fund
@@ -693,7 +696,7 @@ mod tests {
             },
         );
         mock.expect_update_procedure().returning(Ok);
-        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_delete_procedure().returning(|_| Ok(true));
         mock.expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
         mock
@@ -990,5 +993,27 @@ mod tests {
             matches!(result, Err(ProcedureError::DatabaseError)),
             "got {result:?}"
         );
+    }
+
+    /// PRO-030 — a deletion publishes `ProcedureUpdated`; one a record refuses, none.
+    #[tokio::test]
+    async fn test_588_pro_030_a_deletion_signals_and_a_refused_one_does_not() {
+        for (deleted, events) in [(true, 1), (false, 0)] {
+            let mut repo = MockProcedureRepository::new();
+            repo.expect_delete_procedure()
+                .returning(move |_| Ok(deleted));
+            let bus = Arc::new(EventBus::new());
+            let mut changed = bus.subscribe::<ProcedureUpdated>().expect("subscribe");
+            let service = ProcedureService::new(Arc::new(repo), bus);
+
+            let answer = service.delete_procedure("proc-1").await.expect("delete");
+
+            assert_eq!(answer, deleted);
+            let mut received = 0;
+            while changed.try_recv().is_ok() {
+                received += 1;
+            }
+            assert_eq!(received, events, "deleted: {deleted}");
+        }
     }
 }
