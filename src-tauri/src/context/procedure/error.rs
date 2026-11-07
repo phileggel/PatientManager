@@ -137,6 +137,10 @@ mod tests {
             json!({ "code": "ReservedTypeNotMutable" }),
         );
         assert_eq!(
+            to_value(ProcedureError::ProcedureTypeInUse { procedure_count: 2 }).unwrap(),
+            json!({ "code": "ProcedureTypeInUse", "procedure_count": 2 }),
+        );
+        assert_eq!(
             to_value(ProcedureError::RefundReasonTooLong).unwrap(),
             json!({ "code": "RefundReasonTooLong" }),
         );
