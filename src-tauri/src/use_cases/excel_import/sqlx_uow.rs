@@ -507,4 +507,41 @@ mod tests {
         assert_eq!(latest_date.as_deref(), Some("2026-01-15"));
         assert_eq!(latest_type.as_deref(), Some("type-1"));
     }
+
+    #[tokio::test]
+    async fn test_581_exi_131_the_default_type_imports_under_the_reserved_type() {
+        let pool = seeded_pool().await;
+        let types_before = procedure_types(&pool).await;
+
+        let result = orchestrator(&pool)
+            .execute_import(
+                workbook(vec![row("Jan", "2026-01-15")]),
+                mapping("imported-from-excel"),
+                vec!["Jan".to_string()],
+            )
+            .await
+            .expect("the import succeeds");
+
+        assert_eq!(result.procedures_created, 1);
+        let (type_id,): (String,) = sqlx::query_as(
+            r#"SELECT procedure_type_id FROM "procedure" WHERE procedure_date = '2026-01-15'"#,
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("the imported procedure");
+        assert_eq!(type_id, "import-pdf");
+        assert_eq!(
+            procedure_types(&pool).await,
+            types_before,
+            "no procedure type is created"
+        );
+    }
+
+    async fn procedure_types(pool: &SqlitePool) -> i64 {
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM procedure_type")
+            .fetch_one(pool)
+            .await
+            .expect("procedure types");
+        count
+    }
 }

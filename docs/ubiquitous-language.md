@@ -146,6 +146,22 @@ amount used to pre-populate new procedures.
 
 > Status: confirmed
 
+### Reserved type
+
+The `ProcedureType` with the fixed id `import-pdf`, named « Import ». Seeded at install,
+hidden from the procedure-type list and never edited or deleted. A procedure gets it when an
+import has no precise type for it: an unmatched fund statement line, or the Excel default type.
+
+> Status: confirmed (2026-11-07)
+
+### Default type
+
+The choice « Importé depuis Excel » on the Excel import's mapping screen, sent as
+`imported-from-excel`. It has no `ProcedureType` row of its own: a mapping keeps it as such,
+and a procedure mapped to it is stored with the reserved type (EXI-131).
+
+> Status: confirmed (2026-11-07)
+
 ### ProcedureRefund
 
 An internal entity of the procedure context. Records the full audit trail of an overpayment

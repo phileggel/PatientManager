@@ -6,13 +6,26 @@ use chrono::{Datelike, NaiveDate};
 
 use crate::context::fund::{Fund, FundService};
 use crate::context::patient::{Patient, PatientService};
-use crate::context::procedure::{ProcedureCandidate, ProcedureService};
+use crate::context::procedure::{ProcedureCandidate, ProcedureService, ProcedureType};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::excel_import::dto::{ImportExecutionResult, ParseExcelResponse};
 use crate::use_cases::excel_import::error::ExcelImportError;
 use crate::use_cases::excel_import::excel_codec::{sheet_nominal_month, SkipReason, SkippedRow};
 use crate::use_cases::excel_import::uow::ExcelImportTransactionManager;
 use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
+
+/// The default type a mapping may hold (EXI-130). It has no row of its own.
+const DEFAULT_TYPE_ID: &str = "imported-from-excel";
+
+/// The procedure type a mapped id is stored as: the default type becomes the
+/// reserved type, every other id is kept (EXI-131).
+fn stored_type_id(mapped: &str) -> String {
+    if mapped == DEFAULT_TYPE_ID {
+        ProcedureType::RESERVED_ID.to_string()
+    } else {
+        mapped.to_string()
+    }
+}
 
 /// Orchestrates the full Excel import workflow on the backend.
 ///
@@ -265,7 +278,7 @@ impl ExcelImportOrchestrator {
             // (3) EXI-150 — type mapping check.
             let Some(procedure_type_id) = procedure_type_mapping
                 .get(&excel_proc.procedure_type_tmp_id)
-                .cloned()
+                .map(|id| stored_type_id(id))
             else {
                 tracing::debug!(
                     target: BACKEND,
