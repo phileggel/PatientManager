@@ -1381,6 +1381,10 @@ mod tests {
 
         let procedure = proc_svc.read_procedure(&proc_id).await?.unwrap();
         assert_eq!(procedure.payment_status, ProcedureStatus::Created);
+        // R16 — the payment method, date and amount are cleared.
+        assert_eq!(procedure.payment_method, PaymentMethod::None);
+        assert_eq!(procedure.confirmed_payment_date, None);
+        assert_eq!(procedure.paid_amount, None);
 
         Ok(())
     }

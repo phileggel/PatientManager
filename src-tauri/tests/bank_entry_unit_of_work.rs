@@ -24,7 +24,7 @@ use patient_manager_app::{
         uow::SqlxTransactionManager,
     },
     use_cases::bank_manual_match::{
-        BankEntryEdit, BankManualMatchError, BankManualMatchOrchestrator,
+        BankEntryEdit, BankManualMatchError, BankManualMatchOrchestrator, BankManualMatchTask,
     },
 };
 use sqlx::sqlite::SqlitePoolOptions;
@@ -467,7 +467,12 @@ async fn test_bsm_040_a_refused_deletion_changes_nothing() {
             BankError::TransferNotFound { .. }
         ))
     ));
-    assert!(wrong_kind.is_err());
+    assert!(matches!(
+        wrong_kind,
+        Err(BankManualMatchError::Task(
+            BankManualMatchTask::WrongTransferType
+        ))
+    ));
     assert_eq!(stored(&fund_pool).await, fund_before);
     fund_listeners.assert_silent();
 
@@ -479,12 +484,18 @@ async fn test_bsm_040_a_refused_deletion_changes_nothing() {
 
     let other_kind = direct_side.delete_fund_transfer(direct_entry).await;
 
-    assert!(other_kind.is_err());
+    assert!(matches!(
+        other_kind,
+        Err(BankManualMatchError::Task(
+            BankManualMatchTask::WrongTransferType
+        ))
+    ));
     assert_eq!(stored(&direct_pool).await, direct_before);
     direct_listeners.assert_silent();
 }
 
-/// A deletion raises each event once, after it committed.
+/// A deletion removes the entry and its links, and raises each event once,
+/// after it committed.
 #[tokio::test]
 async fn test_bsm_040_a_committed_deletion_raises_each_event_once() {
     let pool = setup_db().await;
@@ -497,6 +508,13 @@ async fn test_bsm_040_a_committed_deletion_raises_each_event_once() {
         .await
         .expect("the deletion commits");
 
+    assert!(
+        !stored(&pool)
+            .await
+            .iter()
+            .any(|row| row.starts_with("entry ") || row.starts_with("group link ")),
+        "the entry and its links are gone"
+    );
     assert!(listeners.entries.try_recv().is_ok());
     assert!(listeners.groups.try_recv().is_ok());
     assert!(listeners.procedures.try_recv().is_ok());
