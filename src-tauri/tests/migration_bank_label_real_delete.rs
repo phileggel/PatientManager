@@ -99,7 +99,11 @@ async fn test_583_bas_046_old_deleted_accounts_lose_their_labels_for_good() {
     .await
     .expect("insert transfer");
 
-    for migration in migrations().iter().filter(|m| m.version >= LABEL_CASCADE) {
+    // Up to the flag's own removal (20261108, #584): the check reads the flag.
+    for migration in migrations()
+        .iter()
+        .filter(|m| m.version >= LABEL_CASCADE && m.version < 20261108)
+    {
         sqlx::raw_sql(migration.sql.clone())
             .execute(&pool)
             .await

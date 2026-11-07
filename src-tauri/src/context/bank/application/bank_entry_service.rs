@@ -229,16 +229,6 @@ mod tests {
             Ok(None)
         }
 
-        async fn find_by_iban_including_deleted(
-            &self,
-            _iban: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
-            if self.should_fail {
-                return Err(anyhow!("Mock repository error"));
-            }
-            Ok(None)
-        }
-
         async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
@@ -257,11 +247,11 @@ mod tests {
             Ok(account)
         }
 
-        async fn delete_account(&self, _id: &str) -> anyhow::Result<()> {
+        async fn delete_account(&self, _id: &str) -> anyhow::Result<bool> {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            Ok(())
+            Ok(true)
         }
 
         async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
@@ -333,20 +323,14 @@ mod tests {
         async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(None)
         }
-        async fn find_by_iban_including_deleted(
-            &self,
-            _: &str,
-        ) -> anyhow::Result<Option<BankAccount>> {
-            Ok(None)
-        }
         async fn read_account(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
             Ok(None)
         }
         async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
             Ok(a)
         }
-        async fn delete_account(&self, _: &str) -> anyhow::Result<()> {
-            Ok(())
+        async fn delete_account(&self, _: &str) -> anyhow::Result<bool> {
+            Ok(true)
         }
 
         async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {

@@ -14,11 +14,10 @@ Bank accounts represent the practice's accounts on which bank entries are record
 
 An account of the practice on which bank entries are recorded.
 
-| Field        | Business meaning                                                     |
-| ------------ | -------------------------------------------------------------------- |
-| `name`       | How the user names the account; required.                            |
-| `iban`       | The account's IBAN, optional; a PDF statement is matched to it.      |
-| `is_deleted` | The account was deleted: kept for its history, hidden from the list. |
+| Field  | Business meaning                                                |
+| ------ | --------------------------------------------------------------- |
+| `name` | How the user names the account; required.                       |
+| `iban` | The account's IBAN, optional; a PDF statement is matched to it. |
 
 ---
 
@@ -32,9 +31,9 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-012 — IBAN stored without spaces (backend)**: An IBAN is stored without its spaces, and compared in that form.
 
-**BAC-013 — Name uniqueness (frontend + backend)**: Two accounts that are not deleted, the cash account included under its stored name, cannot share a name; names are compared exactly, case included, once their surrounding spaces are dropped. Creating or editing an account with such a name is rejected with a specific error, which the user reads as its own message, and nothing is saved (owner, 2026-10-24, #503). A deleted account's name can be used again.
+**BAC-013 — Name uniqueness (frontend + backend)**: Two accounts, the cash account included under its stored name, cannot share a name; names are compared exactly, case included, once their surrounding spaces are dropped. Creating or editing an account with such a name is rejected with a specific error, which the user reads as its own message, and nothing is saved (owner, 2026-10-24, #503). A deleted account is gone, so its name can be used again.
 
-**BAC-014 — IBAN uniqueness (backend)**: Two accounts cannot share the same IBAN. The constraint applies across all accounts, deleted or not, so that account resolution by IBAN (used by the bank-statement import flow, see BAS-010) stays unambiguous even after deletion. Attempting to create or edit an account with an IBAN already used by another account — deleted or not — is rejected with a specific error.
+**BAC-014 — IBAN uniqueness (backend)**: Two accounts cannot share the same IBAN, so that account resolution by IBAN (used by the bank-statement import flow, see BAS-010) stays unambiguous. Creating or editing an account with an IBAN another account uses is rejected with a specific error. A deleted account is gone, so its IBAN can be used again (#584).
 
 **BAC-015 — Signalled change (backend)**: Every account created, edited or deleted is signalled through the `BankAccountUpdated` event.
 
@@ -52,7 +51,7 @@ An account of the practice on which bank entries are recorded.
 
 ### Edit (030–039)
 
-**BAC-030 — Edit (frontend + backend)**: The name and IBAN of any account but the cash account (BAC-051) can be edited, under BAC-010 to BAC-014. Editing an account that is unknown or deleted is rejected with a specific error.
+**BAC-030 — Edit (frontend + backend)**: The name and IBAN of any account but the cash account (BAC-051) can be edited, under BAC-010 to BAC-014. Editing an unknown account, a deleted one included, is rejected with a specific error.
 
 **BAC-031 — Opening the edit (frontend)**: The edit dialog opens from a row's edit action or a double click on the row.
 
@@ -64,11 +63,11 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-040 — Confirmation (frontend)**: Deleting an account first asks the user to confirm, naming it; cancelling deletes nothing.
 
-**BAC-041 — Soft-delete (backend)**: Deletion marks the account as deleted: it is kept, hidden from the list, and its bank statement labels are deleted (BAS-046). Deleting an account that is unknown or already deleted is rejected with a specific error.
+**BAC-041 — Deletion (backend)**: Deletion really deletes the account and its bank statement labels (BAS-046). Deleting an unknown account, a deleted one included, is rejected with a specific error.
 
 **BAC-042 — Deleted (frontend)**: Once deleted, the account leaves the list and a message names it.
 
-**BAC-043 — An account holding bank entries is kept (frontend + backend)**: The user can ask to delete an account on which a bank entry is recorded; once they confirm, the deletion is refused with a specific error, which the user reads as BAC-044 says (owner, 2026-10-23, #448).
+**BAC-043 — An account holding bank entries is kept (frontend + backend)**: The user can ask to delete an account on which a bank entry is recorded; once they confirm, the deletion is refused with a specific error, which the user reads as BAC-044 says (owner, 2026-10-23, #448). An entry recorded at the same moment as the deletion still keeps the account, with the same refusal.
 
 **BAC-044 — A refused deletion (frontend)**: When a deletion is refused or fails, the confirmation dialog closes and nothing is deleted; a message gives the reason of a refusal (BAC-041, BAC-043, BAC-051), and a generic one for any other failure (owner, 2026-10-24, #511).
 
@@ -82,13 +81,15 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-053 — The cash account's row (frontend)**: In the list, the cash account's edit and delete actions are disabled, a double click on its row does nothing, and the row says it is managed automatically.
 
-### Accounts restored on upgrade (060–069)
+### Accounts on upgrade (060–069)
 
 **BAC-060 — Accounts restored on upgrade (backend)**: An account deleted while a bank entry was recorded on it, before BAC-043 refused it, is no longer deleted after the upgrade: it reappears in the account list, and its entries can be read, edited and deleted again. Its bank statement labels do not come back (BAS-046) (owner, 2026-10-24, #448).
 
-**BAC-061 — A restored account's taken name (backend)**: When an account that is not deleted uses its name, or another account restored by BAC-060 shares it, a restored account is named `{name} (restauré {first 8 characters of its id})`, stored as data and not translated (owner, 2026-10-24, #448).
+**BAC-061 — A restored account's taken name (backend)**: When another account uses its name, or another account restored by BAC-060 shares it, a restored account is named `{name} (restauré {first 8 characters of its id})`, stored as data and not translated (owner, 2026-10-24, #448).
 
-**BAC-062 — A restored account's taken IBAN (backend)**: When another account, deleted or not, uses its IBAN (BAC-014), a restored account (BAC-060) comes back without an IBAN (owner, 2026-10-24, #448).
+**BAC-062 — A restored account's taken IBAN (backend)**: When another account uses its IBAN (BAC-014), a restored account (BAC-060) comes back without an IBAN (owner, 2026-10-24, #448).
+
+**BAC-063 — Deleted accounts removed on upgrade (backend)**: An account deleted before BAC-041 took effect is deleted once, on upgrade, with its bank statement labels. One a bank entry still holds is kept and listed again, as BAC-060 to BAC-062 say, once the other deleted accounts are removed (owner, 2026-11-01, #579).
 
 ### The list (070–079)
 
@@ -117,7 +118,7 @@ An account of the practice on which bank entries are recorded.
           │                         the account stays (BAC-043, BAC-044)
           │ no
           ▼
-[Account soft-deleted] → it leaves the list
+[Account deleted] → it leaves the list
 ```
 
 ---

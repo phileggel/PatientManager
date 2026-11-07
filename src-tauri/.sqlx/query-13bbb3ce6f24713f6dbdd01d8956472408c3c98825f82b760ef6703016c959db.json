@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM bank_account\n               WHERE id = ?\n                 AND NOT EXISTS (SELECT 1 FROM bank_transfer WHERE bank_account_id = ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "13bbb3ce6f24713f6dbdd01d8956472408c3c98825f82b760ef6703016c959db"
+}

@@ -148,14 +148,12 @@ fn build_ctx(pool: &SqlitePool) -> Ctx {
 // ---------------------------------------------------------------------------
 
 async fn insert_bank_account_with_iban(pool: &SqlitePool, id: &str, iban: &str) {
-    sqlx::query(
-        "INSERT INTO bank_account (id, name, iban, is_deleted) VALUES (?, 'Test Bank', ?, 0)",
-    )
-    .bind(id)
-    .bind(iban)
-    .execute(pool)
-    .await
-    .expect("insert bank_account");
+    sqlx::query("INSERT INTO bank_account (id, name, iban) VALUES (?, 'Test Bank', ?)")
+        .bind(id)
+        .bind(iban)
+        .execute(pool)
+        .await
+        .expect("insert bank_account");
 }
 
 async fn insert_fund(pool: &SqlitePool, id: &str, identifier: &str, name: &str) {

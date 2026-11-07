@@ -333,6 +333,12 @@ impl BankStatementOrchestrator {
     ) -> Result<u32, BankStatementReconciliationError> {
         use super::reconciliation::{BankStatementCorrection, BankStatementLineStatus};
 
+        // BAS-063A — labels and entries go only to an account that exists: a deleted
+        // one is gone, and its id answers `BankAccountNotFound` before anything is saved.
+        self.bank_account_service
+            .read_account(bank_account_id)
+            .await?;
+
         // Recompute server-side — never trust FE-supplied reconciliation state (BAS-064).
         let reconciliation = self
             .compute_reconciliation(bank_account_id, parse_result, corrections)
@@ -587,10 +593,8 @@ mod tests {
             .returning(move |_| Ok(account_for_read.clone()));
         mock.expect_find_by_iban()
             .returning(move |_| Ok(account.clone()));
-        mock.expect_find_by_iban_including_deleted()
-            .returning(|_| Ok(None));
         mock.expect_update_account().returning(Ok);
-        mock.expect_delete_account().returning(|_| Ok(()));
+        mock.expect_delete_account().returning(|_| Ok(true));
         mock
     }
 
@@ -2643,6 +2647,42 @@ mod tests {
         );
     }
 
+    fn account_acc_1() -> BankAccount {
+        BankAccount::restore("acc-1".to_string(), "My Bank".to_string(), None)
+    }
+
+    // BAS-063A — an account that is gone (deleted, or never there) takes no label and
+    // no entry: the validation is refused before anything is saved.
+    #[tokio::test]
+    async fn test_584_validate_reconciliation_for_an_unknown_account_is_refused() {
+        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![]);
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![],
+            total_credits: 0,
+            unparsed_count: 0,
+        };
+        let corrections = vec![BankStatementCorrection::LinkFund {
+            bank_label: "CPAM93".to_string(),
+            assignment: FundAssignment::Rejected,
+        }];
+
+        let result = orchestrator
+            .validate_reconciliation("gone", &parse_result, &corrections)
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(BankStatementReconciliationError::Bank(
+                    BankError::BankAccountNotFound { .. }
+                ))
+            ),
+            "{result:?}"
+        );
+    }
+
     // BAS-123C — a left-aside line (Matched with zero settlement items and an
     // acknowledged remainder) writes NOTHING at validate: no BankEntry and no
     // born group. The mocks carry no `create_group`/`create_transfer`
@@ -2655,7 +2695,8 @@ mod tests {
             bank_label: "CPAM93".to_string(),
             fund_id: Some("fund-1".to_string()),
         };
-        let orchestrator = make_orchestrator_with(vec![], vec![], None, vec![mapping]);
+        let orchestrator =
+            make_orchestrator_with(vec![], vec![], Some(account_acc_1()), vec![mapping]);
 
         let parse_result = BankStatementParseResult {
             iban: None,
@@ -2704,7 +2745,12 @@ mod tests {
             "FUND-1".to_string(),
             "Fund 1".to_string(),
         );
-        let orchestrator = make_orchestrator_with(vec![fund], vec![group], None, vec![mapping]);
+        let orchestrator = make_orchestrator_with(
+            vec![fund],
+            vec![group],
+            Some(account_acc_1()),
+            vec![mapping],
+        );
 
         let parse_result = BankStatementParseResult {
             iban: None,

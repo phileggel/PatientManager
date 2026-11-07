@@ -243,7 +243,7 @@ mod tests {
     async fn create_test_bank_account(pool: &SqlitePool) -> String {
         let id = Uuid::new_v4().to_string();
         sqlx::query!(
-            "INSERT INTO bank_account (id, name, is_deleted) VALUES ($1, 'Test Account', 0)",
+            "INSERT INTO bank_account (id, name) VALUES ($1, 'Test Account')",
             id,
         )
         .execute(pool)

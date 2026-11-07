@@ -21,8 +21,8 @@ impl BankAccountRepository for SqliteBankAccountRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO bank_account (id, name, iban, is_deleted)
-            VALUES ($1, $2, $3, 0)
+            INSERT INTO bank_account (id, name, iban)
+            VALUES ($1, $2, $3)
             "#,
             account.id,
             account.name,
@@ -43,7 +43,6 @@ impl BankAccountRepository for SqliteBankAccountRepository {
             r#"
             SELECT id, name, iban
             FROM bank_account
-            WHERE is_deleted = 0
             "#,
         )
         .fetch_all(&self.pool)
@@ -62,7 +61,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
             r#"
             SELECT id, name, iban
             FROM bank_account
-            WHERE id = $1 AND is_deleted = 0
+            WHERE id = $1
             "#,
             id,
         )
@@ -74,26 +73,6 @@ impl BankAccountRepository for SqliteBankAccountRepository {
 
     async fn find_by_iban(&self, iban: &str) -> anyhow::Result<Option<BankAccount>> {
         tracing::trace!(target: BACKEND, "Finding bank account by IBAN");
-
-        let row = sqlx::query!(
-            r#"
-            SELECT id, name, iban
-            FROM bank_account
-            WHERE iban = $1 AND is_deleted = 0
-            "#,
-            iban,
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-
-        Ok(row.map(|r| BankAccount::restore(r.id, r.name, r.iban)))
-    }
-
-    async fn find_by_iban_including_deleted(
-        &self,
-        iban: &str,
-    ) -> anyhow::Result<Option<BankAccount>> {
-        tracing::trace!(target: BACKEND, "Finding bank account by IBAN (incl. soft-deleted)");
 
         let row = sqlx::query!(
             r#"
@@ -130,16 +109,25 @@ impl BankAccountRepository for SqliteBankAccountRepository {
         Ok(account.clone())
     }
 
-    async fn delete_account(&self, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(target: BACKEND, account_id = %id, "Soft-deleting bank account from database");
+    async fn delete_account(&self, id: &str) -> anyhow::Result<bool> {
+        tracing::trace!(target: BACKEND, account_id = %id, "Deleting bank account from database");
 
-        sqlx::query!(r#"UPDATE bank_account SET is_deleted = 1 WHERE id = ?"#, id)
-            .execute(&self.pool)
-            .await
-            .context("Failed to soft-delete bank account")?;
+        // BAC-043 in the statement itself: an entry recorded since the caller's
+        // check keeps the account, and the foreign key never refuses the delete.
+        let result = sqlx::query!(
+            r#"DELETE FROM bank_account
+               WHERE id = ?
+                 AND NOT EXISTS (SELECT 1 FROM bank_transfer WHERE bank_account_id = ?)"#,
+            id,
+            id
+        )
+        .execute(&self.pool)
+        .await
+        .context("Failed to delete bank account")?;
 
-        tracing::trace!(target: BACKEND, account_id = %id, "Bank account soft-deleted successfully");
-        Ok(())
+        let deleted = result.rows_affected() > 0;
+        tracing::trace!(target: BACKEND, account_id = %id, deleted, "Bank account deletion ran");
+        Ok(deleted)
     }
 
     async fn holds_bank_entries(&self, id: &str) -> anyhow::Result<bool> {
@@ -288,37 +276,43 @@ mod tests {
         assert!(found.is_none());
     }
 
-    // BAC-014 — find_by_iban_including_deleted: soft-deleted rows must be invisible to
-    // find_by_iban but visible to find_by_iban_including_deleted.
+    // BAC-041 — a deleted account is really deleted: its IBAN resolves to nothing.
     #[tokio::test]
-    async fn test_find_by_iban_including_deleted_returns_soft_deleted_row() -> anyhow::Result<()> {
+    async fn test_584_delete_account_really_deletes_it() -> anyhow::Result<()> {
         let db = setup_test_repo().await;
         let iban = "FR7611111111111111111111111";
         let account = BankAccount::new("Deleted Account".to_string(), Some(iban.to_string()))?;
         db.create_account(account.clone()).await?;
 
-        // soft-delete the account
-        db.delete_account(&account.id).await?;
+        assert!(db.delete_account(&account.id).await?);
 
-        // find_by_iban must not return soft-deleted rows (existing contract)
-        let active_lookup = db.find_by_iban(iban).await?;
-        assert!(
-            active_lookup.is_none(),
-            "find_by_iban must not return a soft-deleted account"
-        );
+        assert!(db.find_by_iban(iban).await?.is_none());
+        let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bank_account WHERE id = ?")
+            .bind(&account.id)
+            .fetch_one(&db.pool)
+            .await?;
+        assert_eq!(rows, 0);
+        Ok(())
+    }
 
-        // find_by_iban_including_deleted must return the soft-deleted row
-        let including_deleted = db.find_by_iban_including_deleted(iban).await?;
-        assert!(
-            including_deleted.is_some(),
-            "find_by_iban_including_deleted must return the soft-deleted account"
-        );
-        assert_eq!(
-            including_deleted.unwrap().id,
-            account.id,
-            "returned account id must match the soft-deleted one"
-        );
+    // BAC-043 — the delete itself keeps an account a bank entry is recorded on,
+    // even when the caller's check ran before the entry was written.
+    #[tokio::test]
+    async fn test_584_delete_account_holding_a_bank_entry_keeps_it() -> anyhow::Result<()> {
+        let db = setup_test_repo().await;
+        let account = BankAccount::new("Held".to_string(), None)?;
+        db.create_account(account.clone()).await?;
+        sqlx::query(
+            "INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
+             VALUES ('t-1', '2026-03-10', 120000, 'CHECK', ?)",
+        )
+        .bind(&account.id)
+        .execute(&db.pool)
+        .await?;
 
+        assert!(!db.delete_account(&account.id).await?);
+
+        assert!(db.read_account(&account.id).await?.is_some());
         Ok(())
     }
 }

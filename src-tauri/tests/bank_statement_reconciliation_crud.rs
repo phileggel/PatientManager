@@ -119,7 +119,7 @@ fn build_ctx(pool: &SqlitePool) -> Ctx {
 // ---------------------------------------------------------------------------
 
 async fn insert_bank_account(pool: &SqlitePool, id: &str) {
-    sqlx::query("INSERT INTO bank_account (id, name, is_deleted) VALUES (?, 'Test Bank', 0)")
+    sqlx::query("INSERT INTO bank_account (id, name) VALUES (?, 'Test Bank')")
         .bind(id)
         .execute(pool)
         .await
@@ -404,12 +404,10 @@ async fn test_bas_041_list_returns_the_mappings_of_every_account() {
     let pool = setup_pool().await;
     insert_bank_account(&pool, "acc-1").await;
     // The seed helper names every account "Test Bank"; names are unique.
-    sqlx::query(
-        "INSERT INTO bank_account (id, name, is_deleted) VALUES ('acc-2', 'Second Bank', 0)",
-    )
-    .execute(&pool)
-    .await
-    .expect("insert second bank_account");
+    sqlx::query("INSERT INTO bank_account (id, name) VALUES ('acc-2', 'Second Bank')")
+        .execute(&pool)
+        .await
+        .expect("insert second bank_account");
     insert_fund(&pool, "fund-1", "75", "CPAM 75").await;
     insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM 75", Some("fund-1")).await;
     insert_label_mapping(&pool, "map-2", "acc-2", "REMISE CHEQUES", None).await;
@@ -553,8 +551,8 @@ async fn test_bas_046_deleting_a_bank_account_deletes_its_labels() {
     insert_label_mapping(&pool, "map-1", "acc-1", "VIR CPAM", None).await;
     let ctx = build_ctx(&pool);
 
-    // The bank account repository's soft delete.
-    sqlx::query("UPDATE bank_account SET is_deleted = 1 WHERE id = 'acc-1'")
+    // The bank account repository's delete: the trigger takes the labels first.
+    sqlx::query("DELETE FROM bank_account WHERE id = 'acc-1'")
         .execute(&pool)
         .await
         .unwrap();
@@ -565,4 +563,53 @@ async fn test_bas_046_deleting_a_bank_account_deletes_its_labels() {
         .await
         .unwrap()
         .is_empty());
+}
+
+/// BAS-063A — validating an import for an account that was really deleted is
+/// refused with `BankAccountNotFound`, and no label or bank entry is saved.
+#[tokio::test]
+async fn test_584_validate_for_a_deleted_account_saves_nothing() {
+    let pool = setup_pool().await;
+    insert_bank_account(&pool, "acc-1").await;
+    insert_fund(&pool, "fund-1", "93", "CPAM 93").await;
+    let ctx = build_ctx(&pool);
+    sqlx::query("DELETE FROM bank_account WHERE id = 'acc-1'")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let parse_result = parse_result_with_one_line("CPAM93", "2026-01-15", 100_000);
+    let corrections = vec![BankStatementCorrection::LinkFund {
+        bank_label: "CPAM93".to_string(),
+        assignment: FundAssignment::Fund {
+            fund_id: "fund-1".to_string(),
+        },
+    }];
+    let result = ctx
+        .orchestrator
+        .validate_reconciliation("acc-1", &parse_result, &corrections)
+        .await;
+
+    assert!(
+        matches!(
+            result,
+            Err(BankStatementReconciliationError::Bank(
+                patient_manager_app::context::bank::BankError::BankAccountNotFound { .. }
+            ))
+        ),
+        "{result:?}"
+    );
+    let labels: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bank_fund_label_mapping")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let entries: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bank_transfer")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        (labels, entries),
+        (0, 0),
+        "no label and no bank entry saved"
+    );
 }
