@@ -509,8 +509,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_581_exi_130_the_default_type_imports_under_the_reserved_type() {
+    async fn test_581_exi_131_the_default_type_imports_under_the_reserved_type() {
         let pool = seeded_pool().await;
+        let types_before = procedure_types(&pool).await;
 
         let result = orchestrator(&pool)
             .execute_import(
@@ -529,5 +530,18 @@ mod tests {
         .await
         .expect("the imported procedure");
         assert_eq!(type_id, "import-pdf");
+        assert_eq!(
+            procedure_types(&pool).await,
+            types_before,
+            "no procedure type is created"
+        );
+    }
+
+    async fn procedure_types(pool: &SqlitePool) -> i64 {
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM procedure_type")
+            .fetch_one(pool)
+            .await
+            .expect("procedure types");
+        count
     }
 }

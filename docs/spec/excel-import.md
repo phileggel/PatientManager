@@ -69,7 +69,7 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-130 (R13) — Default type (frontend)**: The user can choose the default type, « Importé depuis Excel » (sent as `imported-from-excel`), for an amount. Matching procedures are created with the reserved type « Import » (EXI-131).
 
-**EXI-131 — The default type is stored as the reserved type (backend)**: A procedure whose amount is mapped to `imported-from-excel` is created with the reserved type, id `import-pdf` (procedure-type R21). No procedure type is created.
+**EXI-131 — The default type is stored as the reserved type (backend)**: A procedure whose amount is mapped to `imported-from-excel` is created with the reserved type, id `import-pdf` (see R21 of procedure-type.md). No procedure type is created.
 
 **EXI-140 (R14) — Inline procedure-type creation (frontend)**: The user can create a new procedure type directly from the mapping screen, via a modal. The default amount is pre-filled with the matching value. The created type is immediately available in the mapping list.
 
@@ -149,7 +149,7 @@ This report is informative and non-blocking.
 ### Open Questions
 
 - [x] **Year-drift acceptance (Stance A, accepted)**: EXI-281 only checks that `procedure_date.month` equals the sheet's nominal month; it does not check the year. A 2025-dated row in a 2026 workbook's `Jan` sheet is accepted. Convention violation is the user's responsibility, and downstream consumers filter by full `procedure_date` anyway. **This is a recorded non-goal, not a latent gap** — surfacing year drift via EXI-290 is out of scope for this feature.
-- [ ] **The reserved type on the mapping screen (EXI-120)**: the mapping screen lists every procedure type, the reserved one included (procedure-type R22), so « Import » is offered beside « Importé depuis Excel », can be the pre-fill, and "if no type exists" never happens. Both store the same type (EXI-131) but are saved as different mappings. Whether the screen should hide « Import » is the owner's call; today's behaviour is kept (ticket #608).
+- [ ] **The reserved type on the mapping screen (EXI-120)**: the mapping screen lists every procedure type, the reserved one included (see R22 of procedure-type.md), so « Import » is offered beside « Importé depuis Excel », can be the pre-fill, and "if no type exists" never happens. Both store the same type (EXI-131) but are saved as different mappings. Whether the screen should hide « Import » is the owner's call; today's behaviour is kept (ticket #608).
 
 ### Execute-time validation and reporting
 
@@ -184,7 +184,7 @@ This report is informative and non-blocking.
 [Procedure-type mapping] (frontend)
   → Load saved preferences (backend filters out deleted types)
   → Table: amount → procedure type (pre-filled with preferences or first available type)
-  → Options: existing type / create new / generic type
+  → Options: existing type / create new / default type
   → Inline creation via modal
   → Save choices on confirmation
           │
