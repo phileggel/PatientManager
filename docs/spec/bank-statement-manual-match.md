@@ -57,6 +57,8 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-035 — What an edit keeps follows its date (backend)**: A group or procedure an edit keeps stays settled or paid, and the `confirmed_payment_date` of the procedure, or of the group's procedures, becomes the edited date.
 
+**BSM-040 — A refused or failed deletion changes nothing (backend)**: Deleting a bank entry removes the entry and its links and reverts its groups and procedures (R8, R16) together. A deletion is refused when the bank entry does not exist (`TransferNotFound`) or is not of the command's kind (R4). When the deletion is refused or fails, all of them stay as they were and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
+
 ### FUND-type transfers
 
 **R6 — Creation: group selection (frontend + backend)**: The user selects one or more fund-payment groups among those not yet reconciled at the bank level, whose payment date is within the 7 days preceding the transfer date. The selection UI is similar to the procedure-management UI in fund-payment groups. The transfer amount is the sum of the total amounts of the selected groups.

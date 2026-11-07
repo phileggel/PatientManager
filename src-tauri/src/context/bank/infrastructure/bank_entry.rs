@@ -53,6 +53,18 @@ impl SqliteBankEntryRepository {
     }
 
     /// The row writer, on the caller's connection: a unit of work calls it (ADR-003).
+    pub async fn delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
+        tracing::info!(target: BACKEND, transfer_id = %id, "Hard-deleting bank transfer");
+
+        sqlx::query!(r#"DELETE FROM bank_transfer WHERE id = ?"#, id,)
+            .execute(&mut *conn)
+            .await
+            .context("Failed to delete bank transfer")?;
+
+        Ok(())
+    }
+
+    /// The row writer, on the caller's connection: a unit of work calls it (ADR-003).
     pub async fn update_in(
         conn: &mut sqlx::SqliteConnection,
         transfer: &BankEntry,
@@ -168,14 +180,12 @@ impl BankEntryRepository for SqliteBankEntryRepository {
     }
 
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()> {
-        tracing::info!(target: BACKEND, transfer_id = %id, "Hard-deleting bank transfer");
-
-        sqlx::query!(r#"DELETE FROM bank_transfer WHERE id = ?"#, id,)
-            .execute(&self.pool)
+        let mut conn = self
+            .pool
+            .acquire()
             .await
-            .context("Failed to delete bank transfer")?;
-
-        Ok(())
+            .context("Failed to acquire a connection to delete the bank transfer")?;
+        Self::delete_in(&mut conn, id).await
     }
 
     async fn update_transfer(&self, transfer: BankEntry) -> anyhow::Result<BankEntry> {

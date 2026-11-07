@@ -16,7 +16,4 @@ pub use orchestrator::{
     BankEntryEdit, BankManualMatchOrchestrator, BankManualMatchResult,
     DirectPaymentProcedureCandidate, FundGroupCandidate,
 };
-pub use uow::{
-    BankEntryOperation, BankEntryTransactionManager, BankEntryUnitOfWork, GroupSettlementOperation,
-    GroupSettlementTransactionManager, GroupSettlementUnitOfWork,
-};
+pub use uow::{BankEntryOperation, BankEntryTransactionManager, BankEntryUnitOfWork};

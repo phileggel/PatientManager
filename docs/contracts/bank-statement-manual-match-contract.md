@@ -1,7 +1,7 @@
 # Contract — Bank Statement Manual Match
 
 > Domain: bank-statement-manual-match
-> Last updated by: `bank-statement-manual-match` spec (BSM-034 to BSM-036, ticket #461)
+> Last updated by: `bank-statement-manual-match` spec (BSM-040, ticket #601)
 
 > Wire errors are the composite `BankManualMatchError` (untagged union of `BankError`, `FundError`, `ProcedureError`, and the use-case `BankManualMatchTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
@@ -59,9 +59,9 @@ Updates the date and/or group composition of an existing FUND transfer. Newly ad
 
 ---
 
-### `delete_fund_transfer` — R5, R8
+### `delete_fund_transfer` — R5, R8, BSM-040
 
-Hard-deletes a FUND transfer and rolls back all linked groups: procedures revert `FundPayed` → `Reconciliated` / `PartiallyFundPayed` → `PartiallyReconciled`; groups return to `Active` and unlock; procedures' `confirmed_payment_date` is restored to the group payment date and `payment_method` is cleared.
+Hard-deletes a FUND transfer and rolls back all linked groups: procedures revert `FundPayed` → `Reconciliated` / `PartiallyFundPayed` → `PartiallyReconciled`; groups return to `Active` and unlock; procedures' `confirmed_payment_date` is restored to the group payment date and `payment_method` is cleared. The deletion, its links and the rollback are one unit of work (BSM-040).
 
 - **Args:** `transfer_id: String`
 - **Returns:** `()`
@@ -131,9 +131,9 @@ Updates the date and/or procedure composition of an existing direct payment. New
 
 ---
 
-### `delete_direct_transfer` — R5, R16
+### `delete_direct_transfer` — R5, R16, BSM-040
 
-Hard-deletes a direct payment and rolls back all linked procedures to `Created` status, clearing `payment_method`, `confirmed_payment_date`, and `actual_payment_amount`.
+Hard-deletes a direct payment and rolls back all linked procedures to `Created` status, clearing `payment_method`, `confirmed_payment_date`, and `actual_payment_amount`. The deletion, its links and the rollback are one unit of work (BSM-040).
 
 - **Args:** `transfer_id: String`
 - **Returns:** `()`
@@ -205,7 +205,7 @@ enum BankEntryInvalidReason {
 
 ## Events
 
-An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed (BSM-034), publishes none of them.
+An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed (BSM-034), or a failed deletion (BSM-040), publishes none of them.
 
 | Event                     | Trigger                                                                                         |
 | ------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -215,6 +215,7 @@ An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed 
 
 ## Changelog
 
+- 2026-11-07 — BSM-040 (#601): the two delete commands write in one unit of work; a failed deletion publishes no event.
 - 2026-11-01 — BSM-034 to BSM-036 (#461): the four create and update commands write in one unit of work; a refused or failed command publishes no event; a direct selection with an unknown or deleted procedure answers `ProcedureNotFound { procedure_id }`.
 - 2026-10-19 — Modified by `bank-statement-manual-match` spec (BSM-020 to BSM-031, ticket #351): the four create/update commands answer `BankEntryInvalid { reasons }` first, `InvalidTransferDateFormat` no longer reached; the two update commands return `BankEntryEdit`; the `PATIENT_CASH` account line follows the code
 - 2026-05-02 — Added by `bank-statement-manual-match` spec: get_cash_bank_account_id, get_unsettled_fund_groups, get_all_unsettled_fund_groups, get_fund_groups_by_ids, create_fund_transfer, update_fund_transfer, delete_fund_transfer, get_transfer_fund_group_ids, get_eligible_procedures_for_direct_payment, get_all_eligible_procedures_for_direct_payment, get_procedures_by_ids, create_direct_transfer, update_direct_transfer, delete_direct_transfer, get_transfer_procedure_ids

@@ -97,7 +97,8 @@ becoming generic themselves.
 
 - Orchestrators have no sqlx dependency and are testable with a test double of the manager.
 - A failure between two writes can be forced in a test and is proven to apply neither
-  (`use_cases/bank_manual_match/sqlx_uow.rs`, `test_todo_017_*`).
+  (`use_cases/bank_statement_reconciliation/sqlx_uow.rs`, `test_todo_017_*`;
+  `tests/bank_entry_unit_of_work.rs`, `test_bsm_034_*`, `test_bsm_040_*`).
 - Opening, committing and rolling back are in one place.
 - No SQL is duplicated: repositories expose the row writers a unit of work reuses.
 

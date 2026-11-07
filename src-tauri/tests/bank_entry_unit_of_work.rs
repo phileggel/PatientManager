@@ -72,7 +72,6 @@ fn make_components_on(
         fund_svc.clone(),
         proc_svc.clone(),
         Arc::new(SqlxTransactionManager::new(pool.clone())),
-        Arc::new(SqlxTransactionManager::new(pool.clone())),
     );
     (orchestrator, fund_svc, proc_svc)
 }
@@ -210,6 +209,16 @@ async fn refuse_bank_paid_group(pool: &SqlitePool) {
 async fn refuse_directly_paid_procedure(pool: &SqlitePool) {
     sqlx::query(
         r#"CREATE TRIGGER refuse_procedure BEFORE UPDATE ON "procedure" WHEN NEW.payment_status = 'DIRECTLY_PAYED' BEGIN SELECT RAISE(ABORT, 'refused'); END"#,
+    )
+    .execute(pool)
+    .await
+    .expect("trigger");
+}
+
+/// The last write of a deletion refuses: the bank entry's own row.
+async fn refuse_entry_deletion(pool: &SqlitePool) {
+    sqlx::query(
+        "CREATE TRIGGER refuse_entry BEFORE DELETE ON bank_transfer BEGIN SELECT RAISE(ABORT, 'refused'); END",
     )
     .execute(pool)
     .await
@@ -405,6 +414,92 @@ async fn test_bsm_034_a_failed_direct_edit_changes_nothing() {
 
     assert!(result.is_err());
     assert_eq!(stored(&pool).await, before);
+    listeners.assert_silent();
+}
+
+#[tokio::test]
+async fn test_bsm_040_a_failed_fund_deletion_changes_nothing() {
+    let pool = setup_db().await;
+    let (orchestrator, bus) = on_a_bus(&pool).await;
+    let (entry, _, _) = fund_scene(&pool, &orchestrator).await;
+    refuse_entry_deletion(&pool).await;
+    let before = stored(&pool).await;
+    let mut listeners = Listeners::on(&bus);
+
+    let result = orchestrator.delete_fund_transfer(entry).await;
+
+    assert!(result.is_err());
+    assert_eq!(stored(&pool).await, before);
+    listeners.assert_silent();
+}
+
+#[tokio::test]
+async fn test_bsm_040_a_failed_direct_deletion_changes_nothing() {
+    let pool = setup_db().await;
+    let (orchestrator, bus) = on_a_bus(&pool).await;
+    let (entry, _, _) = direct_scene(&pool, &orchestrator).await;
+    refuse_entry_deletion(&pool).await;
+    let before = stored(&pool).await;
+    let mut listeners = Listeners::on(&bus);
+
+    let result = orchestrator.delete_direct_transfer(entry).await;
+
+    assert!(result.is_err());
+    assert_eq!(stored(&pool).await, before);
+    listeners.assert_silent();
+}
+
+/// A deletion of an unknown entry, or of the other kind (R4), is refused.
+#[tokio::test]
+async fn test_bsm_040_a_refused_deletion_changes_nothing() {
+    let fund_pool = setup_db().await;
+    let (fund_side, fund_bus) = on_a_bus(&fund_pool).await;
+    let (fund_entry, _, _) = fund_scene(&fund_pool, &fund_side).await;
+    let fund_before = stored(&fund_pool).await;
+    let mut fund_listeners = Listeners::on(&fund_bus);
+
+    let unknown = fund_side.delete_fund_transfer("unknown".to_string()).await;
+    let wrong_kind = fund_side.delete_direct_transfer(fund_entry).await;
+
+    assert!(matches!(
+        unknown,
+        Err(BankManualMatchError::Bank(
+            BankError::TransferNotFound { .. }
+        ))
+    ));
+    assert!(wrong_kind.is_err());
+    assert_eq!(stored(&fund_pool).await, fund_before);
+    fund_listeners.assert_silent();
+
+    let direct_pool = setup_db().await;
+    let (direct_side, direct_bus) = on_a_bus(&direct_pool).await;
+    let (direct_entry, _, _) = direct_scene(&direct_pool, &direct_side).await;
+    let direct_before = stored(&direct_pool).await;
+    let mut direct_listeners = Listeners::on(&direct_bus);
+
+    let other_kind = direct_side.delete_fund_transfer(direct_entry).await;
+
+    assert!(other_kind.is_err());
+    assert_eq!(stored(&direct_pool).await, direct_before);
+    direct_listeners.assert_silent();
+}
+
+/// A deletion raises each event once, after it committed.
+#[tokio::test]
+async fn test_bsm_040_a_committed_deletion_raises_each_event_once() {
+    let pool = setup_db().await;
+    let (orchestrator, bus) = on_a_bus(&pool).await;
+    let (entry, _, _) = fund_scene(&pool, &orchestrator).await;
+    let mut listeners = Listeners::on(&bus);
+
+    orchestrator
+        .delete_fund_transfer(entry)
+        .await
+        .expect("the deletion commits");
+
+    assert!(listeners.entries.try_recv().is_ok());
+    assert!(listeners.groups.try_recv().is_ok());
+    assert!(listeners.procedures.try_recv().is_ok());
     listeners.assert_silent();
 }
 

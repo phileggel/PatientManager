@@ -17,8 +17,8 @@ use crate::context::procedure::{
 
 use super::error::{BankManualMatchError, BankManualMatchTask};
 use super::uow::{
-    settle_group, write_bank_entry, BankEntryChange, BankEntrySelection,
-    BankEntryTransactionManager, BankEntryWrites, GroupSettlementTransactionManager,
+    delete_bank_entry, write_bank_entry, BankEntryChange, BankEntryDeletion, BankEntrySelection,
+    BankEntryTransactionManager, BankEntryWrites,
 };
 use crate::BACKEND;
 
@@ -83,7 +83,6 @@ pub struct BankManualMatchOrchestrator {
     transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
     fund_payment_service: Arc<FundPaymentService>,
     procedure_service: Arc<ProcedureService>,
-    group_settlement: Arc<dyn GroupSettlementTransactionManager>,
     bank_entry_writes: Arc<dyn BankEntryTransactionManager>,
 }
 
@@ -93,7 +92,6 @@ impl BankManualMatchOrchestrator {
         transfer_link_repo: Arc<dyn BankEntryLinkRepository>,
         fund_payment_service: Arc<FundPaymentService>,
         procedure_service: Arc<ProcedureService>,
-        group_settlement: Arc<dyn GroupSettlementTransactionManager>,
         bank_entry_writes: Arc<dyn BankEntryTransactionManager>,
     ) -> Self {
         Self {
@@ -101,33 +99,8 @@ impl BankManualMatchOrchestrator {
             transfer_link_repo,
             fund_payment_service,
             procedure_service,
-            group_settlement,
             bank_entry_writes,
         }
-    }
-
-    /// Write a group's procedures and its status in one transaction (ADR-003),
-    /// then notify through the owning services.
-    async fn settle_group(
-        &self,
-        procedures: Option<Vec<Procedure>>,
-        group_id: &str,
-        status: FundPaymentGroupStatus,
-    ) -> Result<(), BankManualMatchError> {
-        // `None`: the group was not found, so no procedure is written or announced.
-        let procedures_changed = procedures.is_some();
-        let procedures = procedures.unwrap_or_default();
-        settle_group(self.group_settlement.as_ref(), procedures, group_id, status)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, group_id = %group_id, "settle_group: unit of work failed");
-                FundError::DatabaseError
-            })?;
-        if procedures_changed {
-            self.procedure_service.notify_procedures_updated();
-        }
-        self.fund_payment_service.notify_group_updated();
-        Ok(())
     }
 
     /// BSM-034 — Write a bank entry and all it changes in one transaction
@@ -390,16 +363,15 @@ impl BankManualMatchOrchestrator {
         &self,
         transfer_id: String,
     ) -> Result<(), BankManualMatchError> {
-        // R4 — Immutable type guard (guard only — transfer not reused after this check).
-        let transfer_type = self
+        // R4 — Immutable type guard.
+        let transfer = self
             .bank_transfer_service
             .read_transfer(&transfer_id)
             .await?
             .ok_or_else(|| BankError::TransferNotFound {
                 bank_transfer_id: transfer_id.clone(),
-            })?
-            .transfer_type;
-        if transfer_type != BankEntryType::FundWire {
+            })?;
+        if transfer.transfer_type != BankEntryType::FundWire {
             return Err(BankManualMatchTask::WrongTransferType.into());
         }
 
@@ -412,23 +384,36 @@ impl BankManualMatchOrchestrator {
                 BankError::DatabaseError
             })?;
 
-        // Revert all linked groups before deleting
-        for group_id in &group_ids {
-            self.revert_fund_transfer_from_group(group_id).await?;
-        }
+        // BSM-040 — everything is decided before the one write; nothing is settled.
+        let (procedures, group_statuses) = self
+            .plan_fund_settlement(&group_ids, &[], transfer.transfer_date)
+            .await?;
+        self.delete_entry(BankEntryDeletion {
+            entry_id: transfer_id,
+            procedures,
+            group_statuses,
+        })
+        .await
+    }
 
-        // Remove links then hard-delete the transfer
-        self.transfer_link_repo
-            .unlink_all_fund_groups(&transfer_id)
+    /// BSM-040 — Delete a bank entry and revert all it settled in one
+    /// transaction (ADR-003), then notify through the owning services.
+    async fn delete_entry(&self, deletion: BankEntryDeletion) -> Result<(), BankManualMatchError> {
+        let procedures_changed = !deletion.procedures.is_empty();
+        let groups_changed = !deletion.group_statuses.is_empty();
+        delete_bank_entry(self.bank_entry_writes.as_ref(), deletion)
             .await
             .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "delete_fund_transfer: unlink_all_fund_groups failed");
+                tracing::error!(target: BACKEND, err = ?e, "delete_entry: unit of work failed");
                 BankError::DatabaseError
             })?;
-        self.bank_transfer_service
-            .delete_transfer(&transfer_id)
-            .await?;
-
+        self.bank_transfer_service.notify_transfers_updated();
+        if procedures_changed {
+            self.procedure_service.notify_procedures_updated();
+        }
+        if groups_changed {
+            self.fund_payment_service.notify_group_updated();
+        }
         Ok(())
     }
 
@@ -629,7 +614,7 @@ impl BankManualMatchOrchestrator {
         transfer_id: String,
     ) -> Result<(), BankManualMatchError> {
         // R4 — Immutable type guard (checked before any mutation).
-        self.read_direct_transfer(&transfer_id).await?;
+        let transfer = self.read_direct_transfer(&transfer_id).await?;
 
         let procedure_ids = self
             .transfer_link_repo
@@ -640,21 +625,21 @@ impl BankManualMatchOrchestrator {
                 BankError::DatabaseError
             })?;
 
-        self.revert_direct_payment_from_procedures(&procedure_ids)
+        // BSM-040 — everything is decided before the one write; nothing is paid.
+        let procedures = self
+            .plan_direct_payment(
+                &procedure_ids,
+                &[],
+                transfer_type_to_payment_method(transfer.transfer_type),
+                transfer.transfer_date,
+            )
             .await?;
-
-        self.transfer_link_repo
-            .unlink_all_procedures(&transfer_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "delete_direct_transfer: unlink_all_procedures failed");
-                BankError::DatabaseError
-            })?;
-        self.bank_transfer_service
-            .delete_transfer(&transfer_id)
-            .await?;
-
-        Ok(())
+        self.delete_entry(BankEntryDeletion {
+            entry_id: transfer_id,
+            procedures,
+            group_statuses: vec![],
+        })
+        .await
     }
 
     // ======================================================================
@@ -771,61 +756,6 @@ impl BankManualMatchOrchestrator {
             return Err(BankError::AmountNotPositive.into());
         }
         Ok(total)
-    }
-
-    /// R8 — Revert procedures of a group to Reconciled/PartiallyReconciled
-    /// and set the group status back to Active.
-    async fn revert_fund_transfer_from_group(
-        &self,
-        group_id: &str,
-    ) -> Result<(), BankManualMatchError> {
-        let group = self
-            .fund_payment_service
-            .read_group(group_id)
-            .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "revert_fund_transfer_from_group: read_group failed");
-                FundError::DatabaseError
-            })?;
-        // A group that is not found has nothing to settle: the status write
-        // touches no row, as before.
-        let Some(mut group) = group else {
-            return self
-                .settle_group(None, group_id, FundPaymentGroupStatus::Active)
-                .await;
-        };
-        let procedure_ids: Vec<String> =
-            group.lines.iter().map(|l| l.procedure_id.clone()).collect();
-
-        let procedures = self
-            .procedure_service
-            .read_procedures_by_ids(procedure_ids)
-            .await?;
-
-        let settled = procedures.into_iter().map(reverted_from_fund).collect();
-
-        group.revert_bank_payment();
-        self.settle_group(Some(settled), group_id, group.status)
-            .await
-    }
-
-    /// R16 — Revert procedures to Created status, clear payment info.
-    async fn revert_direct_payment_from_procedures(
-        &self,
-        procedure_ids: &[String],
-    ) -> Result<(), BankManualMatchError> {
-        let procedures = self
-            .procedure_service
-            .read_procedures_by_ids(procedure_ids.to_vec())
-            .await?;
-
-        let updated: Vec<Procedure> = procedures.into_iter().map(reverted_from_direct).collect();
-
-        self.procedure_service
-            .update_procedures_batch(updated, false)
-            .await?;
-
-        Ok(())
     }
 }
 
@@ -984,7 +914,6 @@ mod tests {
             link_repo,
             fund_svc.clone(),
             proc_svc.clone(),
-            Arc::new(SqlxTransactionManager::new(pool.clone())),
             Arc::new(SqlxTransactionManager::new(pool.clone())),
         );
         (orchestrator, fund_svc, proc_svc)

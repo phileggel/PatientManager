@@ -1,60 +1,16 @@
-//! Units of work of manual bank matching (ADR-003): settling a fund payment
-//! group against the bank, and writing a bank entry with all it changes.
-//!
-//! Settling a group, or reverting it, writes two aggregates: the procedures of
-//! the group and the group's own status. They change together or not at all:
-//! a failure between the two leaves neither written.
+//! The unit of work of manual bank matching (ADR-003): writing or deleting a
+//! bank entry with all it changes on its groups and procedures, together or
+//! not at all (BSM-034, BSM-040).
 //!
 //! Declared per use case (B18: a use case imports no other use case). The
 //! orchestrator loads and decides outside the unit of work, then hands the
-//! writes to [`GroupSettlementTransactionManager::run`] and notifies through
-//! the owning services once it has committed.
+//! writes to [`BankEntryTransactionManager::write`] and notifies through the
+//! owning services once it has committed.
 
 use crate::context::bank::BankEntry;
 use crate::context::fund::FundPaymentGroupStatus;
 use crate::context::procedure::Procedure;
 use crate::shared::uow::UnitOfWorkFuture;
-
-/// The writes a group settlement makes, on one transaction.
-#[async_trait::async_trait]
-pub trait GroupSettlementUnitOfWork: Send {
-    async fn update_procedures(&mut self, procedures: Vec<Procedure>) -> anyhow::Result<()>;
-
-    async fn update_group_status(
-        &mut self,
-        group_id: &str,
-        status: FundPaymentGroupStatus,
-    ) -> anyhow::Result<()>;
-}
-
-/// What a use case asks to run atomically.
-pub type GroupSettlementOperation =
-    Box<dyn for<'a> FnOnce(&'a mut dyn GroupSettlementUnitOfWork) -> UnitOfWorkFuture<'a> + Send>;
-
-/// Runs an operation in one transaction: committed when it returns `Ok`,
-/// rolled back when it returns `Err`.
-#[async_trait::async_trait]
-pub trait GroupSettlementTransactionManager: Send + Sync {
-    async fn run(&self, operation: GroupSettlementOperation) -> anyhow::Result<()>;
-}
-
-/// Write the procedures of a group and the group's status in one transaction.
-pub async fn settle_group(
-    manager: &dyn GroupSettlementTransactionManager,
-    procedures: Vec<Procedure>,
-    group_id: &str,
-    status: FundPaymentGroupStatus,
-) -> anyhow::Result<()> {
-    let group_id = group_id.to_string();
-    manager
-        .run(Box::new(move |uow| {
-            Box::pin(async move {
-                uow.update_procedures(procedures).await?;
-                uow.update_group_status(&group_id, status).await
-            })
-        }))
-        .await
-}
 
 /// The bank entry a command writes.
 pub enum BankEntryChange {
@@ -82,6 +38,8 @@ pub trait BankEntryUnitOfWork: Send {
     async fn insert_entry(&mut self, entry: &BankEntry) -> anyhow::Result<()>;
 
     async fn update_entry(&mut self, entry: &BankEntry) -> anyhow::Result<()>;
+
+    async fn delete_entry(&mut self, entry_id: &str) -> anyhow::Result<()>;
 
     async fn replace_fund_group_links(
         &mut self,
@@ -147,6 +105,36 @@ pub async fn write_bank_entry(
                     uow.update_group_status(&group_id, status).await?;
                 }
                 Ok(())
+            })
+        }))
+        .await
+}
+
+/// Everything a deletion changes, decided before any write: the reverted
+/// procedures and groups (R8, R16).
+pub struct BankEntryDeletion {
+    pub entry_id: String,
+    pub procedures: Vec<Procedure>,
+    pub group_statuses: Vec<(String, FundPaymentGroupStatus)>,
+}
+
+/// Delete a bank entry, its links, and revert its procedures and groups in one
+/// transaction (BSM-040).
+pub async fn delete_bank_entry(
+    manager: &dyn BankEntryTransactionManager,
+    deletion: BankEntryDeletion,
+) -> anyhow::Result<()> {
+    manager
+        .write(Box::new(move |uow| {
+            Box::pin(async move {
+                let entry_id = deletion.entry_id.as_str();
+                uow.replace_fund_group_links(entry_id, &[]).await?;
+                uow.replace_procedure_links(entry_id, &[]).await?;
+                uow.update_procedures(deletion.procedures).await?;
+                for (group_id, status) in deletion.group_statuses {
+                    uow.update_group_status(&group_id, status).await?;
+                }
+                uow.delete_entry(entry_id).await
             })
         }))
         .await
