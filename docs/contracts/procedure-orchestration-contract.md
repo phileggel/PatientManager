@@ -159,4 +159,4 @@ enum PaymentMethod {
 
 - 2026-10-18 — Modified by `procedure-orchestration` spec (TODO-026): `add_procedure`, `update_procedure` (PRO-125, PRO-251, PRO-252, PRO-255, PRO-256)
 - 2026-10-18 — Modified by `procedure-orchestration` spec (TODO-030): `update_procedure` — `RawProcedure.payment_status` typed `ProcedureStatus` (PRO-250)
-- 2026-11-07 — `delete_procedure` (#588, PRO-030, PRO-031): a procedure is really deleted; one a payment record still refers to is refused with `ProcedureDeleteBlocked`. The error was misnamed `DeletionBlocked` here.
+- 2026-11-07 — `delete_procedure` (#588, PRO-030): a procedure is really deleted; one a payment record still refers to is refused with `ProcedureDeleteBlocked`. The error was misnamed `DeletionBlocked` here.
