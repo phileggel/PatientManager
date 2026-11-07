@@ -126,7 +126,7 @@ async fn seed_procedure(
     let proc_id = Uuid::new_v4().to_string();
     sqlx::query(
         r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date,
-           billed_amount, payment_status, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)"#,
+           billed_amount, payment_status) VALUES (?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&proc_id)
     .bind(patient_id)
@@ -621,23 +621,27 @@ async fn test_bsm_036_an_unknown_procedure_refuses_the_selection() {
     assert_eq!(stored(&pool).await, before);
 }
 
-/// BSM-036: an edit answered unchanged is not judged, and a refusal names the first.
+/// BSM-036: an edit answered unchanged is not judged, and a refusal names the first
+/// procedure that does not exist, in the order the selection holds them.
 #[tokio::test]
 async fn test_bsm_036_an_unchanged_edit_is_not_judged_and_a_refusal_names_the_first() {
     let pool = setup_db().await;
     let (orchestrator, _, _) = make_components(&pool);
     let (entry, kept, _) = direct_scene(&pool, &orchestrator).await;
-    sqlx::query(r#"UPDATE "procedure" SET is_deleted = 1 WHERE id = ?"#)
-        .bind(&kept)
-        .execute(&pool)
-        .await
-        .expect("delete");
 
     let unchanged = orchestrator
         .update_direct_transfer(entry.clone(), "2026-03-15".to_string(), vec![kept.clone()])
         .await;
     let refused = orchestrator
-        .update_direct_transfer(entry, date(), vec![kept.clone(), "unknown".to_string()])
+        .update_direct_transfer(
+            entry,
+            date(),
+            vec![
+                kept,
+                "first-unknown".to_string(),
+                "second-unknown".to_string(),
+            ],
+        )
         .await;
 
     assert!(matches!(unchanged, Ok(BankEntryEdit::Unchanged)));
@@ -645,44 +649,8 @@ async fn test_bsm_036_an_unchanged_edit_is_not_judged_and_a_refusal_names_the_fi
         refused,
         Err(BankManualMatchError::Procedure(
             ProcedureError::ProcedureNotFound { procedure_id }
-        )) if procedure_id == kept
+        )) if procedure_id == "first-unknown"
     ));
-}
-
-/// BSM-036: a deleted procedure beside a live one is not linked unpaid.
-#[tokio::test]
-async fn test_bsm_036_a_deleted_procedure_refuses_the_selection() {
-    let pool = setup_db().await;
-    let (orchestrator, _, _) = make_components(&pool);
-    let (entry, kept, free_procedure) = direct_scene(&pool, &orchestrator).await;
-    sqlx::query(r#"UPDATE "procedure" SET is_deleted = 1 WHERE id = ?"#)
-        .bind(&kept)
-        .execute(&pool)
-        .await
-        .expect("delete");
-    let before = stored(&pool).await;
-
-    let created = orchestrator
-        .create_direct_transfer(account(), date(), CHECK, vec![free_procedure, kept.clone()])
-        .await;
-    // The edit moves the date, so it is not answered unchanged (BSM-031).
-    let edited = orchestrator
-        .update_direct_transfer(entry, date(), vec![kept])
-        .await;
-
-    assert!(matches!(
-        created,
-        Err(BankManualMatchError::Procedure(
-            ProcedureError::ProcedureNotFound { .. }
-        ))
-    ));
-    assert!(matches!(
-        edited,
-        Err(BankManualMatchError::Procedure(
-            ProcedureError::ProcedureNotFound { .. }
-        ))
-    ));
-    assert_eq!(stored(&pool).await, before);
 }
 
 /// An edit raises each event once, after it committed.

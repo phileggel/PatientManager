@@ -38,11 +38,11 @@ Accepts all procedure fields without re-inference (PRO-250). Refuses a missing p
 
 ### `delete_procedure` — PRO-030, PRO-270
 
-Deletes a procedure after checking it is not in a blocking status (PRO-030 — `Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `Overpaid`, `OverpaymentRefund`). Updates patient tracking fields after deletion (PRO-270).
+Really deletes a procedure after checking it is not in a blocking status (PRO-030 — `Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `Overpaid`, `OverpaymentRefund`) and that no fund payment line, bank entry or refund record refers to it. Updates patient tracking fields after deletion (PRO-270).
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `ProcedureNotFound`, `DeletionBlocked`
+- **Errors:** `ProcedureNotFound`, `ProcedureDeleteBlocked` (a blocking status, or a record still referring to it)
 
 ---
 
@@ -159,3 +159,4 @@ enum PaymentMethod {
 
 - 2026-10-18 — Modified by `procedure-orchestration` spec (TODO-026): `add_procedure`, `update_procedure` (PRO-125, PRO-251, PRO-252, PRO-255, PRO-256)
 - 2026-10-18 — Modified by `procedure-orchestration` spec (TODO-030): `update_procedure` — `RawProcedure.payment_status` typed `ProcedureStatus` (PRO-250)
+- 2026-11-07 — `delete_procedure` (#588, PRO-030, PRO-031): a procedure is really deleted; one a payment record still refers to is refused with `ProcedureDeleteBlocked`. The error was misnamed `DeletionBlocked` here.

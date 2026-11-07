@@ -276,16 +276,19 @@ impl ProcedureService {
         let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
     }
 
-    /// Delete a procedure (soft-delete)
-    pub async fn delete_procedure(&self, id: &str) -> Result<(), ProcedureError> {
-        self.repository.delete_procedure(id).await.map_err(|e| {
+    /// Delete a procedure (PRO-030): false when a payment record still refers to
+    /// it, or no row matched; nothing is published then.
+    pub async fn delete_procedure(&self, id: &str) -> Result<bool, ProcedureError> {
+        let deleted = self.repository.delete_procedure(id).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "delete_procedure: repository failed");
             ProcedureError::DatabaseError
         })?;
 
-        let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
+        if deleted {
+            let _ = self.event_bus.publish::<ProcedureUpdated>(ProcedureUpdated);
+        }
 
-        Ok(())
+        Ok(deleted)
     }
 
     /// Get unpaid procedures by fund
@@ -693,7 +696,7 @@ mod tests {
             },
         );
         mock.expect_update_procedure().returning(Ok);
-        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_delete_procedure().returning(|_| Ok(true));
         mock.expect_has_blocking_procedures_in_month()
             .returning(|_| Ok(false));
         mock

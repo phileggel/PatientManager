@@ -517,7 +517,8 @@ pub trait ProcedureRepository: Send + Sync {
         patient_id: &str,
     ) -> anyhow::Result<Vec<Procedure>>;
     async fn update_procedure(&self, procedure: Procedure) -> anyhow::Result<Procedure>;
-    async fn delete_procedure(&self, id: &str) -> anyhow::Result<()>;
+    /// PRO-030 — false when a payment record still refers to it, or no row matched.
+    async fn delete_procedure(&self, id: &str) -> anyhow::Result<bool>;
 
     async fn find_procedures_by_ssn_and_date_range(
         &self,
@@ -553,7 +554,7 @@ pub trait ProcedureRepository: Send + Sync {
         end_date: NaiveDate,
     ) -> anyhow::Result<Vec<UnreconciledProcedure>>;
 
-    /// Returns true if a non-deleted procedure of the month (YYYY-MM) has a blocking
+    /// Returns true if a procedure of the month (YYYY-MM) has a blocking
     /// status (`ProcedureStatus::is_blocking`, EXI-160), or any procedure of it is held
     /// by a fund payment line (EXI-161), preventing re-import.
     async fn has_blocking_procedures_in_month(&self, month: &str) -> anyhow::Result<bool>;

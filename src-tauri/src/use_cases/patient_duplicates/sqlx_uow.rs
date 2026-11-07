@@ -72,8 +72,8 @@ mod tests {
             "INSERT INTO patient (id, name, ssn, is_anonymous, is_deleted) VALUES ('other', 'Marie Dupont', '1234567890123', 0, 0)",
             "INSERT INTO patient (id, name, is_anonymous, is_deleted) VALUES ('third', 'Marie Dupont', 0, 0)",
             "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES ('type-1', 'Type 1', 100000, 0)",
-            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('live', 'other', 'type-1', '2026-03-10', 100000, 'RECONCILIATED', 0)"#,
-            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status, is_deleted) VALUES ('deleted', 'other', 'type-1', '2026-03-11', 100000, 'NONE', 1)"#,
+            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('live', 'other', 'type-1', '2026-03-10', 100000, 'RECONCILIATED')"#,
+            r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('second', 'other', 'type-1', '2026-03-11', 100000, 'NONE')"#,
             "INSERT INTO patient_duplicate_dismissal (id, patient_a_id, patient_b_id) VALUES ('d1', 'other', 'third')",
         ] {
             sqlx::query(statement)
@@ -130,7 +130,7 @@ mod tests {
             .await
             .expect("merge");
 
-        // PDU-021: the deleted procedure moved too. PDU-026: the dismissal is gone.
+        // PDU-021: both procedures moved. PDU-026: the dismissal is gone.
         assert_eq!(stored(&pool).await, (2, 0, true, 0));
         let kept = SqlitePatientRepository::new(pool.clone())
             .read_patient("kept")

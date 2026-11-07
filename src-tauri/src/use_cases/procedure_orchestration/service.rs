@@ -359,8 +359,25 @@ impl ProcedureOrchestrationService {
             return Err(ProcedureOrchestrationTask::ProcedureDeleteBlocked.into());
         }
 
-        // Delegate to context service for state change (which publishes event)
-        self.context_procedure_service.delete_procedure(id).await?;
+        // Delegate to context service for state change (which publishes event).
+        // PRO-030 — a payment record still referring to it refuses the delete as
+        // its status would.
+        if !self.context_procedure_service.delete_procedure(id).await? {
+            // Gone since the read above, or still referred to.
+            if self
+                .context_procedure_service
+                .read_procedure(id)
+                .await?
+                .is_none()
+            {
+                return Err(ProcedureError::ProcedureNotFound {
+                    procedure_id: id.to_string(),
+                }
+                .into());
+            }
+            tracing::warn!(target: BACKEND, procedure_id = %id, "Delete blocked: a payment record refers to the procedure");
+            return Err(ProcedureOrchestrationTask::ProcedureDeleteBlocked.into());
+        }
 
         tracing::debug!(target: BACKEND, procedure_id = %id, "Procedure deleted successfully");
 
@@ -768,7 +785,7 @@ mod tests {
         mock.expect_read_procedures_by_patient_id()
             .returning(|_| Ok(vec![]));
         mock.expect_update_procedure().returning(Ok);
-        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_delete_procedure().returning(|_| Ok(true));
         mock
     }
 
@@ -794,7 +811,7 @@ mod tests {
                     .collect())
             });
         mock.expect_update_procedure().returning(Ok);
-        mock.expect_delete_procedure().returning(|_| Ok(()));
+        mock.expect_delete_procedure().returning(|_| Ok(true));
         mock.expect_read_all_procedures().returning(|| Ok(vec![]));
         mock
     }
@@ -1738,6 +1755,71 @@ mod tests {
         mock.expect_update_procedure().returning(Ok);
         mock.expect_read_all_procedures().returning(|| Ok(vec![]));
         mock
+    }
+
+    /// PRO-030 — a procedure whose status allows the delete but that a payment
+    /// record still refers to is refused with the named error, never a database one.
+    #[tokio::test]
+    async fn test_588_delete_refused_by_a_reference_is_delete_blocked() {
+        let procedure = make_procedure_with_status(ProcedureStatus::Created);
+        let mut repo = MockProcedureRepository::new();
+        repo.expect_read_procedure()
+            .returning(move |_| Ok(Some(procedure.clone())));
+        repo.expect_delete_procedure().returning(|_| Ok(false));
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(repo),
+            Arc::new(EventBus::new()),
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            make_patient_repo(None),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(refund_repo_noop()),
+        );
+
+        let result = orchestrator.delete_procedure("proc-id-1").await;
+
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::ProcedureDeleteBlocked
+            ))
+        ));
+    }
+
+    /// A procedure gone between the guard's read and the delete is answered as not
+    /// found, not as a blocked delete.
+    #[tokio::test]
+    async fn test_588_delete_of_a_procedure_gone_meanwhile_is_not_found() {
+        let procedure = make_procedure_with_status(ProcedureStatus::Created);
+        let mut repo = MockProcedureRepository::new();
+        let mut reads = 0;
+        repo.expect_read_procedure().returning(move |_| {
+            reads += 1;
+            Ok((reads == 1).then(|| procedure.clone()))
+        });
+        repo.expect_delete_procedure().returning(|_| Ok(false));
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(repo),
+            Arc::new(EventBus::new()),
+        ));
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            make_patient_repo(None),
+            Arc::new(mock_type_repo_stub()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(refund_repo_noop()),
+        );
+
+        let result = orchestrator.delete_procedure("proc-id-1").await;
+
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Procedure(
+                ProcedureError::ProcedureNotFound { .. }
+            ))
+        ));
     }
 
     #[tokio::test]
