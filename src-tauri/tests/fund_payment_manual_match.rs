@@ -384,7 +384,7 @@ async fn manual_delete_locked_group_is_rejected() -> anyhow::Result<()> {
 
 /// FPM-400 — Deleting an unlocked group resets every associated procedure
 /// to `Created` and clears `fund_reconciliation_date` + `paid_amount`.
-/// The group itself is soft-deleted (no longer readable).
+/// The group and its lines are really deleted.
 #[tokio::test]
 async fn manual_delete_unlocked_group_resets_all_procedures() -> anyhow::Result<()> {
     let ctx = build_ctx().await;
@@ -417,12 +417,14 @@ async fn manual_delete_unlocked_group_resets_all_procedures() -> anyhow::Result<
     }
 
     let group_after = ctx.fund_payment_service.read_group(&group.id).await?;
-    assert!(
-        group_after.is_none(),
-        "group should be soft-deleted after cleanup"
-    );
+    assert!(group_after.is_none(), "group should be gone after cleanup");
+    let groups: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM fund_payment_group WHERE id = ?")
+        .bind(&group.id)
+        .fetch_one(&ctx.pool)
+        .await?;
+    assert_eq!(groups, 0, "the group row is really deleted");
 
-    // FPM-400 — the lines are really deleted, whatever the group's flag.
+    // FPM-400 — the lines are really deleted.
     let lines: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM fund_payment_line")
         .fetch_one(&ctx.pool)
         .await?;
