@@ -26,11 +26,6 @@ check-full:
 release-check:
     python3 scripts/check.py --strict
 
-# The last N batch ends (release `v*` or `batch/<date>` tags), newest first
-batch-ends n="1": (_used "batch-ends")
-    @git fetch -q origin --tags
-    @git for-each-ref --sort=-creatordate --count='{{n}}' --format='%(refname:short)' 'refs/tags/v*' refs/tags/batch/
-
 # ⚠️  Destructive: removes stale remote-tracking branches
 clean-branches: (_used "clean-branches")
     #!/usr/bin/env bash

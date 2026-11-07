@@ -16,9 +16,7 @@ phileggel --url <url>`. An old `TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` is found by 
   contract, glossary, ADR or `ARCHITECTURE.md` drifting from right code, a `task` queued on
   its own; `priority`, the owner wants it in the next batch, and it comes first in the
   order `/flow:plan-batch` proposes; `mock`, a Design needing a mock.
-- **Expired tasks** (owner, 2026-10-24, ticket #492): a plain `task` (no `spec`, no security
-  finding) not updated since the date of the third tag `just batch-ends 3` prints is closed
-  with its reason when the batch ends.
+- **No expiry** (owner, 2026-11-07, ticket #575): an open issue is never closed for its age.
 
 ## Design
 
@@ -27,8 +25,7 @@ Mocks live in `phileggel/PatientManager-design` (`design-proposal.repo` of
 
 ## Ending a batch
 
-`/app:run-batch` ends it. This project's batch-end check, whichever way it ends: the expired
-tasks closed (§ Issues and the Project).
+`/app:run-batch` ends it.
 
 ## The harness
 
