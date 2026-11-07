@@ -80,7 +80,7 @@ Updates the payment date and/or procedure composition of an existing group. Remo
 
 ---
 
-### `delete_fund_payment_group` — FPM R9, R11, FPM-401, REF-240
+### `delete_fund_payment_group` — FPM R9, R11, REF-240
 
 Really deletes the group and its lines, and resets all linked procedures to `Created`, clearing their `fund_reconciliation_date` and `paid_amount`. Blocked if the group is `BankPayed` (FPM R9). Also rejects deletion of a group whose `origin` is `Refund` (REF-240), whoever calls the use case.
 
