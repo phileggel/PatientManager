@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Start PatientManager in development mode
 # Usage: ./start-app.sh [--reset-db] [--log-level LEVEL]
 set -euo pipefail
