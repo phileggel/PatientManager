@@ -1,7 +1,7 @@
 use anyhow::Context;
 use sqlx::SqlitePool;
 
-use crate::context::bank::{domain::BankAccount, domain::BankAccountRepository};
+use crate::context::bank::domain::{BankAccount, BankAccountRepository, BankAccountType};
 use crate::shared::logger::BACKEND;
 
 pub struct SqliteBankAccountRepository {
@@ -12,6 +12,18 @@ impl SqliteBankAccountRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
+}
+
+/// Rebuilds an account from its row, its type included (BAC-050).
+pub(super) fn restore_row(
+    id: String,
+    name: String,
+    iban: Option<String>,
+    account_type: &str,
+) -> anyhow::Result<BankAccount> {
+    let account_type = BankAccountType::from_db_str(account_type)
+        .with_context(|| format!("Unknown account type {account_type:?} for account {id}"))?;
+    Ok(BankAccount::restore_of_type(id, name, iban, account_type))
 }
 
 #[async_trait::async_trait]
@@ -43,6 +55,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
             r#"
             SELECT id, name, iban
             FROM bank_account
+            WHERE account_type = 'bank'
             "#,
         )
         .fetch_all(&self.pool)
@@ -59,7 +72,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
 
         let row = sqlx::query!(
             r#"
-            SELECT id, name, iban
+            SELECT id, name, iban, account_type
             FROM bank_account
             WHERE id = $1
             "#,
@@ -68,7 +81,8 @@ impl BankAccountRepository for SqliteBankAccountRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(row.map(|r| BankAccount::restore(r.id, r.name, r.iban)))
+        row.map(|r| restore_row(r.id, r.name, r.iban, &r.account_type))
+            .transpose()
     }
 
     async fn find_by_iban(&self, iban: &str) -> anyhow::Result<Option<BankAccount>> {
@@ -76,7 +90,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
 
         let row = sqlx::query!(
             r#"
-            SELECT id, name, iban
+            SELECT id, name, iban, account_type
             FROM bank_account
             WHERE iban = $1
             "#,
@@ -85,7 +99,8 @@ impl BankAccountRepository for SqliteBankAccountRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(row.map(|r| BankAccount::restore(r.id, r.name, r.iban)))
+        row.map(|r| restore_row(r.id, r.name, r.iban, &r.account_type))
+            .transpose()
     }
 
     async fn update_account(&self, account: BankAccount) -> anyhow::Result<BankAccount> {
@@ -224,8 +239,10 @@ mod tests {
         db.create_account(account2.clone()).await.unwrap();
 
         let accounts = db.read_all_accounts().await.unwrap();
-        // Migration seeds a default cash account, so 2 created + 1 seeded = 3
-        assert_eq!(accounts.len(), 3);
+        // BAC-055 — the seeded technical accounts are never listed.
+        assert_eq!(accounts.len(), 2);
+        let technical = db.read_account("check-account-default").await.unwrap();
+        assert!(technical.is_some_and(|a| !a.is_bank()));
     }
 
     #[tokio::test]

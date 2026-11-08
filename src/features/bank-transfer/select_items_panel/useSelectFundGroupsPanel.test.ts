@@ -11,7 +11,6 @@ vi.mock("../gateway", () => ({
   deleteTransferByType: vi.fn(),
   createBankTransfer: vi.fn(),
   updateBankTransfer: vi.fn(),
-  getCashBankAccountId: vi.fn(),
   getFundGroupsByIds: vi.fn(),
   createFundTransfer: vi.fn(),
   updateFundTransfer: vi.fn(),

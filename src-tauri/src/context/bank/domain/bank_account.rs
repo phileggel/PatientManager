@@ -4,8 +4,43 @@ use uuid::Uuid;
 
 use crate::context::bank::error::BankError;
 
-/// Fixed ID of the default cash account seeded by migration (BAC-050).
+/// BAC-050 — the technical accounts a direct payment of each type is recorded on,
+/// seeded by migration.
 pub const CASH_ACCOUNT_ID: &str = "cash-account-default";
+pub const CHECK_ACCOUNT_ID: &str = "check-account-default";
+pub const CARD_ACCOUNT_ID: &str = "card-account-default";
+
+/// BAC-050 — what an account is: one of the user's bank accounts, or the technical
+/// account of a direct payment type, never shown or chosen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BankAccountType {
+    #[default]
+    Bank,
+    Cash,
+    Check,
+    Card,
+}
+
+impl BankAccountType {
+    pub fn as_db_str(self) -> &'static str {
+        match self {
+            Self::Bank => "bank",
+            Self::Cash => "cash",
+            Self::Check => "check",
+            Self::Card => "card",
+        }
+    }
+
+    pub fn from_db_str(value: &str) -> Option<Self> {
+        match value {
+            "bank" => Some(Self::Bank),
+            "cash" => Some(Self::Cash),
+            "check" => Some(Self::Check),
+            "card" => Some(Self::Card),
+            _ => None,
+        }
+    }
+}
 
 /// Bank Account aggregate root
 /// Represents a bank account used for transfers
@@ -17,6 +52,10 @@ pub struct BankAccount {
 
     /// Metadata - not a domain property
     pub id: String,
+
+    /// BAC-050 — never sent: a client only ever sees `bank` accounts.
+    #[serde(skip)]
+    pub account_type: BankAccountType,
 }
 
 impl BankAccount {
@@ -39,6 +78,7 @@ impl BankAccount {
             id: Uuid::new_v4().to_string(),
             name: trimmed_name,
             iban: trimmed_iban,
+            account_type: BankAccountType::Bank,
         })
     }
 
@@ -53,13 +93,34 @@ impl BankAccount {
             id,
             name: trimmed_name,
             iban: trimmed_iban,
+            account_type: BankAccountType::Bank,
         })
     }
 
     /// Restores a BankAccount from database storage (no validation).
     /// Data from storage is already validated.
     pub fn restore(id: String, name: String, iban: Option<String>) -> Self {
-        Self { id, name, iban }
+        Self::restore_of_type(id, name, iban, BankAccountType::Bank)
+    }
+
+    /// Restores an account of a stored type (BAC-050).
+    pub fn restore_of_type(
+        id: String,
+        name: String,
+        iban: Option<String>,
+        account_type: BankAccountType,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            iban,
+            account_type,
+        }
+    }
+
+    /// BAC-050 — one of the user's accounts, not a technical one.
+    pub fn is_bank(&self) -> bool {
+        self.account_type == BankAccountType::Bank
     }
 
     /// Validates bank account fields.

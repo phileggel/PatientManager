@@ -53,10 +53,10 @@ pub enum BankError {
     #[error("Bank account not found: {bank_account_id}")]
     BankAccountNotFound { bank_account_id: String },
 
-    /// `BankAccountService::update_account` / `delete_account` rejected
-    /// mutation of the protected cash account.
-    #[error("The cash account is protected and cannot be modified or deleted")]
-    ProtectedCashAccount,
+    /// BAC-051 — `BankAccountService::update_account` / `delete_account` rejected a
+    /// technical account (BAC-050).
+    #[error("A technical account cannot be modified or deleted")]
+    ProtectedTechnicalAccount,
 
     /// `BankAccountService::delete_account` refused an account a bank entry
     /// is recorded on (BAC-043).
@@ -133,8 +133,8 @@ mod tests {
             json!({ "code": "BankAccountNotFound", "bank_account_id": "ba-42" }),
         );
         assert_eq!(
-            to_value(BankError::ProtectedCashAccount).unwrap(),
-            json!({ "code": "ProtectedCashAccount" }),
+            to_value(BankError::ProtectedTechnicalAccount).unwrap(),
+            json!({ "code": "ProtectedTechnicalAccount" }),
         );
         assert_eq!(
             to_value(BankError::BankAccountNameAlreadyUsed).unwrap(),

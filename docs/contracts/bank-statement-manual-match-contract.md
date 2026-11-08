@@ -7,8 +7,6 @@
 
 ## Commands
 
-> `get_cash_bank_account_id` is owned by `context/bank` — see bank-contract.md.
-
 ### `get_unsettled_fund_groups` — R6
 
 Returns fund-payment groups not yet reconciled at the bank level whose payment date falls within 7 days preceding `transfer_date`. Populates the initial group selection UI.
@@ -45,7 +43,7 @@ Creates a `FUND` bank entry linked to the given group IDs. On success: procedure
 
 - **Args:** `bank_account_id: String, transfer_date: String, group_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound` (a technical account included, BSM-026), `DatabaseError`
 
 ---
 
@@ -111,7 +109,7 @@ Returns `DirectPaymentProcedureCandidate` details for a given set of IDs. Used i
 
 ### `create_direct_transfer` — R13, R14, R15, BSM-020, BSM-021, BSM-026, BSM-034, BSM-036
 
-Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or `PATIENT_CASH`) linked to the given procedure IDs. For `PATIENT_CASH`, the backend stores `cash-account-default`, whatever `bank_account_id` it is sent, even an unknown one (BSM-026); the screen sends an empty one. On success: each procedure moves to `DirectlyPayed`; `payment_method`, `confirmed_payment_date`, and `actual_payment_amount` are set according to the type mapping in `BankEntryType`.
+Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or `PATIENT_CASH`) linked to the given procedure IDs. The backend stores it on the technical account of its type (`cash-account-default`, `check-account-default` or `card-account-default`), whatever `bank_account_id` it is sent, even an unknown one (BSM-026, BAC-056); the screen sends an empty one. On success: each procedure moves to `DirectlyPayed`; `payment_method`, `confirmed_payment_date`, and `actual_payment_amount` are set according to the type mapping in `BankEntryType`.
 
 > REF-080: `FundOutgoingWire` (refund-only) is rejected — `RefundOnlyVariantRejected` is returned.
 
@@ -161,7 +159,7 @@ enum BankEntryType {
     FundWire,           // FUND transfer — procedures receive payment_method = BankTransfer
     PatientCheck,       // direct payment — procedures receive payment_method = Check
     PatientCreditCard,  // direct payment — procedures receive payment_method = BankCard
-    PatientCash,        // direct payment — auto-assigns the cash account (R13); payment_method = Cash
+    PatientCash,        // direct payment — on the `cash` technical account (BSM-026); payment_method = Cash
     OutgoingWire,       // reserved for overpayment refund (REF-080); not creatable in this flow (R2)
 }
 
@@ -196,7 +194,7 @@ enum BankEntryEdit {
 // BSM-020, BSM-030 — BankError::BankEntryInvalid { reasons: Vec<BankEntryInvalidReason> },
 // one reason per refused field, at most one of DateMissing / DateInvalid
 enum BankEntryInvalidReason {
-    AccountMissing,   // empty or blank; creation only, not for PatientCash (R13: the backend sets the cash account)
+    AccountMissing,   // empty or blank; creation only, not for a direct payment (R13: the backend sets its account)
     DateMissing,      // empty or blank
     DateInvalid,      // not a valid YYYY-MM-DD date
     NothingSelected,  // no group or procedure
@@ -222,3 +220,4 @@ An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed 
 - 2026-05-02 — Rescoped: read_all_bank_transfers moved to bank-contract.md (context/bank); BankEntry/BankAccount types moved there too
 - 2026-06-09 — Typed-error migration: per-command Errors columns now list the real wire-visible `BankManualMatchError` variant codes (`BankError`/`FundError`/`ProcedureError`/`WrongTransferType`), replacing the pre-implementation aspirational names
 - 2026-10-24 — `create_direct_transfer`: a `PATIENT_CASH` creation stores `cash-account-default`, whatever account it is sent (BSM-026, #455)
+- 2026-11-08 — `create_direct_transfer`: every direct payment goes on its type's technical account; `create_fund_transfer` refuses a technical account as unknown (BSM-026, BAC-055A, BAC-056, #518).

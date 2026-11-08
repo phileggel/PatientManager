@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
-import { deleteBankAccount, getCashBankAccountId } from "../gateway";
+import { deleteBankAccount } from "../gateway";
 import { BankAccountPresenter, formatBankError } from "../shared/presenter";
 
 /**
@@ -17,21 +17,6 @@ export function useBankAccountList() {
   const { t } = useTranslation("bank");
   const accounts = useCacheStore((state) => state.bankAccounts);
   const bankAccountsLoading = useCacheStore((state) => state.bankAccountsLoading);
-  const [cashAccountId, setCashAccountId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    getCashBankAccountId().then((result) => {
-      if (!isMounted) return;
-      if (result.success) setCashAccountId(result.data);
-      else
-        logger.error("[useBankAccountList] getCashBankAccountId failed", { error: result.error });
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   const bankAccountRows = useMemo(
     () => accounts.map((a) => BankAccountPresenter.toRow(a)),
     [accounts],
@@ -56,7 +41,6 @@ export function useBankAccountList() {
     bankAccountRows,
     accounts,
     loading: bankAccountsLoading,
-    cashAccountId,
     deleteBankAccount: deleteBankAccountHandler,
   };
 }

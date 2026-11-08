@@ -7,6 +7,7 @@ import { FormModal } from "@/ui/components/modal/FormModal";
 import { useFormatters } from "@/ui/format/formatters";
 import { SelectFundGroupsPanel } from "../select_items_panel/SelectFundGroupsPanel";
 import { SelectProceduresPanel } from "../select_items_panel/SelectProceduresPanel";
+import { entryAccountName } from "../shared/presenter";
 import { useEditBankTransferModal } from "./useEditBankTransferModal";
 
 /**
@@ -101,20 +102,20 @@ export function EditBankTransferModal({ transfer, onClose }: EditBankTransferMod
         </span>
       </div>
 
-      {/* Bank Account — shown, not edited (BSM-033, R9, R17) */}
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-neutral-90">
-          {t("transfer.list.columns.bank_account")}
-        </span>
-        <span
-          id="edit-bank-transfer-account"
-          className="px-3 py-2 bg-m3-surface-container rounded-xl text-sm text-neutral-70"
-        >
-          {transfer?.transfer_type === "PATIENT_CASH"
-            ? t("transfer.cash_account")
-            : transfer?.bank_account.name}
-        </span>
-      </div>
+      {/* Bank Account — a fund wire's, shown, not edited (BSM-033, R9, R17) */}
+      {transfer && entryAccountName(transfer) !== null && (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-neutral-90">
+            {t("transfer.list.columns.bank_account")}
+          </span>
+          <span
+            id="edit-bank-transfer-account"
+            className="px-3 py-2 bg-m3-surface-container rounded-xl text-sm text-neutral-70"
+          >
+            {entryAccountName(transfer)}
+          </span>
+        </div>
+      )}
 
       {/* Selection panel — conditional on type */}
       {isFund ? (

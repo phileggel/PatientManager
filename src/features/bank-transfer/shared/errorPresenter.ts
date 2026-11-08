@@ -52,7 +52,7 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
     case "BankAccountNameEmpty":
     case "IbanAlreadyUsed":
     case "BankAccountNameAlreadyUsed":
-    case "ProtectedCashAccount":
+    case "ProtectedTechnicalAccount":
     case "BankAccountHoldsBankEntries":
     // --- FundError domain invariants (not expected in this flow) ---
     case "FundInvalid":

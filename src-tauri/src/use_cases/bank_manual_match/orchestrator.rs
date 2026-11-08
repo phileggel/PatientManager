@@ -863,8 +863,9 @@ mod tests {
     use uuid::Uuid;
 
     use crate::context::bank::{
-        BankEntryService, BankEntryType, SqliteBankAccountRepository,
-        SqliteBankEntryLinkRepository, SqliteBankEntryRepository, CASH_ACCOUNT_ID,
+        BankAccount, BankAccountRepository, BankEntryService, BankEntryType,
+        SqliteBankAccountRepository, SqliteBankEntryLinkRepository, SqliteBankEntryRepository,
+        CASH_ACCOUNT_ID,
     };
     use crate::context::fund::{
         FundPaymentGroupStatus, FundPaymentService, SqliteFundPaymentRepository,
@@ -883,6 +884,13 @@ mod tests {
             .run(&pool)
             .await
             .expect("Migrations failed");
+        SqliteBankAccountRepository::new(pool.clone())
+            .create_account(
+                BankAccount::with_id("bank-acc".to_string(), "Bank".to_string(), None)
+                    .expect("a valid account"),
+            )
+            .await
+            .expect("seed the bank account");
         pool
     }
 
@@ -1104,7 +1112,7 @@ mod tests {
 
         let result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-15".to_string(),
                 vec![group_id.clone()],
             )
@@ -1154,7 +1162,7 @@ mod tests {
 
         let result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-15".to_string(),
                 vec![group_id.clone()],
             )
@@ -1221,7 +1229,7 @@ mod tests {
 
         let create_result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-15".to_string(),
                 vec![group_a.clone()],
             )
@@ -1698,7 +1706,7 @@ mod tests {
         .await;
         let result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-10".to_string(),
                 vec![group_id],
             )
@@ -1787,7 +1795,7 @@ mod tests {
         .await;
         let result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-10".to_string(),
                 vec![group_id],
             )

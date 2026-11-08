@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                bt.id,\n                bt.transfer_date,\n                bt.amount,\n                bt.transfer_type,\n                bt.bank_account_id,\n                ba.id as account_id,\n                ba.name as account_name,\n                ba.iban as account_iban\n            FROM bank_transfer bt\n            JOIN bank_account ba ON bt.bank_account_id = ba.id\n            ORDER BY bt.transfer_date DESC\n            ",
+  "query": "\n            SELECT\n                bt.id,\n                bt.transfer_date,\n                bt.amount,\n                bt.transfer_type,\n                bt.bank_account_id,\n                ba.id as account_id,\n                ba.name as account_name,\n                ba.iban as account_iban,\n                ba.account_type\n            FROM bank_transfer bt\n            JOIN bank_account ba ON bt.bank_account_id = ba.id\n            ORDER BY bt.transfer_date DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -90,6 +90,17 @@
             "name": "iban"
           }
         }
+      },
+      {
+        "name": "account_type",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_account",
+            "name": "account_type"
+          }
+        }
       }
     ],
     "parameters": {
@@ -103,8 +114,9 @@
       false,
       false,
       false,
-      true
+      true,
+      false
     ]
   },
-  "hash": "cb71250e0ee8afda954626e539232b15d07895b068f68e44122ef0b9a487f19a"
+  "hash": "d8c64106916381f5417dd0ca702df15fc77225314aaa95a7f42f4775c878274c"
 }

@@ -76,19 +76,6 @@ export async function deleteTransferByType(
   }
 }
 
-export async function getCashBankAccountId(): Promise<ServiceResult<string>> {
-  logger.debug("[bank-transfer] getCashBankAccountId");
-  try {
-    const id = await commands.getCashBankAccountId();
-    if (!id) return { success: false, error: "Cash account id is empty" };
-    logger.debug("[bank-transfer] getCashBankAccountId fetched", { id });
-    return { success: true, data: id };
-  } catch (error) {
-    logger.error("[bank-transfer] getCashBankAccountId exception", { error });
-    return { success: false, error: String(error) };
-  }
-}
-
 // ── Fund Group Matching ─────────────────────────────────────────────────────
 
 export async function getUnsettledFundGroups(

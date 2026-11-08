@@ -4,7 +4,6 @@ use tauri::State;
 
 use super::{
     BankAccount, BankAccountService, BankEntry, BankEntryService, BankEntryType, BankError,
-    CASH_ACCOUNT_ID,
 };
 
 // ============ BankEntry Tauri Commands ============
@@ -95,14 +94,6 @@ pub async fn update_bank_account(
     service: State<'_, Arc<BankAccountService>>,
 ) -> Result<BankAccount, BankError> {
     service.update_account(id, name, iban).await
-}
-
-/// Tauri command: Returns the ID of the default cash account.
-/// Used by the frontend to auto-assign the account for CASH entries (BAC-050, BSM-026).
-#[tauri::command]
-#[specta::specta]
-pub fn get_cash_bank_account_id() -> &'static str {
-    CASH_ACCOUNT_ID
 }
 
 /// Tauri command: Delete a bank account

@@ -52,6 +52,17 @@ async fn legacy_pool() -> SqlitePool {
     pool
 }
 
+/// The migrations after 20261108, so today's code reads the upgraded schema.
+async fn run_the_later_migrations(pool: &SqlitePool) {
+    let migrations = sqlx::migrate!("./migrations");
+    for migration in migrations.iter().filter(|m| m.version > REAL_DELETE) {
+        sqlx::raw_sql(migration.sql.clone())
+            .execute(pool)
+            .await
+            .unwrap_or_else(|e| panic!("migration {}: {e}", migration.version));
+    }
+}
+
 fn service(pool: &SqlitePool) -> BankAccountService {
     BankAccountService::new(
         Arc::new(SqliteBankAccountRepository::new(pool.clone())),
@@ -146,6 +157,7 @@ async fn test_migration_deleted_account_holding_a_bank_entry_is_restored() {
 
     assert_eq!(account(&pool, "acc-held").await, ("Held".into(), false));
     assert_eq!(account(&pool, "acc-empty").await, ("Empty".into(), true));
+    run_the_later_migrations(&pool).await;
     let after = entries.read_transfer("t-1").await.unwrap();
     assert!(
         after.is_some(),
@@ -258,6 +270,7 @@ async fn test_migration_restored_account_entry_can_be_edited_and_deleted() {
     insert_flagged_account(&pool, "acc-held", "Held").await;
     insert_transfer(&pool, "t-1", "acc-held").await;
     sqlx::raw_sql(MIGRATION).execute(&pool).await.unwrap();
+    run_the_later_migrations(&pool).await;
     let entries = entry_service(&pool);
 
     let mut entry = entries

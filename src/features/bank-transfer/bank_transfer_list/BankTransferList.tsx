@@ -5,6 +5,7 @@ import type { BankEntry } from "@/bindings";
 import { logger } from "@/infra/logger";
 import { IconButton } from "@/ui/components";
 import { useFormatters } from "@/ui/format/formatters";
+import { entryAccountName } from "../shared/presenter";
 
 const TAG = "[BankTransferList]";
 
@@ -52,55 +53,58 @@ export function BankTransferList({ transfers, loading, onEdit, onDelete }: BankT
               </td>
             </tr>
           ) : (
-            transfers.map((transfer) => (
-              <tr key={transfer.id} className="m3-tr">
-                <td className="m3-td text-m3-on-surface">{formatDate(transfer.transfer_date)}</td>
-                <td className="m3-td text-m3-on-surface font-semibold text-right">
-                  {formatCurrency(transfer.amount)}
-                </td>
-                <td className="m3-td text-m3-on-surface capitalize">
-                  {transfer.transfer_type === "FUND_WIRE"
-                    ? t("transfer.type_fund")
-                    : transfer.transfer_type === "PATIENT_CHECK"
-                      ? t("transfer.type_check")
-                      : transfer.transfer_type === "PATIENT_CASH"
-                        ? t("transfer.type_cash")
-                        : t("transfer.type_credit_card")}
-                </td>
-                <td
-                  className="m3-td text-m3-on-surface-variant truncate max-w-[160px]"
-                  title={transfer.bank_account.name}
-                >
-                  {transfer.bank_account.name}
-                </td>
-                <td className="m3-td text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <IconButton
-                      variant="ghost"
-                      size="sm"
-                      shape="round"
-                      aria-label={t("transfer.list.edit_aria_label", {
-                        date: formatDate(transfer.transfer_date),
-                        amount: formatCurrency(transfer.amount),
-                      })}
-                      icon={<Edit2 size={16} />}
-                      onClick={() => onEdit(transfer)}
-                    />
-                    <IconButton
-                      variant="danger"
-                      size="sm"
-                      shape="round"
-                      aria-label={t("transfer.list.delete_aria_label", {
-                        date: formatDate(transfer.transfer_date),
-                        amount: formatCurrency(transfer.amount),
-                      })}
-                      icon={<Trash2 size={16} />}
-                      onClick={() => onDelete(transfer.id)}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))
+            transfers.map((transfer) => {
+              const accountName = entryAccountName(transfer);
+              return (
+                <tr key={transfer.id} className="m3-tr">
+                  <td className="m3-td text-m3-on-surface">{formatDate(transfer.transfer_date)}</td>
+                  <td className="m3-td text-m3-on-surface font-semibold text-right">
+                    {formatCurrency(transfer.amount)}
+                  </td>
+                  <td className="m3-td text-m3-on-surface capitalize">
+                    {transfer.transfer_type === "FUND_WIRE"
+                      ? t("transfer.type_fund")
+                      : transfer.transfer_type === "PATIENT_CHECK"
+                        ? t("transfer.type_check")
+                        : transfer.transfer_type === "PATIENT_CASH"
+                          ? t("transfer.type_cash")
+                          : t("transfer.type_credit_card")}
+                  </td>
+                  <td
+                    className="m3-td text-m3-on-surface-variant truncate max-w-[160px]"
+                    title={accountName ?? undefined}
+                  >
+                    {accountName ?? "—"}
+                  </td>
+                  <td className="m3-td text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        shape="round"
+                        aria-label={t("transfer.list.edit_aria_label", {
+                          date: formatDate(transfer.transfer_date),
+                          amount: formatCurrency(transfer.amount),
+                        })}
+                        icon={<Edit2 size={16} />}
+                        onClick={() => onEdit(transfer)}
+                      />
+                      <IconButton
+                        variant="danger"
+                        size="sm"
+                        shape="round"
+                        aria-label={t("transfer.list.delete_aria_label", {
+                          date: formatDate(transfer.transfer_date),
+                          amount: formatCurrency(transfer.amount),
+                        })}
+                        icon={<Trash2 size={16} />}
+                        onClick={() => onDelete(transfer.id)}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>

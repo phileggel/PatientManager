@@ -42,6 +42,10 @@ async fn setup_db() -> SqlitePool {
         .run(&pool)
         .await
         .expect("Migrations failed");
+    sqlx::query("INSERT INTO bank_account (id, name) VALUES ('bank-acc', 'Bank')")
+        .execute(&pool)
+        .await
+        .expect("seed the bank account");
     pool
 }
 
@@ -254,7 +258,7 @@ async fn fund_scene(
     }
     let entry = orchestrator
         .create_fund_transfer(
-            "cash-account-default".to_string(),
+            "bank-acc".to_string(),
             "2026-03-15".to_string(),
             vec![groups[0].clone()],
         )
@@ -336,7 +340,7 @@ async fn on_a_bus(pool: &SqlitePool) -> (BankManualMatchOrchestrator, Arc<EventB
 const CHECK: BankEntryType = BankEntryType::PatientCheck;
 
 fn account() -> String {
-    "cash-account-default".to_string()
+    "bank-acc".to_string()
 }
 
 fn date() -> String {

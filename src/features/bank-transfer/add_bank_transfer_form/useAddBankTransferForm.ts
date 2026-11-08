@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   BankAccount,
@@ -10,7 +10,7 @@ import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
 import { toastService } from "@/ui/components/snackbar";
-import { createDirectTransfer, createFundTransfer, getCashBankAccountId } from "../gateway";
+import { createDirectTransfer, createFundTransfer } from "../gateway";
 import {
   type BankEntryFieldErrorKeys,
   bankEntryFieldErrorKeys,
@@ -25,7 +25,6 @@ export function useAddBankTransferForm() {
   const [transferDate, setTransferDateState] = useState<string>("");
   const [transferType, setTransferType] = useState<BankEntryType>("FUND_WIRE");
   const [bankAccount, setBankAccountState] = useState<string>("");
-  const [cashAccountId, setCashAccountId] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [totalAmountMillis, setTotalAmountMillis] = useState<number>(0);
@@ -33,29 +32,13 @@ export function useAddBankTransferForm() {
   // BSM-023 — the message key under each refused field; the component translates.
   const [fieldErrors, setFieldErrors] = useState<BankEntryFieldErrorKeys>({});
 
-  // Fetch the cash account ID once on mount (R13)
-  useEffect(() => {
-    getCashBankAccountId().then((result) => {
-      if (result.success && result.data) {
-        setCashAccountId(result.data);
-      } else {
-        logger.error("[useAddBankTransferForm] Failed to fetch cash account id", {
-          error: result.error,
-        });
-      }
-    });
-  }, []);
-
   const isFund = transferType === "FUND_WIRE";
-  const isCash = transferType === "PATIENT_CASH";
 
-  // Exclude the cash account from the regular dropdown once its id is known (R13)
-  const bankAccountOptions = bankAccounts
-    .filter((acc: BankAccount) => !cashAccountId || acc.id !== cashAccountId)
-    .map((acc: BankAccount) => ({
-      value: acc.id,
-      label: acc.name,
-    }));
+  // BAC-050 — the store holds the user's accounts only: a direct payment asks for none.
+  const bankAccountOptions = bankAccounts.map((acc: BankAccount) => ({
+    value: acc.id,
+    label: acc.name,
+  }));
 
   const setTransferDate = (value: string) => {
     setTransferDateState(value);
@@ -78,7 +61,7 @@ export function useAddBankTransferForm() {
     setTotalAmountMillis(0);
     // BSM-025 — a new type has its own account and selection.
     setFieldErrors((prev) => ({ transferDate: prev.transferDate }));
-    // R13 — a cash payment sends no account: the backend sets it (BSM-026).
+    // BSM-026 — a direct payment sends no account: the backend sets it.
     setBankAccountState("");
   };
 
@@ -102,7 +85,6 @@ export function useAddBankTransferForm() {
     setSelectedProcedureIds([]);
     setTotalAmountMillis(0);
     setFieldErrors({});
-    // cashAccountId intentionally preserved — already loaded, no need to refetch
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -158,7 +140,6 @@ export function useAddBankTransferForm() {
     fieldErrors,
     bankAccountOptions,
     isFund,
-    isCash,
     handleSubmit,
   };
 }

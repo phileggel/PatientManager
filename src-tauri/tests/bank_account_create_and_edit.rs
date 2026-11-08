@@ -181,23 +181,29 @@ async fn test_update_account_unknown_or_deleted_is_refused() {
     assert!(!names(&pool).await.contains(&"Renamed".to_string()));
 }
 
+// BAC-013 — uniqueness covers the user's accounts only: a technical account's
+// name is free (#518).
 #[tokio::test]
-async fn test_create_account_with_the_cash_account_stored_name_is_refused() {
+async fn test_518_a_technical_account_name_is_free() {
     let pool = make_pool().await;
-    let (stored,): (String,) = sqlx::query_as("SELECT name FROM bank_account WHERE id = ?")
-        .bind(patient_manager_app::context::bank::CASH_ACCOUNT_ID)
-        .fetch_one(&pool)
-        .await
-        .expect("the cash account is seeded");
 
-    let err = service(&pool)
-        .create_account(stored, None)
-        .await
-        .expect_err("the cash account's stored name is taken");
+    for name in ["cash", "check", "card"] {
+        service(&pool)
+            .create_account(name.to_string(), None)
+            .await
+            .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+    }
 
-    assert!(
-        matches!(err, BankError::BankAccountNameAlreadyUsed),
-        "{err:?}"
+    let (stored,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM bank_account WHERE name = 'check'")
+            .fetch_one(&pool)
+            .await
+            .expect("count");
+    assert_eq!(stored, 2, "the technical account and the user's");
+    assert_eq!(
+        names(&pool).await.len(),
+        3,
+        "only the user's accounts are listed"
     );
 }
 

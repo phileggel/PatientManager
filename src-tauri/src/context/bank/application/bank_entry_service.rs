@@ -108,25 +108,44 @@ impl BankEntryService {
             .ok_or_else(|| BankError::BankAccountNotFound {
                 bank_account_id: bank_account_id.clone(),
             })?;
+        // BAC-055A — a fund wire goes on one of the user's accounts, never a technical one.
+        if !transfer_type.is_patient_payment() && !bank_account.is_bank() {
+            return Err(BankError::BankAccountNotFound { bank_account_id });
+        }
 
         // Domain construction happens in the service so typed domain errors
         // (e.g. `AmountNotPositive`) surface directly — the repo just persists.
         BankEntry::new(transfer_date, amount, transfer_type, bank_account)
     }
 
-    /// Check that an edited transfer's account exists, writing nothing (ADR-003).
+    /// Check that an edited transfer's account exists and is its own, writing nothing
+    /// (ADR-003, BAC-055A, BAC-056).
     pub async fn ensure_account_exists(&self, transfer: &BankEntry) -> Result<(), BankError> {
         let account_id = transfer.bank_account.id.clone();
-        self.account_repository
+        let account = self
+            .account_repository
             .read_account(&account_id)
             .await
             .map_err(|e| {
                 tracing::error!(target: BACKEND, err = ?e, "ensure_account_exists: read_account failed");
                 BankError::DatabaseError
             })?
-            .ok_or(BankError::BankAccountNotFound {
-                bank_account_id: account_id,
+            .ok_or_else(|| BankError::BankAccountNotFound {
+                bank_account_id: account_id.clone(),
             })?;
+        // BAC-056 — a patient's direct payment stays on its type's technical account;
+        // BAC-055A — anything else, a refund included, on one of the user's accounts.
+        let is_direct_payment = transfer.transfer_type.is_patient_payment() && transfer.amount > 0;
+        let in_place = if is_direct_payment {
+            account.id == transfer.transfer_type.account_for(String::new())
+        } else {
+            account.is_bank()
+        };
+        if !in_place {
+            return Err(BankError::BankAccountNotFound {
+                bank_account_id: account_id,
+            });
+        }
         Ok(())
     }
 
@@ -152,6 +171,8 @@ impl BankEntryService {
                 tracing::error!(target: BACKEND, err = ?e, "persist_refund_transfer: read_account failed");
                 BankError::DatabaseError
             })?
+            // BAC-055A — a refund leaves from one of the user's accounts.
+            .filter(|account| account.is_bank())
             .ok_or(BankError::BankAccountNotFound {
                 bank_account_id: account_id,
             })?;
@@ -195,7 +216,7 @@ impl BankEntryService {
 
 #[cfg(test)]
 mod tests {
-    use crate::context::bank::{BankAccount, CASH_ACCOUNT_ID};
+    use crate::context::bank::{BankAccount, BankAccountType, CASH_ACCOUNT_ID, CHECK_ACCOUNT_ID};
 
     use super::*;
     use anyhow::anyhow;
@@ -233,10 +254,17 @@ mod tests {
             if self.should_fail {
                 return Err(anyhow!("Mock repository error"));
             }
-            Ok(Some(BankAccount::restore(
+            // The seeded check account is technical; any other id a user account.
+            let account_type = if id == CHECK_ACCOUNT_ID {
+                BankAccountType::Check
+            } else {
+                BankAccountType::Bank
+            };
+            Ok(Some(BankAccount::restore_of_type(
                 id.to_string(),
                 "Test Account".to_string(),
                 None,
+                account_type,
             )))
         }
 
@@ -454,6 +482,115 @@ mod tests {
         let result = service.read_all_transfers().await;
 
         assert!(result.is_ok());
+    }
+
+    fn technical_account() -> BankAccount {
+        BankAccount::restore_of_type(
+            CHECK_ACCOUNT_ID.to_string(),
+            "check".to_string(),
+            None,
+            BankAccountType::Check,
+        )
+    }
+
+    // BAC-055A — a fund wire is refused on a technical account, as on an unknown one,
+    // when it is created, when it is edited, and a refund too.
+    #[tokio::test]
+    async fn test_518_a_technical_account_is_refused_where_an_account_is_chosen() {
+        let service = BankEntryService::new(
+            Arc::new(MockBankEntryRepository { should_fail: false }),
+            Arc::new(MockBankAccountRepository { should_fail: false }),
+            Arc::new(EventBus::new()),
+        );
+
+        let created = service
+            .create_transfer(
+                "2026-02-15".to_string(),
+                1_000,
+                BankEntryType::FundWire,
+                CHECK_ACCOUNT_ID.to_string(),
+                false,
+            )
+            .await;
+        let edited = service
+            .update_transfer(
+                BankEntry::with_id(
+                    "entry-1".to_string(),
+                    "2026-03-01".to_string(),
+                    1_000,
+                    BankEntryType::FundWire,
+                    technical_account(),
+                )
+                .expect("a valid entry"),
+            )
+            .await;
+        let refund = service
+            .persist_refund_transfer(
+                BankEntry::restore(
+                    "refund-1".to_string(),
+                    "2026-03-01".to_string(),
+                    -1_000,
+                    BankEntryType::PatientCheck,
+                    technical_account(),
+                ),
+                true,
+            )
+            .await;
+
+        for result in [created, edited, refund] {
+            assert!(matches!(result, Err(BankError::BankAccountNotFound { .. })));
+        }
+    }
+
+    // BAC-055A, BAC-056 — an edit cannot move a refund onto a technical account, nor a
+    // direct payment off its own.
+    #[tokio::test]
+    async fn test_518_an_edit_keeps_each_entry_on_its_kind_of_account() {
+        let service = BankEntryService::new(
+            Arc::new(MockBankEntryRepository { should_fail: false }),
+            Arc::new(MockBankAccountRepository { should_fail: false }),
+            Arc::new(EventBus::new()),
+        );
+        let refund = BankEntry::restore(
+            "refund-1".to_string(),
+            "2026-03-01".to_string(),
+            -1_000,
+            BankEntryType::PatientCheck,
+            technical_account(),
+        );
+        let moved_payment = BankEntry::with_id(
+            "entry-1".to_string(),
+            "2026-03-01".to_string(),
+            1_000,
+            BankEntryType::PatientCheck,
+            BankAccount::restore("acc-123".to_string(), "Main".to_string(), None),
+        )
+        .expect("a valid entry");
+
+        for entry in [refund, moved_payment] {
+            let result = service.update_transfer(entry).await;
+            assert!(matches!(result, Err(BankError::BankAccountNotFound { .. })));
+        }
+    }
+
+    // BAC-056 — a direct payment's edit keeps its technical account.
+    #[tokio::test]
+    async fn test_518_a_direct_payment_is_edited_on_its_technical_account() {
+        let service = BankEntryService::new(
+            Arc::new(MockBankEntryRepository { should_fail: false }),
+            Arc::new(MockBankAccountRepository { should_fail: false }),
+            Arc::new(EventBus::new()),
+        );
+        let entry = BankEntry::with_id(
+            "entry-1".to_string(),
+            "2026-03-01".to_string(),
+            1_000,
+            BankEntryType::PatientCheck,
+            technical_account(),
+        )
+        .expect("a valid entry");
+
+        assert!(service.update_transfer(entry).await.is_ok());
     }
 
     #[tokio::test]

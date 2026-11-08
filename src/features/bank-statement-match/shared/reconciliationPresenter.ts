@@ -157,7 +157,7 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "IbanAlreadyUsed":
     case "BankAccountNameAlreadyUsed":
     case "BankAccountNotFound":
-    case "ProtectedCashAccount":
+    case "ProtectedTechnicalAccount":
     case "BankAccountHoldsBankEntries":
     case "TransferNotFound":
     // --- FundError ---

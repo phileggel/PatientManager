@@ -8,7 +8,7 @@
 
 ### `create_bank_account` — BAC-010 to BAC-014, BAC-020
 
-Creates a new bank account with a name and an optional IBAN. The IBAN is stripped of spaces and stored normalised. If the name is empty or whitespace-only, the command fails immediately. A name another account holds — compared exactly, case included, once trimmed, the cash account under its stored name — is refused with `BankAccountNameAlreadyUsed` (BAC-013). An IBAN another account uses is refused with `IbanAlreadyUsed` (BAC-014); a deleted account is gone, so its name and IBAN can be used again.
+Creates a new bank account with a name and an optional IBAN. The IBAN is stripped of spaces and stored normalised. If the name is empty or whitespace-only, the command fails immediately. A name another account holds — compared exactly, case included, once trimmed, among the `bank` accounts (BAC-050) — is refused with `BankAccountNameAlreadyUsed` (BAC-013). An IBAN another account uses is refused with `IbanAlreadyUsed` (BAC-014); a deleted account is gone, so its name and IBAN can be used again.
 
 - **Args:** `name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
@@ -16,9 +16,9 @@ Creates a new bank account with a name and an optional IBAN. The IBAN is strippe
 
 ---
 
-### `read_all_bank_accounts` — BAC-016, BAC-041, BAC-042, BAC-050, BAC-073
+### `read_all_bank_accounts` — BAC-016, BAC-041, BAC-042, BAC-055, BAC-073
 
-Returns all bank accounts, including the default cash account (BAC-050); a deleted account is gone (BAC-041).
+Returns the `bank` accounts, never a technical one (BAC-055); a deleted account is gone (BAC-041).
 
 - **Args:** —
 - **Returns:** `Vec<BankAccount>`
@@ -28,33 +28,21 @@ Returns all bank accounts, including the default cash account (BAC-050); a delet
 
 ### `update_bank_account` — BAC-010 to BAC-014, BAC-030, BAC-051
 
-Replaces the name and IBAN of an account: both are sent, and `iban: None` clears it; the IBAN is stored without spaces. An unknown account, a deleted one included, is refused with `BankAccountNotFound` (BAC-030). The cash account (`cash-account-default`) must not be editable per BAC-051. A name another account holds — compared exactly, case included, once trimmed, the cash account under its stored name — is refused with `BankAccountNameAlreadyUsed` (BAC-013). An IBAN another account uses is refused with `IbanAlreadyUsed` (BAC-014).
+Replaces the name and IBAN of an account: both are sent, and `iban: None` clears it; the IBAN is stored without spaces. An unknown account, a deleted one included, is refused with `BankAccountNotFound` (BAC-030). A technical account is refused with `ProtectedTechnicalAccount` (BAC-051). A name another account holds — compared exactly, case included, once trimmed, among the `bank` accounts (BAC-050) — is refused with `BankAccountNameAlreadyUsed` (BAC-013). An IBAN another account uses is refused with `IbanAlreadyUsed` (BAC-014).
 
 - **Args:** `id: String, name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
-- **Errors:** `BankAccountNameEmpty`, `BankAccountNameAlreadyUsed`, `BankAccountNotFound`, `ProtectedCashAccount`, `IbanAlreadyUsed`, `DatabaseError`
+- **Errors:** `BankAccountNameEmpty`, `BankAccountNameAlreadyUsed`, `BankAccountNotFound`, `ProtectedTechnicalAccount` (BAC-051), `IbanAlreadyUsed`, `DatabaseError`
 
 ---
 
 ### `delete_bank_account` — BAC-041, BAC-043, BAC-051
 
-Really deletes a bank account and its bank statement labels (BAC-041, BAS-046). It is refused with `BankAccountHoldsBankEntries` while any bank entry is recorded on the account, one written while the deletion ran included (BAC-043). The cash account (`cash-account-default`) must not be deletable per BAC-051.
+Really deletes a bank account and its bank statement labels (BAC-041, BAS-046). It is refused with `BankAccountHoldsBankEntries` while any bank entry is recorded on the account, one written while the deletion ran included (BAC-043). A technical account is refused with `ProtectedTechnicalAccount` (BAC-051).
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `BankAccountNotFound`, `ProtectedCashAccount`, `BankAccountHoldsBankEntries` (BAC-043), `DatabaseError`
-
----
-
-### `get_cash_bank_account_id` — BAC-050, BSM-026
-
-Returns the fixed ID of the default cash account (`cash-account-default`), seeded by migration. Called by the bank-transfer form to leave the cash account out of its account list; a CASH entry's account is set by the backend (BSM-026). The value is a compile-time constant on the backend; the frontend fetches it via command to avoid hardcoding it.
-
-- **Args:** —
-- **Returns:** `String`
-- **Errors:** —
-
----
+- **Errors:** `BankAccountNotFound`, `ProtectedTechnicalAccount` (BAC-051), `BankAccountHoldsBankEntries` (BAC-043), `DatabaseError`
 
 ---
 
@@ -130,7 +118,7 @@ enum BankEntryType {
     FundWire,           // FUND transfer from insurance
     PatientCheck,       // check from patient
     PatientCreditCard,  // card payment from patient
-    PatientCash,        // cash — auto-assigns the cash account
+    PatientCash,        // cash — recorded on the `cash` technical account (BAC-056)
     OutgoingWire,       // reserved for overpayment refund (REF-080); not creatable in manual-match
 }
 ```
@@ -154,3 +142,4 @@ enum BankEntryType {
 - 2026-10-24 — `delete_bank_account`: refused with `BankAccountHoldsBankEntries` while a bank entry is on the account (R6, #448); the Errors of `create_bank_account` and `update_bank_account` spelled as on the wire; `read_all_bank_accounts` lists `DatabaseError`
 - 2026-10-24 — the `bank-account` rules renumbered R1–R9 → BAC (#503); `create_bank_account` and `update_bank_account` refuse a taken name with `BankAccountNameAlreadyUsed` (BAC-013); `update_bank_account` returns `BankAccountNotFound` for an unknown or deleted account (BAC-030)
 - 2026-11-07 — `delete_bank_account` really deletes the account (BAC-041, #584), its refusal kept when an entry is written meanwhile (BAC-043); a deleted account's name and IBAN can be used again (BAC-013, BAC-014); no signature change.
+- 2026-11-08 — #518 (BAC-050 to BAC-059): `get_cash_bank_account_id` is removed; `read_all_bank_accounts` returns the `bank` accounts only; `ProtectedCashAccount` becomes `ProtectedTechnicalAccount`.
