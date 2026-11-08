@@ -64,7 +64,7 @@ pub enum BankError {
     BankAccountHoldsBankEntries,
 
     // --- BankEntry service-layer errors ---
-    /// `BankEntryService::update_transfer` lookup returned no row.
+    /// `BankEntryService::delete_transfer` found no row.
     #[error("Bank transfer not found: {bank_transfer_id}")]
     TransferNotFound { bank_transfer_id: String },
 

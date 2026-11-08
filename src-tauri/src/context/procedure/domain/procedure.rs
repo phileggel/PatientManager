@@ -187,7 +187,7 @@ impl FromStr for ProcedureStatus {
 /// Healthcare Procedure aggregate root
 ///
 /// Represents a healthcare procedure (service/procedure) record with foreign key references
-/// to Patient, Fund, and Procedure Type. Uses soft-delete pattern.
+/// to Patient, Fund, and Procedure Type.
 ///
 /// Payment tracking:
 /// - billed_amount: Total amount charged/invoiced for the procedure (thousandths of a euro)

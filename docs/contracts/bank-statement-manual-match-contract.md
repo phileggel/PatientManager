@@ -160,7 +160,7 @@ enum BankEntryType {
     PatientCheck,       // direct payment — on the `check` technical account (BSM-026); payment_method = Check
     PatientCreditCard,  // direct payment — on the `card` technical account (BSM-026); payment_method = BankCard
     PatientCash,        // direct payment — on the `cash` technical account (BSM-026); payment_method = Cash
-    OutgoingWire,       // reserved for overpayment refund (REF-080); not creatable in this flow (R2)
+    FundOutgoingWire,   // reserved for overpayment refund (REF-080); not creatable in this flow (R2)
 }
 
 // R6, R12, R21 — a fund-payment group eligible for a FUND bank transfer
@@ -221,3 +221,4 @@ An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed 
 - 2026-06-09 — Typed-error migration: per-command Errors columns now list the real wire-visible `BankManualMatchError` variant codes (`BankError`/`FundError`/`ProcedureError`/`WrongTransferType`), replacing the pre-implementation aspirational names
 - 2026-10-24 — `create_direct_transfer`: a `PATIENT_CASH` creation stores `cash-account-default`, whatever account it is sent (BSM-026, #455)
 - 2026-11-08 — #518: `create_direct_transfer` puts every direct payment on its type's technical account (BSM-026, BAC-056) and no longer answers `BankAccountNotFound`; `create_fund_transfer` refuses a technical account as unknown (BAC-055A).
+- 2026-11-08 — `BankEntryType`: the refund variant is `FundOutgoingWire`, as the code names it (release sweep).

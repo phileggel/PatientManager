@@ -46,13 +46,13 @@ Really deletes a bank account and its bank statement labels (BAC-041, BAS-046). 
 
 ---
 
-### `create_bank_transfer`
+### `create_bank_transfer` — BAC-055A, BAC-056
 
 Creates a bare bank entry (without linked groups or procedures — links are managed by `bank_manual_match` use case). Used as a building block by the manual-match use case. A direct payment goes on its type's technical account, whatever account is sent (BAC-056); any other entry given a technical account is refused as unknown (BAC-055A).
 
 - **Args:** `transfer_date: String, amount: i64, transfer_type: BankEntryType, bank_account_id: String`
 - **Returns:** `BankEntry`
-- **Errors:** `AccountNotFound`, `BankAccountNotFound` (BAC-055A), `InvalidDateFormat`
+- **Errors:** `BankAccountNotFound` (BAC-055A), `InvalidTransferDateFormat`, `AmountNotPositive`, `DatabaseError`
 
 ---
 
@@ -62,7 +62,7 @@ Returns all bank entries with their associated account info. Used to populate th
 
 - **Args:** —
 - **Returns:** `Vec<BankEntry>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -72,17 +72,17 @@ Returns a single bank entry by ID.
 
 - **Args:** `id: String`
 - **Returns:** `BankEntry` (optional — `null` if not found)
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
-### `update_bank_transfer`
+### `update_bank_transfer` — BAC-055A, BAC-056
 
-Updates an existing bank entry's fields (bare update — does not touch linked groups/procedures). Its account must be its own: a patient's direct payment (a positive `PatientCash`, `PatientCheck` or `PatientCreditCard` entry) on its type's technical account (BAC-056); anything else, a check or card refund included, on a `bank` account (BAC-055A).
+Updates an existing bank entry's fields (bare update — does not touch linked groups/procedures). Its account must be its own: a patient's direct payment (a positive `PatientCash`, `PatientCheck` or `PatientCreditCard` entry) on its type's technical account (BAC-056); anything else, a check or card refund included, on a `bank` account (BAC-055A). An unknown id is not refused: nothing is written and the entry sent comes back.
 
 - **Args:** `transfer: BankEntry`
 - **Returns:** `BankEntry`
-- **Errors:** `TransferNotFound`, `BankAccountNotFound` (BAC-055A, BAC-056), `DatabaseError`
+- **Errors:** `BankAccountNotFound` (BAC-055A, BAC-056), `DatabaseError`
 
 ---
 
@@ -119,7 +119,7 @@ enum BankEntryType {
     PatientCheck,       // check from patient — on the `check` technical account (BAC-056)
     PatientCreditCard,  // card payment from patient — on the `card` technical account (BAC-056)
     PatientCash,        // cash — recorded on the `cash` technical account (BAC-056)
-    OutgoingWire,       // reserved for overpayment refund (REF-080); not creatable in manual-match
+    FundOutgoingWire,   // reserved for overpayment refund (REF-080); not creatable in manual-match
 }
 ```
 
@@ -144,4 +144,5 @@ enum BankEntryType {
 - 2026-11-07 — `delete_bank_account` really deletes the account (BAC-041, #584), its refusal kept when an entry is written meanwhile (BAC-043); a deleted account's name and IBAN can be used again (BAC-013, BAC-014); no signature change.
 - 2026-11-08 — #518 (BAC-050A to BAC-059): `get_cash_bank_account_id` is removed; `read_all_bank_accounts` returns the `bank` accounts only; `ProtectedCashAccount` becomes `ProtectedTechnicalAccount`.
 - 2026-11-08 — `update_bank_transfer`: an entry moved off its own account is refused with `BankAccountNotFound` (BAC-055A, BAC-056, #518).
+- 2026-11-08 — `create_bank_transfer`, `update_bank_transfer`, `read_*_bank_transfer*`: the Errors lines name the codes the code sends (release sweep).
 - 2026-11-08 — `create_bank_transfer`: a direct payment is placed on its technical account; any other entry on a technical account is refused with `BankAccountNotFound` (BAC-055A, BAC-056, #518).
