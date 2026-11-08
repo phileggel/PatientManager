@@ -30,8 +30,8 @@ impl BankEntryService {
         }
     }
 
-    /// Create a new bank transfer — a cash payment on the cash account,
-    /// whatever account is sent (BSM-026).
+    /// Create a new bank transfer — a direct payment on its technical account,
+    /// whatever account is sent (BSM-026, BAC-056).
     pub async fn create_transfer(
         &self,
         transfer_date: String,
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(transfer.amount, 1500000);
     }
 
-    // BSM-026 — a cash payment is recorded on the cash account, whatever is sent.
+    // BSM-026, BAC-056 — a cash payment is recorded on its technical account, whatever is sent.
     #[tokio::test]
     async fn test_create_transfer_cash_sent_another_account_records_the_cash_account() {
         let repo = Arc::new(MockBankEntryRepository { should_fail: false });

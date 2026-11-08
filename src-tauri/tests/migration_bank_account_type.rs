@@ -173,3 +173,31 @@ async fn test_518_an_entry_left_on_the_cash_account_refuses_the_upgrade() {
         );
     }
 }
+
+/// BAC-054, BAC-059 — a fresh database holds the three technical accounts, typed, with no
+/// IBAN; an account the user creates is a `bank` one.
+#[tokio::test]
+async fn test_518_a_fresh_database_holds_the_technical_accounts() {
+    let pool = pool_before_the_migration().await;
+    run_the_migration(&pool).await;
+    seed(
+        &pool,
+        &["INSERT INTO bank_account (id, name) VALUES ('mine', 'Ma banque')"],
+    )
+    .await;
+
+    assert_eq!(
+        ids(
+            &pool,
+            "SELECT id || ':' || account_type || ':' || ifnull(iban, '-') FROM bank_account ORDER BY id"
+        )
+        .await,
+        [
+            "card-account-default:card:-",
+            "cash-account-default:cash:-",
+            "check-account-default:check:-",
+            "mine:bank:-",
+        ]
+        .map(String::from)
+    );
+}

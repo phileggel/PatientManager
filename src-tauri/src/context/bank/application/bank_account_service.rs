@@ -42,8 +42,7 @@ impl BankAccountService {
         Err(BankError::IbanAlreadyUsed)
     }
 
-    /// BAC-013 — name uniqueness among the accounts, the
-    /// cash account included; `exempt_id` lets an edit keep its own name.
+    /// BAC-013 — name uniqueness among the `bank` accounts; `exempt_id` lets an edit keep its own name.
     /// Names are compared exactly, once the factory has trimmed them.
     async fn ensure_name_free(&self, name: &str, exempt_id: Option<&str>) -> Result<(), BankError> {
         let taken = self
