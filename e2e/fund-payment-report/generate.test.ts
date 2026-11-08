@@ -145,9 +145,9 @@ describe("generate_fund_reconciliation_report_pdf", () => {
     assert.strictEqual(bytes[3], PDF_MAGIC[3], "Byte 3 must be 0x46 ('F')");
   });
 
-  // ── Happy path — populated (Rows section 1 + correction groups) ────────────
+  // ── Happy path — populated (Rows section 1, corrections, Section 3) ────────────
 
-  it("returns PDF bytes for populated request (Rows section 1 + correction groups)", async () => {
+  it("returns PDF bytes for populated request (Rows section 1 + correction groups + Section 3)", async () => {
     const result = await tauriInvoke<number[]>("generate_fund_reconciliation_report_pdf", {
       request: POPULATED_REQUEST,
     });
