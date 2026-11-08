@@ -48,11 +48,11 @@ Really deletes a bank account and its bank statement labels (BAC-041, BAS-046). 
 
 ### `create_bank_transfer`
 
-Creates a bare bank entry (without linked groups or procedures — links are managed by `bank_manual_match` use case). Used as a building block by the manual-match use case.
+Creates a bare bank entry (without linked groups or procedures — links are managed by `bank_manual_match` use case). Used as a building block by the manual-match use case. A direct payment goes on its type's technical account, whatever account is sent (BAC-056); any other entry given a technical account is refused as unknown (BAC-055A).
 
 - **Args:** `transfer_date: String, amount: i64, transfer_type: BankEntryType, bank_account_id: String`
 - **Returns:** `BankEntry`
-- **Errors:** `AccountNotFound`, `InvalidDateFormat`
+- **Errors:** `AccountNotFound`, `BankAccountNotFound` (BAC-055A), `InvalidDateFormat`
 
 ---
 
@@ -116,8 +116,8 @@ struct BankEntry {
 // R2 (bank-statement-manual-match) — transfer/payment type
 enum BankEntryType {
     FundWire,           // FUND transfer from insurance
-    PatientCheck,       // check from patient
-    PatientCreditCard,  // card payment from patient
+    PatientCheck,       // check from patient — on the `check` technical account (BAC-056)
+    PatientCreditCard,  // card payment from patient — on the `card` technical account (BAC-056)
     PatientCash,        // cash — recorded on the `cash` technical account (BAC-056)
     OutgoingWire,       // reserved for overpayment refund (REF-080); not creatable in manual-match
 }
@@ -144,3 +144,4 @@ enum BankEntryType {
 - 2026-11-07 — `delete_bank_account` really deletes the account (BAC-041, #584), its refusal kept when an entry is written meanwhile (BAC-043); a deleted account's name and IBAN can be used again (BAC-013, BAC-014); no signature change.
 - 2026-11-08 — #518 (BAC-050A to BAC-059): `get_cash_bank_account_id` is removed; `read_all_bank_accounts` returns the `bank` accounts only; `ProtectedCashAccount` becomes `ProtectedTechnicalAccount`.
 - 2026-11-08 — `update_bank_transfer`: an entry moved off its own account is refused with `BankAccountNotFound` (BAC-055A, BAC-056, #518).
+- 2026-11-08 — `create_bank_transfer`: a direct payment is placed on its technical account; any other entry on a technical account is refused with `BankAccountNotFound` (BAC-055A, BAC-056, #518).

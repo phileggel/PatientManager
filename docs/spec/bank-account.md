@@ -88,7 +88,7 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-055 — Only `bank` accounts are listed (backend)**: No listing returns a technical account, and none is read by its identity: it is unknown, but for an edit or a deletion, refused as BAC-051 says.
 
-**BAC-055A — Only `bank` accounts are chosen (backend)**: A technical account given wherever an account is chosen — a FUND transfer (BSM-021), a refund (REF-070), a bank statement (BAS-063A), a bank entry edited onto it — is unknown.
+**BAC-055A — Only `bank` accounts are chosen (backend)**: A technical account given wherever an account is chosen — a FUND transfer (BSM-021), a refund (REF-070), a bank statement (BAS-063A), the stored account of a bank entry checked again when it is edited — is unknown.
 
 **BAC-056 — A direct payment's account (backend)**: A patient's direct payment (BSM R14 to R20) is recorded on the technical account of its type — `CASH` on `cash`, `CHECK` on `check`, `CREDIT_CARD` on `card` — and an account given with it is ignored, even an unknown one (BSM-026). A refund paid by check or card stays on its `bank` account (REF-070).
 
@@ -169,6 +169,7 @@ A page: the account list with its search, and a side panel with the add form. Ed
 
 ## Open Questions
 
+- [ ] Is the user told, after the upgrade, that direct payments moved to the technical accounts (BAC-057, BAC-058)?
 - [ ] Is the user told, after the upgrade, which accounts BAC-060 restored, BAC-061 renamed or BAC-062 left without an IBAN? An account without one is no longer found by a PDF import (BAS-010).
 - [x] Should the cash account's stored name (« Caisse ») keep counting as taken (BAC-013)? — Superseded by the owner on 2026-11-07 (#518): technical accounts are never shown (BAC-055) and uniqueness covers `bank` accounts only (BAC-013).
 - [ ] Should a taken IBAN's reason (BAC-014) show under the IBAN field? Today every refused creation's reason shows under the name field (BAC-022).

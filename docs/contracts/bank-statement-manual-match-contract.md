@@ -157,8 +157,8 @@ Returns the IDs of procedures currently linked to a direct payment. Used alongsi
 // R2 — transfer/payment type; governs which flow applies and what payment_method is set on procedures
 enum BankEntryType {
     FundWire,           // FUND transfer — procedures receive payment_method = BankTransfer
-    PatientCheck,       // direct payment — procedures receive payment_method = Check
-    PatientCreditCard,  // direct payment — procedures receive payment_method = BankCard
+    PatientCheck,       // direct payment — on the `check` technical account (BSM-026); payment_method = Check
+    PatientCreditCard,  // direct payment — on the `card` technical account (BSM-026); payment_method = BankCard
     PatientCash,        // direct payment — on the `cash` technical account (BSM-026); payment_method = Cash
     OutgoingWire,       // reserved for overpayment refund (REF-080); not creatable in this flow (R2)
 }
