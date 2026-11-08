@@ -1,8 +1,7 @@
 {
   "modal_title": "Management",
   "prerequisites": {
-    "no_fund": "Create a fund first to access fund payments.",
-    "no_bank_account": "Create a bank account first to access this feature."
+    "no_fund": "Create a fund first to access fund payments."
   },
   "patient": {
     "title": "Patients",

@@ -84,14 +84,14 @@ describe("useManagementModal", () => {
     expect(toastService.show).not.toHaveBeenCalled();
   });
 
-  it("handleBankTransfer shows info toast and redirects to bank-account when no account exists", () => {
+  it("ticket #518: handleBankTransfer opens bank-transfer with no account (BAC-056)", () => {
     useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
     result.current.handleBankTransfer();
 
-    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.no_bank_account");
-    expect(onNavigate).toHaveBeenCalledWith("bank-account");
+    expect(toastService.show).not.toHaveBeenCalled();
+    expect(onNavigate).toHaveBeenCalledWith("bank-transfer");
     expect(onClose).toHaveBeenCalledOnce();
   });
 

@@ -84,9 +84,9 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-054 — The technical accounts (backend)**: The `cash`, `check` and `card` accounts exist from the first launch, each with a fixed identity and no IBAN.
 
-**BAC-055 — Only `bank` accounts are listed (backend)**: No listing returns a technical account, and none is read by its identity: it is unknown.
+**BAC-055 — Only `bank` accounts are listed (backend)**: No listing returns a technical account, and none is read by its identity: it is unknown, but for an edit or a deletion, refused as BAC-051 says.
 
-**BAC-055A — Only `bank` accounts are chosen (backend)**: A technical account given wherever an account is chosen — a fund wire (BSM-021), a refund (REF-070), a bank statement (BAS-063A), an edited bank entry — is unknown.
+**BAC-055A — Only `bank` accounts are chosen (backend)**: A technical account given wherever an account is chosen — a fund wire (BSM-021), a refund (REF-070), a bank statement (BAS-063A), a bank entry edited onto it — is unknown.
 
 **BAC-056 — A direct payment's account (backend)**: A patient's direct payment (BSM R14 to R20) is recorded on the technical account of its type — `CASH` on `cash`, `CHECK` on `check`, `CREDIT_CARD` on `card` — and an account given with it is ignored, even an unknown one (BSM-026). A refund paid by check or card stays on its `bank` account (REF-070).
 

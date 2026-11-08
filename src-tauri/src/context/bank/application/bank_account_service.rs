@@ -131,9 +131,7 @@ impl BankAccountService {
         iban: Option<String>,
     ) -> Result<BankAccount, BankError> {
         // BAC-030 — an unknown account is not edited; BAC-051 — nor a technical one.
-        if !self.read_any_account(&id).await?.is_bank() {
-            return Err(BankError::ProtectedTechnicalAccount);
-        }
+        self.read_any_account(&id).await?.ensure_editable()?;
         // BAC-014 — Normalize and check IBAN uniqueness BEFORE calling the factory.
         // Self-match (same id) is allowed via the exempt_id arg.
         let normalized_iban = BankAccount::normalize_iban(iban.as_deref());
@@ -159,9 +157,7 @@ impl BankAccountService {
     /// and with `BankAccountHoldsBankEntries` while a bank entry is recorded on it (BAC-043).
     pub async fn delete_account(&self, id: &str) -> Result<(), BankError> {
         // BAC-051 — a technical account is never deleted.
-        if !self.read_any_account(id).await?.is_bank() {
-            return Err(BankError::ProtectedTechnicalAccount);
-        }
+        self.read_any_account(id).await?.ensure_editable()?;
         let holds_bank_entries = self.repository.holds_bank_entries(id).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "delete_account: holds_bank_entries failed");
             BankError::DatabaseError

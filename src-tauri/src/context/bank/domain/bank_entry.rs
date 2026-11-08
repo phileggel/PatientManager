@@ -44,11 +44,17 @@ impl BankEntryType {
     /// payment's is the technical account of its type, whatever is sent; any other's
     /// is the one sent.
     pub fn account_for(self, sent: String) -> String {
+        self.technical_account_id()
+            .map_or(sent, |technical| technical.to_string())
+    }
+
+    /// BAC-056 — the technical account of a direct payment type; none for a fund wire.
+    pub fn technical_account_id(self) -> Option<&'static str> {
         match self {
-            Self::PatientCash => CASH_ACCOUNT_ID.to_string(),
-            Self::PatientCheck => CHECK_ACCOUNT_ID.to_string(),
-            Self::PatientCreditCard => CARD_ACCOUNT_ID.to_string(),
-            Self::FundWire | Self::FundOutgoingWire => sent,
+            Self::PatientCash => Some(CASH_ACCOUNT_ID),
+            Self::PatientCheck => Some(CHECK_ACCOUNT_ID),
+            Self::PatientCreditCard => Some(CARD_ACCOUNT_ID),
+            Self::FundWire | Self::FundOutgoingWire => None,
         }
     }
 
@@ -87,6 +93,15 @@ where
 }
 
 impl BankEntry {
+    /// BAC-056 — a patient's direct payment sits on its type's technical account;
+    /// BAC-055A — anything else, a refund included, on one of the user's accounts.
+    pub fn is_on_its_own_account(&self, account: &BankAccount) -> bool {
+        match self.transfer_type.technical_account_id() {
+            Some(technical) if self.amount > 0 => account.id == technical,
+            _ => account.is_bank(),
+        }
+    }
+
     /// Creates a new BankEntry with validation and generates ID.
     pub fn new(
         transfer_date: String,

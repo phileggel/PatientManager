@@ -114,18 +114,18 @@ describe("useImportModal", () => {
 
   // --- Bank reconciliation ---
 
-  it("handleBankReconciliation: no accounts — shows toast, navigates to bank-account, closes", async () => {
+  it("ticket #518: handleBankReconciliation with no account opens the file picker (BAS-013)", async () => {
     useCacheStore.setState({ funds: [], bankAccounts: [] });
+    mockPickPdf.mockResolvedValue("/tmp/statement.pdf");
     const { result } = renderModal();
 
     await act(async () => {
       await result.current.handleBankReconciliation();
     });
 
-    expect(toastService.show).toHaveBeenCalledWith("info", "prerequisites.no_bank_account");
-    expect(onNavigate).toHaveBeenCalledWith("bank-account");
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(mockPickPdf).not.toHaveBeenCalled();
+    expect(toastService.show).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(onFileSelected).toHaveBeenCalledWith("bank-statement-match", "/tmp/statement.pdf");
   });
 
   it("handleBankReconciliation: accounts exist, cancelled — does nothing", async () => {

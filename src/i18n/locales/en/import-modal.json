@@ -1,8 +1,7 @@
 {
   "modal_title": "Import",
   "prerequisites": {
-    "no_fund": "Create a fund first to access reconciliation.",
-    "no_bank_account": "Create a bank account first to access this feature."
+    "no_fund": "Create a fund first to access reconciliation."
   },
   "excel": {
     "title": "Accounting from an Excel file",

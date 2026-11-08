@@ -78,11 +78,11 @@ Returns a single bank entry by ID.
 
 ### `update_bank_transfer`
 
-Updates an existing bank entry's fields (bare update — does not touch linked groups/procedures).
+Updates an existing bank entry's fields (bare update — does not touch linked groups/procedures). Its account must be its own: a direct payment's technical account (BAC-056), a `bank` account for anything else (BAC-055A).
 
 - **Args:** `transfer: BankEntry`
 - **Returns:** `BankEntry`
-- **Errors:** `TransferNotFound`
+- **Errors:** `TransferNotFound`, `BankAccountNotFound` (BAC-055A, BAC-056), `DatabaseError`
 
 ---
 
@@ -143,3 +143,4 @@ enum BankEntryType {
 - 2026-10-24 — the `bank-account` rules renumbered R1–R9 → BAC (#503); `create_bank_account` and `update_bank_account` refuse a taken name with `BankAccountNameAlreadyUsed` (BAC-013); `update_bank_account` returns `BankAccountNotFound` for an unknown or deleted account (BAC-030)
 - 2026-11-07 — `delete_bank_account` really deletes the account (BAC-041, #584), its refusal kept when an entry is written meanwhile (BAC-043); a deleted account's name and IBAN can be used again (BAC-013, BAC-014); no signature change.
 - 2026-11-08 — #518 (BAC-050 to BAC-059): `get_cash_bank_account_id` is removed; `read_all_bank_accounts` returns the `bank` accounts only; `ProtectedCashAccount` becomes `ProtectedTechnicalAccount`.
+- 2026-11-08 — `update_bank_transfer`: an entry moved off its own account is refused with `BankAccountNotFound` (BAC-055A, BAC-056, #518).

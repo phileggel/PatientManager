@@ -133,15 +133,7 @@ impl BankEntryService {
             .ok_or_else(|| BankError::BankAccountNotFound {
                 bank_account_id: account_id.clone(),
             })?;
-        // BAC-056 — a patient's direct payment stays on its type's technical account;
-        // BAC-055A — anything else, a refund included, on one of the user's accounts.
-        let is_direct_payment = transfer.transfer_type.is_patient_payment() && transfer.amount > 0;
-        let in_place = if is_direct_payment {
-            account.id == transfer.transfer_type.account_for(String::new())
-        } else {
-            account.is_bank()
-        };
-        if !in_place {
+        if !transfer.is_on_its_own_account(&account) {
             return Err(BankError::BankAccountNotFound {
                 bank_account_id: account_id,
             });

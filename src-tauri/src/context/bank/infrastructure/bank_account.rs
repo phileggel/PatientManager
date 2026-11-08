@@ -51,12 +51,14 @@ impl BankAccountRepository for SqliteBankAccountRepository {
     async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
         tracing::trace!(target: BACKEND, "Fetching all bank accounts from database");
 
+        let bank = BankAccountType::Bank.as_db_str();
         let rows = sqlx::query!(
             r#"
             SELECT id, name, iban
             FROM bank_account
-            WHERE account_type = 'bank'
+            WHERE account_type = $1
             "#,
+            bank,
         )
         .fetch_all(&self.pool)
         .await?;

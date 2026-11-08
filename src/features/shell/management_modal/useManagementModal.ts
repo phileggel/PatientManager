@@ -30,7 +30,6 @@ export function useManagementModal({
 }: UseManagementModalProps): UseManagementModalReturn {
   const { t } = useTranslation("management-modal");
   const fundCount = useCacheStore((state) => state.funds.length);
-  const bankAccountCount = useCacheStore((state) => state.bankAccounts.length);
 
   const handlePatient = useCallback(() => {
     onNavigate("patient");
@@ -57,15 +56,11 @@ export function useManagementModal({
     onClose();
   }, [fundCount, onNavigate, onClose, t]);
 
+  // BAC-056 — a direct payment needs no account: the page opens with none (#518).
   const handleBankTransfer = useCallback(() => {
-    if (bankAccountCount === 0) {
-      toastService.show("info", t("prerequisites.no_bank_account"));
-      onNavigate("bank-account");
-    } else {
-      onNavigate("bank-transfer");
-    }
+    onNavigate("bank-transfer");
     onClose();
-  }, [bankAccountCount, onNavigate, onClose, t]);
+  }, [onNavigate, onClose]);
 
   const handleBankAccount = useCallback(() => {
     onNavigate("bank-account");

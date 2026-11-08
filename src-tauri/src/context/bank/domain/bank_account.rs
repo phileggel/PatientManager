@@ -123,6 +123,15 @@ impl BankAccount {
         self.account_type == BankAccountType::Bank
     }
 
+    /// BAC-051 — a technical account is never edited or deleted.
+    pub fn ensure_editable(&self) -> Result<(), BankError> {
+        if self.is_bank() {
+            Ok(())
+        } else {
+            Err(BankError::ProtectedTechnicalAccount)
+        }
+    }
+
     /// Validates bank account fields.
     fn validate(name: &str) -> Result<(), BankError> {
         let trimmed = name.trim();

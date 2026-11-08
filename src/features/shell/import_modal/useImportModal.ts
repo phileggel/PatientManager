@@ -40,7 +40,6 @@ export function useImportModal({
 }: UseImportModalProps): UseImportModalReturn {
   const { t } = useTranslation("import-modal");
   const fundCount = useCacheStore((state) => state.funds.length);
-  const bankAccountCount = useCacheStore((state) => state.bankAccounts.length);
   const [isPicking, setIsPicking] = useState(false);
 
   const handleExcelImport = useCallback(async () => {
@@ -78,13 +77,8 @@ export function useImportModal({
     }
   }, [fundCount, onNavigate, onClose, onFileSelected, t]);
 
+  // BAS-013 — with no account yet, the import offers to create it from the statement (#518).
   const handleBankReconciliation = useCallback(async () => {
-    if (bankAccountCount === 0) {
-      toastService.show("info", t("prerequisites.no_bank_account"));
-      onNavigate("bank-account");
-      onClose();
-      return;
-    }
     setIsPicking(true);
     try {
       const path = await pickPdfFilePath(
@@ -98,7 +92,7 @@ export function useImportModal({
     } finally {
       setIsPicking(false);
     }
-  }, [bankAccountCount, onNavigate, onClose, onFileSelected, t]);
+  }, [onClose, onFileSelected, t]);
 
   return {
     handleExcelImport,
