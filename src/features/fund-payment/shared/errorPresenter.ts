@@ -51,7 +51,6 @@ export function formatManualManagementError(err: FundPaymentManualManagementErro
     case "ProcedureTypeNotFound":
     case "ProcedureTypeNameDuplicate":
     case "ReservedTypeNotMutable":
-    case "ProcedureTypeInUse":
     case "RefundReasonTooLong":
     case "InvalidRefundDateFormat":
       return { key: "fund-payment:errors.unexpected" };

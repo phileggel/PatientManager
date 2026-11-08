@@ -67,6 +67,8 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             SELECT id, bank_account_id, bank_label, fund_id
             FROM bank_fund_label_mapping
             WHERE bank_account_id = $1
+              -- BAS-041D: a label whose fund is gone is unknown, so asked again
+              AND (fund_id IS NULL OR EXISTS (SELECT 1 FROM fund WHERE fund.id = fund_id))
             "#,
             bank_account_id,
         )
@@ -90,6 +92,8 @@ impl BankFundLabelMappingRepository for SqliteBankFundLabelMappingRepository {
             r#"
             SELECT id, bank_account_id, bank_label, fund_id
             FROM bank_fund_label_mapping
+            -- BAS-041D: a label whose fund is gone is left out of the list
+            WHERE fund_id IS NULL OR EXISTS (SELECT 1 FROM fund WHERE fund.id = fund_id)
             ORDER BY bank_account_id, bank_label
             "#,
         )
@@ -255,13 +259,91 @@ mod tests {
     async fn create_test_fund(pool: &SqlitePool) -> String {
         let id = Uuid::new_v4().to_string();
         sqlx::query!(
-            "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ($1, '93', 'CPAM 93', 0)",
+            "INSERT INTO fund (id, fund_identifier, name) VALUES ($1, '93', 'CPAM 93')",
             id,
         )
         .execute(pool)
         .await
         .expect("Failed to create test fund");
         id
+    }
+
+    /// BAS-041D — a label whose fund is gone is left out of both reads, so the next
+    /// import asks for it again; an ignored label (no fund) stays.
+    #[tokio::test]
+    async fn test_590_a_label_whose_fund_is_gone_is_left_out() {
+        let (repo, pool) = setup_test_repo().await;
+        let account = create_test_bank_account(&pool).await;
+        let fund = create_test_fund(&pool).await;
+        for (id, label, fund_id) in [
+            ("l-live", "LIVE", Some(fund.as_str())),
+            ("l-gone", "GONE", Some("gone-fund")),
+            ("l-ignored", "IGNORED", None),
+        ] {
+            sqlx::query("INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id) VALUES (?, ?, ?, ?)")
+                .bind(id)
+                .bind(&account)
+                .bind(label)
+                .bind(fund_id)
+                .execute(&pool)
+                .await
+                .expect("seed");
+        }
+
+        let mut for_account: Vec<String> = repo
+            .find_mappings_for_account(&account)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+        let mut all: Vec<String> = repo
+            .find_all_mappings()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+
+        for_account.sort();
+        all.sort();
+        assert_eq!(for_account, ["l-ignored", "l-live"]);
+        assert_eq!(all, ["l-ignored", "l-live"]);
+    }
+
+    /// BAS-041D — a label whose fund is gone is reassigned and deleted by its id as any
+    /// label.
+    #[tokio::test]
+    async fn test_590_a_label_whose_fund_is_gone_is_reassigned_and_deleted_by_id() {
+        let (repo, pool) = setup_test_repo().await;
+        let account = create_test_bank_account(&pool).await;
+        let fund = create_test_fund(&pool).await;
+        for id in ["l-reassigned", "l-deleted"] {
+            sqlx::query("INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id) VALUES (?, ?, ?, 'gone-fund')")
+                .bind(id)
+                .bind(&account)
+                .bind(id)
+                .execute(&pool)
+                .await
+                .expect("seed");
+        }
+
+        let reassigned = repo
+            .reassign_mapping("l-reassigned", Some(fund.clone()))
+            .await
+            .unwrap();
+        let deleted = repo.delete_mapping("l-deleted").await.unwrap();
+
+        assert!(deleted);
+        assert_eq!(reassigned.map(|m| m.fund_id), Some(Some(fund)));
+        let ids: Vec<String> = repo
+            .find_all_mappings()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+        assert_eq!(ids, ["l-reassigned"]);
     }
 
     #[tokio::test]
@@ -296,7 +378,7 @@ mod tests {
         // Create a second fund
         let fund_id2 = Uuid::new_v4().to_string();
         sqlx::query!(
-            "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ($1, '94', 'CPAM 94', 0)",
+            "INSERT INTO fund (id, fund_identifier, name) VALUES ($1, '94', 'CPAM 94')",
             fund_id2,
         )
         .execute(&pool)

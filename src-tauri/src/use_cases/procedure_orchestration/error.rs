@@ -27,6 +27,17 @@ pub enum ProcedureOrchestrationTask {
     #[error("Procedure is linked to a payment and cannot be deleted")]
     ProcedureDeleteBlocked,
 
+    /// R24 — a procedure type procedures still use is not deleted.
+    #[error("The procedure type is used by {procedure_count} procedure(s)")]
+    ProcedureTypeInUse { procedure_count: usize },
+
+    /// PRO-291 — a fund procedures or fund payment groups still use is not deleted.
+    #[error("The fund is used by {procedure_count} procedure(s) and {payment_group_count} fund payment group(s)")]
+    FundInUse {
+        procedure_count: usize,
+        payment_group_count: usize,
+    },
+
     /// Failure from a repository the orchestrator holds directly (patient /
     /// fund / procedure-type / refund). Logged at the call site via
     /// `tracing::error!`; the wire surface carries no detail.

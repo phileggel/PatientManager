@@ -49,6 +49,10 @@ export function formatProcedureOrchestrationError(err: ProcedureOrchestrationErr
       return { key: "procedure:errors.fund_not_found", params: { id: err.fund_id } };
     case "ProcedureDeleteBlocked":
       return { key: "procedure:errors.delete_blocked" };
+    // Reached only by the procedure type and fund deletions (R24, PRO-291).
+    case "ProcedureTypeInUse":
+    case "FundInUse":
+      return { key: "procedure:errors.database_error" };
     // --- ProcedureError (BC) ---
     case "ProcedureInvalid":
       return { key: "procedure:error.invalid_fields" };
@@ -67,9 +71,6 @@ export function formatProcedureOrchestrationError(err: ProcedureOrchestrationErr
       return { key: "procedure:errors.procedure_type_name_duplicate" };
     case "ReservedTypeNotMutable":
       return { key: "procedure:errors.reserved_type_not_mutable" };
-    // R24 — reached only by the procedure-type deletion.
-    case "ProcedureTypeInUse":
-      return { key: "procedure:errors.database_error" };
     case "RefundReasonTooLong":
       return { key: "procedure:errors.refund_reason_too_long" };
     case "InvalidRefundDateFormat":

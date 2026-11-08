@@ -29,6 +29,18 @@ impl SqliteProcedureTypeRepository {
         Self { pool }
     }
 
+    /// Whether the procedure type is stored, on a connection the caller owns (ADR-003).
+    pub async fn exists_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<bool> {
+        let found = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM procedure_type WHERE id = ?) AS "found!: bool""#,
+            id,
+        )
+        .fetch_one(conn)
+        .await
+        .context("Failed to look the procedure type up")?;
+        Ok(found)
+    }
+
     /// Delete one procedure type on a connection the caller owns — the write of a
     /// unit of work (ADR-003, PRO-280). False when a procedure still uses it (R6, the
     /// foreign key refuses), or no row matched.

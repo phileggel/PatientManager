@@ -42,7 +42,7 @@ export const FundPaymentPresenter = {
       rowId: group.id,
       id: group.id,
       fundId: group.fund_id,
-      fundName: fund ? `${fund.fund_identifier} - ${fund.name}` : group.fund_id,
+      fundName: fund ? `${fund.fund_identifier} - ${fund.name}` : "",
       paymentDate: group.payment_date,
       procedureStartDate,
       procedureEndDate,

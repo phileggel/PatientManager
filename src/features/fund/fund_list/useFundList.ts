@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCacheStore } from "@/infra/cache/store";
 import { deleteFund } from "../gateway";
-import { FundPresenter, formatFundError } from "../shared/presenter";
+import { FundPresenter, formatFundDeletionError } from "../shared/presenter";
 
 /**
  * Hook for FundList component
@@ -22,7 +22,7 @@ export function useFundList() {
   const deleteFundHandler = async (id: string) => {
     const result = await deleteFund(id);
     if (!result.success) {
-      const { key, params } = formatFundError(result.error);
+      const { key, params } = formatFundDeletionError(result.error);
       throw new Error(t(key, params));
     }
   };

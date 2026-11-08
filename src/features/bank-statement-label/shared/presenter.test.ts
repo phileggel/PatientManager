@@ -23,7 +23,7 @@ const label = (
   bank_label: text,
   fund_id: fund,
 });
-const TEXTS = { ignored: "Ignoré", deletedFund: "Caisse supprimée" };
+const TEXTS = { ignored: "Ignoré" };
 
 describe("toRows", () => {
   it("test_bas_041_shows_account_label_and_fund_or_ignored", () => {
@@ -38,9 +38,9 @@ describe("toRows", () => {
     ]);
   });
 
-  it("test_bas_041d_marks_a_label_whose_fund_was_deleted", () => {
+  it("ticket #590: a label whose fund is not loaded shows no fund name", () => {
     const [row] = toRows([label("m1", "acc-1", "VIR OLD", "fund-gone")], accounts, funds);
-    expect(row?.assignment).toEqual({ kind: "deletedFund" });
+    expect(row?.assignment).toEqual({ kind: "fund", fundName: "" });
   });
 });
 

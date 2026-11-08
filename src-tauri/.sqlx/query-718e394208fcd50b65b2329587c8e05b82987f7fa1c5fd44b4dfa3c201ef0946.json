@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, bank_account_id, bank_label, fund_id\n            FROM bank_fund_label_mapping\n            ORDER BY bank_account_id, bank_label\n            ",
+  "query": "\n            SELECT id, bank_account_id, bank_label, fund_id\n            FROM bank_fund_label_mapping\n            WHERE bank_account_id = $1\n              -- BAS-041D: a label whose fund is gone is unknown, so asked again\n              AND (fund_id IS NULL OR EXISTS (SELECT 1 FROM fund WHERE fund.id = fund_id))\n            ",
   "describe": {
     "columns": [
       {
@@ -49,7 +49,7 @@
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
@@ -58,5 +58,5 @@
       true
     ]
   },
-  "hash": "10a92add4fa48840d4b4858cda13c2001390940fae9629b7e1731e4408b8979b"
+  "hash": "718e394208fcd50b65b2329587c8e05b82987f7fa1c5fd44b4dfa3c201ef0946"
 }

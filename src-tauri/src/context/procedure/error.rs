@@ -55,10 +55,6 @@ pub enum ProcedureError {
     #[error("The reserved import-pdf type cannot be modified")]
     ReservedTypeNotMutable,
 
-    /// R24 — the deletion use case refused a procedure type procedures still use.
-    #[error("The procedure type is used by {procedure_count} procedure(s)")]
-    ProcedureTypeInUse { procedure_count: usize },
-
     // --- ProcedureRefund aggregate domain invariants (REF-040) ---
     /// `ProcedureRefund::validate` rejected a reason exceeding the 255-char cap.
     #[error("Refund reason must not exceed 255 characters")]
@@ -135,10 +131,6 @@ mod tests {
         assert_eq!(
             to_value(ProcedureError::ReservedTypeNotMutable).unwrap(),
             json!({ "code": "ReservedTypeNotMutable" }),
-        );
-        assert_eq!(
-            to_value(ProcedureError::ProcedureTypeInUse { procedure_count: 2 }).unwrap(),
-            json!({ "code": "ProcedureTypeInUse", "procedure_count": 2 }),
         );
         assert_eq!(
             to_value(ProcedureError::RefundReasonTooLong).unwrap(),

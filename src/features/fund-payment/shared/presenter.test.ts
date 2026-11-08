@@ -17,12 +17,12 @@ describe("FundPaymentPresenter.toRow", () => {
     expect(row.isLocked).toBe(false);
   });
 
-  it("falls back to group.fund_id when no matching fund is found", () => {
+  it("ticket #590: shows no raw identifier when the fund is not loaded", () => {
     const group = makeFundPaymentGroup({ fund_id: "unknown-fund" });
 
     const row = FundPaymentPresenter.toRow(group, []);
 
-    expect(row.fundName).toBe("unknown-fund");
+    expect(row.fundName).toBe("");
   });
 
   describe("FPM-360 — care-period range computation", () => {

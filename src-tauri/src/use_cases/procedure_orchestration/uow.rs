@@ -17,8 +17,15 @@ pub trait DeletionUnitOfWork: Send {
         &mut self,
         procedure_type_id: &str,
     ) -> anyhow::Result<()>;
-    async fn delete_fund(&mut self, fund_id: &str) -> anyhow::Result<()>;
+    /// False when a procedure or a fund payment group still uses the fund, or no row
+    /// matched (PRO-291).
+    async fn delete_fund(&mut self, fund_id: &str) -> anyhow::Result<bool>;
+    /// (procedures, fund payment groups) that use the fund.
+    async fn count_fund_uses(&mut self, fund_id: &str) -> anyhow::Result<(usize, usize)>;
     async fn clear_fund_defaults(&mut self, fund_id: &str) -> anyhow::Result<()>;
+    /// Whether the row is still there: a refused delete nothing counted is a fault.
+    async fn procedure_type_exists(&mut self, procedure_type_id: &str) -> anyhow::Result<bool>;
+    async fn fund_exists(&mut self, fund_id: &str) -> anyhow::Result<bool>;
 }
 
 /// What the orchestrator asks to run atomically.

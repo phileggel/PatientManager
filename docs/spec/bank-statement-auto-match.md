@@ -90,7 +90,7 @@ A **bank statement label** is the label of a bank statement line, remembered per
 
 **BAS-041C — List states (frontend)**: While loading, the list shows a loading line. With no saved label, it says that labels are saved during a bank statement import. A load failure shows an error message in place of the rows.
 
-**BAS-041D — Deleted fund (frontend + backend)**: A label whose fund has been deleted stays in the list, its fund shown as « Caisse supprimée », so it can be reassigned or deleted.
+**BAS-041D — Deleted fund (backend)**: A label whose fund has been deleted is left out of the list and of the import's known labels: the next import treats it as an unknown label (BAS-036), never as rejected (BAS-030). Reassigning or deleting it by its id works as for any label (BAS-042, BAS-043) (owner, 2026-11-08, #590).
 
 **BAS-042 — Reassigning (frontend + backend)**: A label can be reassigned to another fund or to « Ignoré ». Its account and label cannot change. The change is saved immediately, the list shows it, and it pre-fills the next import of that account (BAS-031); past reconciliations are unaffected. A deleted or unknown fund is refused and nothing is written.
 

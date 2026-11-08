@@ -1,4 +1,4 @@
-import type { Fund, FundError, FundInvalidReason } from "@/bindings";
+import type { Fund, FundError, FundInvalidReason, ProcedureOrchestrationError } from "@/bindings";
 import type { FormErrors, FundFormData, FundRow } from "./types";
 
 const FIELD_ERROR_KEYS: Record<FundInvalidReason, [keyof FundFormData, string]> = {
@@ -22,6 +22,23 @@ export function fundFieldErrorKeys(err: FundError): FormErrors | null {
  * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping for
  * the Fund bounded context. Caller (Layer 4) calls `t(key, params)`.
  */
+/**
+ * The fund deletion's refusal (PRO-291), or the generic failure: `delete_fund`
+ * raises no other code of the use case's union.
+ */
+export function formatFundDeletionError(err: ProcedureOrchestrationError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
+  if (err.code === "FundInUse") {
+    return {
+      key: "fund:errors.in_use",
+      params: { procedures: err.procedure_count, groups: err.payment_group_count },
+    };
+  }
+  return { key: "fund:errors.database_error" };
+}
+
 export function formatFundError(err: FundError): {
   key: string;
   params?: Record<string, string | number>;

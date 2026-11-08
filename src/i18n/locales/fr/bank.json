@@ -325,7 +325,6 @@
       "actions": "Actions"
     },
     "ignored": "Ignoré",
-    "deleted_fund": "Caisse supprimée",
     "loading": "Chargement des libellés…",
     "empty": "Aucun libellé enregistré. Les libellés sont enregistrés lors de l'import d'un relevé bancaire.",
     "load_error": "Impossible de charger les libellés.",

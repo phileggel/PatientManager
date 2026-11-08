@@ -325,7 +325,6 @@
       "actions": "Actions"
     },
     "ignored": "Ignored",
-    "deleted_fund": "Deleted fund",
     "loading": "Loading labels…",
     "empty": "No saved label. Labels are saved when a bank statement is imported.",
     "load_error": "The labels could not be loaded.",

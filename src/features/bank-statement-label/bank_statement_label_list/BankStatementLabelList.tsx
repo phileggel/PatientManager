@@ -33,7 +33,6 @@ export function BankStatementLabelList({
   const texts = useMemo(
     () => ({
       ignored: t("statement_label.ignored"),
-      deletedFund: t("statement_label.deleted_fund"),
     }),
     [t],
   );

@@ -48,9 +48,8 @@ pub enum FundError {
     #[error("Fund not found")]
     FundNotFound,
 
-    /// `FundService::create_fund` / `update_fund`: another fund still in use
-    /// holds the identifier (a deleted fund's identifier can be taken again,
-    /// as the unique index only covers active rows — DEBT-039).
+    /// `FundService::create_fund` / `update_fund`: another fund holds the
+    /// identifier (a deleted fund's identifier can be taken again: the row is gone).
     #[error("Fund identifier already used by another fund")]
     IdentifierAlreadyUsed,
 

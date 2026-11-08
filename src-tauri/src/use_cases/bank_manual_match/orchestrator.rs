@@ -930,13 +930,11 @@ mod tests {
             .execute(pool)
             .await
             .unwrap();
-        sqlx::query(
-            "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES (?, 'CPAM93', 'CPAM 93', 0)",
-        )
-        .bind(&fund_id)
-        .execute(pool)
-        .await
-        .unwrap();
+        sqlx::query("INSERT INTO fund (id, fund_identifier, name) VALUES (?, 'CPAM93', 'CPAM 93')")
+            .bind(&fund_id)
+            .execute(pool)
+            .await
+            .unwrap();
         sqlx::query(
             "INSERT INTO procedure_type (id, name, default_amount) VALUES (?, 'Consultation', 100000)",
         )

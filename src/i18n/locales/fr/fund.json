@@ -42,6 +42,7 @@
   "errors": {
     "fund_identifier_empty": "L'identifiant de la caisse ne peut pas être vide",
     "identifier_already_used": "Cet identifiant est déjà utilisé par une autre caisse.",
+    "in_use": "Cette caisse est utilisée par {{procedures}} acte(s) et {{groups}} groupe(s) de paiement, elle ne peut pas être supprimée.",
     "fund_name_empty": "Le nom de la caisse ne peut pas être vide",
     "fund_id_empty": "L'identifiant de la caisse ne peut pas être vide",
     "total_amount_not_positive": "Le montant total doit être supérieur à 0",

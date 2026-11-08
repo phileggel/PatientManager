@@ -157,7 +157,7 @@ async fn insert_bank_account_with_iban(pool: &SqlitePool, id: &str, iban: &str) 
 }
 
 async fn insert_fund(pool: &SqlitePool, id: &str, identifier: &str, name: &str) {
-    sqlx::query("INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES (?, ?, ?, 0)")
+    sqlx::query("INSERT INTO fund (id, fund_identifier, name) VALUES (?, ?, ?)")
         .bind(id)
         .bind(identifier)
         .bind(name)

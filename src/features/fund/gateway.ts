@@ -1,4 +1,4 @@
-import { commands, type Fund, type FundError } from "@/bindings";
+import { commands, type Fund, type FundError, type ProcedureOrchestrationError } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
@@ -34,7 +34,9 @@ export async function updateFund(fund: Fund): Promise<ServiceResult<Fund, FundEr
   return { success: false, error: result.error };
 }
 
-export async function deleteFund(id: string): Promise<ServiceResult<void, FundError>> {
+export async function deleteFund(
+  id: string,
+): Promise<ServiceResult<void, ProcedureOrchestrationError>> {
   logger.info("Deleting fund", { fundId: id });
   const result = await commands.deleteFund(id);
   if (result.status === "ok") {

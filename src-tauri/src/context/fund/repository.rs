@@ -14,7 +14,6 @@ pub struct FundRow {
     pub id: String,
     pub fund_identifier: String,
     pub name: String,
-    pub is_deleted: i64,
 }
 
 // Conversion function from row type to domain object
@@ -63,8 +62,8 @@ impl SqliteFundRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO fund (id, fund_identifier, name, is_deleted)
-            VALUES ($1, $2, $3, 0)
+            INSERT INTO fund (id, fund_identifier, name)
+            VALUES ($1, $2, $3)
             "#,
             fund.id,
             fund.fund_identifier,
@@ -83,17 +82,32 @@ impl SqliteFundRepository {
         Ok(())
     }
 
-    /// Soft-delete one fund on a connection the caller owns — the write of a
-    /// unit of work (ADR-003, PRO-290).
-    pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(target: BACKEND, fund_id = %id, "Soft-deleting affiliated fund from database");
+    /// Whether the fund is stored, on a connection the caller owns (ADR-003).
+    pub async fn exists_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<bool> {
+        let found = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM fund WHERE id = ?) AS "found!: bool""#,
+            id,
+        )
+        .fetch_one(conn)
+        .await
+        .context("Failed to look the fund up")?;
+        Ok(found)
+    }
 
-        sqlx::query!(r#"UPDATE fund SET is_deleted = 1 WHERE id = ?"#, id)
+    /// Delete one fund on a connection the caller owns — the write of a unit of work
+    /// (ADR-003, PRO-290). False when a procedure or a fund payment group still uses it
+    /// (PRO-291, the foreign keys refuse), or no row matched.
+    pub async fn delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<bool> {
+        tracing::trace!(target: BACKEND, fund_id = %id, "Deleting affiliated fund from database");
+
+        match sqlx::query!("DELETE FROM fund WHERE id = ?", id)
             .execute(conn)
             .await
-            .with_context(|| format!("Failed to soft-delete fund {}", id))?;
-
-        Ok(())
+        {
+            Ok(result) => Ok(result.rows_affected() > 0),
+            Err(sqlx::Error::Database(e)) if e.is_foreign_key_violation() => Ok(false),
+            Err(e) => Err(e).with_context(|| format!("Failed to delete fund {id}")),
+        }
     }
 }
 
@@ -121,9 +135,8 @@ impl FundRepository for SqliteFundRepository {
         let rows = sqlx::query_as!(
             FundRow,
             r#"
-            SELECT id, fund_identifier, name, is_deleted
+            SELECT id, fund_identifier, name
             FROM fund
-            WHERE is_deleted = 0
             "#,
         )
         .fetch_all(&self.pool)
@@ -140,9 +153,9 @@ impl FundRepository for SqliteFundRepository {
         let row = sqlx::query_as!(
             FundRow,
             r#"
-            SELECT id, fund_identifier, name, is_deleted
+            SELECT id, fund_identifier, name
             FROM fund
-            WHERE id = $1 AND is_deleted = 0
+            WHERE id = $1
             "#,
             id,
         )
@@ -179,9 +192,9 @@ impl FundRepository for SqliteFundRepository {
         let row = sqlx::query_as!(
             FundRow,
             r#"
-            SELECT id, fund_identifier, name, is_deleted
+            SELECT id, fund_identifier, name
             FROM fund
-            WHERE fund_identifier = $1 AND is_deleted = 0
+            WHERE fund_identifier = $1
             "#,
             identifier,
         )
@@ -277,6 +290,22 @@ pub struct SqliteFundPaymentRepository {
 }
 
 impl SqliteFundPaymentRepository {
+    /// PRO-291 — how many fund payment groups use `fund_id`, on a connection the
+    /// caller owns (ADR-003).
+    pub async fn count_groups_of_fund_in(
+        conn: &mut sqlx::SqliteConnection,
+        fund_id: &str,
+    ) -> anyhow::Result<usize> {
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "count!: i64" FROM fund_payment_group WHERE fund_id = ?"#,
+            fund_id,
+        )
+        .fetch_one(conn)
+        .await
+        .context("Failed to count the payment groups of a fund")?;
+        usize::try_from(count).context("A payment group count out of range")
+    }
+
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
@@ -854,17 +883,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_fund_soft_deletes() {
+    async fn test_590_delete_fund_really_deletes_and_frees_the_identifier() {
         let repo = setup_fund_repo().await;
         let fund = repo.create_fund("75", "CPAM 75").await.unwrap();
         let mut conn = repo.pool.acquire().await.unwrap();
-        SqliteFundRepository::soft_delete_in(&mut conn, &fund.id)
+        let deleted = SqliteFundRepository::delete_in(&mut conn, &fund.id)
             .await
             .unwrap();
         drop(conn);
 
+        assert!(deleted);
         assert!(repo.read_fund(&fund.id).await.unwrap().is_none());
         assert!(repo.read_all_funds().await.unwrap().is_empty());
+        assert!(repo.create_fund("75", "CPAM 75").await.is_ok());
     }
 
     // --- SqliteFundPaymentRepository ---
