@@ -14,7 +14,8 @@
  *
  * Coverage:
  *   - Happy path — minimal valid request (Empty section 1, no corrections)
- *   - Happy path — populated request (Rows section 1 + correction groups + Section 3)
+ *   - Happy path — populated request (Rows section 1 + correction groups + Section 3 accepted)
+ *   - Error path — InvalidRequest (Section 3 with no row, FPR-051)
  *   - Error path — InvalidRequest (empty title)
  *   - Error path — InvalidRequest (control character in title)
  */
@@ -218,6 +219,24 @@ describe("generate_fund_reconciliation_report_pdf", () => {
     });
 
     assert.ok(!result.ok, "Command should fail for empty page_label");
+    if (result.ok) return; // narrowing
+
+    assert.ok(result.error.length > 0, "Error message must be a non-empty string");
+  });
+
+  // ── Error path — InvalidRequest: Section 3 with no row (FPR-051, #595) ──────
+
+  it("returns InvalidRequest error when Section 3 holds no row", async () => {
+    const badRequest = {
+      ...POPULATED_REQUEST,
+      left_out_section: { ...POPULATED_REQUEST.left_out_section, rows: [] },
+    };
+
+    const result = await tauriInvoke<number[]>("generate_fund_reconciliation_report_pdf", {
+      request: badRequest,
+    });
+
+    assert.ok(!result.ok, "Command should fail for a Section 3 with no row");
     if (result.ok) return; // narrowing
 
     assert.ok(result.error.length > 0, "Error message must be a non-empty string");

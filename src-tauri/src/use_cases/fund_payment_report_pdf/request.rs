@@ -390,7 +390,6 @@ mod tests {
     #[test]
     fn validate_rejects_empty_page_label() {
         let req = ReportGenerationRequest {
-            left_out_section: None,
             page_label: String::new(),
             ..valid_request()
         };
