@@ -43,7 +43,7 @@ An unknown id is not an error: the command succeeds and changes nothing. In the 
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `ProcedureOrchestrationError` — `ReservedTypeNotMutable` (R22), `ProcedureTypeInUse { procedure_count }` (R24), `DatabaseError`
+- **Errors:** `ReservedTypeNotMutable` (R22), `ProcedureTypeInUse { procedure_count }` (R24), `DatabaseError`
 
 ---
 
@@ -79,4 +79,3 @@ struct RawProcedureType {
 - 2026-05-02 — Added by `procedure-type` spec: read_all_procedure_types, add_procedure_type, update_procedure_type, delete_procedure_type
 - 2026-10-14 — Modified by `procedure-orchestration` spec (DEBT-042): delete_procedure_type
 - 2026-11-07 — `delete_procedure_type` (#589, R6, R24): a type is really deleted; a type in use is refused with `ProcedureTypeInUse`.
-- 2026-11-08 — `delete_procedure_type` (#590): its errors are the use case's `ProcedureOrchestrationError`; `ProcedureTypeInUse` leaves `ProcedureError` (a cross-context refusal, `ddd-reference.md` § Errors).
