@@ -52,8 +52,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-audit
-        # Pinned to full SHA for v2.88.0 — mutable tags are a supply-chain risk
-        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32
+        # Pinned to a full SHA — mutable tags are a supply-chain risk
+        uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b
         with:
           tool: cargo-audit
 
