@@ -87,6 +87,11 @@ async fn test_591_flagged_patients_go_unless_a_procedure_names_them() {
         .await,
         ["d-kept"].map(String::from)
     );
+    let kept: (Option<String>,) = sqlx::query_as("SELECT name FROM patient WHERE id = 'old-proc'")
+        .fetch_one(&pool)
+        .await
+        .expect("read the kept patient");
+    assert_eq!(kept.0.as_deref(), Some("Old proc"));
     let dangling: Vec<String> = ids(&pool, "SELECT \"table\" FROM pragma_foreign_key_check").await;
     assert!(dangling.is_empty(), "{dangling:?}");
 }

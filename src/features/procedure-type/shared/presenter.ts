@@ -17,7 +17,6 @@ export function isNameMissing(err: ProcedureError): boolean {
  * invariants, ProcedureRefund variants) still map to keys so future use-case
  * composites that surface them through this presenter remain typed.
  */
-
 export function formatProcedureError(err: ProcedureError): {
   key: string;
   params?: Record<string, string | number>;

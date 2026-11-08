@@ -111,7 +111,7 @@ impl PatientDuplicatesOrchestrator {
             .await?)
     }
 
-    /// PDU-025, PDU-032 — two different patients that both exist and are not deleted.
+    /// PDU-025, PDU-032 — two different patients that both exist.
     async fn read_pair(
         &self,
         first_id: &str,

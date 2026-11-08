@@ -574,10 +574,19 @@ mod tests {
             ..Default::default()
         };
 
-        let unknown = orchestrator(unknown).delete_patient("pat-1").await;
+        let bus = Arc::new(EventBus::new());
+        let mut changed = bus
+            .subscribe::<crate::shared::event_bus::PatientUpdated>()
+            .expect("subscribe");
+
+        let unknown = orchestrator_on(unknown, bus).delete_patient("pat-1").await;
         let uncounted = orchestrator(uncounted).delete_patient("pat-1").await;
 
         assert!(unknown.is_ok());
+        assert!(
+            changed.try_recv().is_ok(),
+            "PRO-298: the event is still raised"
+        );
         assert!(matches!(
             uncounted,
             Err(ProcedureOrchestrationError::Task(

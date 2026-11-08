@@ -20,7 +20,6 @@ export function isNameMissing(err: PatientError): boolean {
  *
  * Exhaustive switch — every PatientError variant has an entry.
  */
-
 export function formatPatientError(err: PatientError): {
   key: string;
   params?: Record<string, string | number>;

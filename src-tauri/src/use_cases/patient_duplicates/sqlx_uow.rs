@@ -144,7 +144,7 @@ mod tests {
         .fetch_one(&pool)
         .await
         .expect("count");
-        assert_eq!(other_ssn, 0, "PDU-029");
+        assert_eq!(other_ssn, 0, "PDU-021");
         let kept = SqlitePatientRepository::new(pool.clone())
             .read_patient("kept")
             .await

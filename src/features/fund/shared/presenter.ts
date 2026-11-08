@@ -22,7 +22,6 @@ export function fundFieldErrorKeys(err: FundError): FormErrors | null {
  * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping for
  * the Fund bounded context. Caller (Layer 4) calls `t(key, params)`.
  */
-
 export function formatFundError(err: FundError): {
   key: string;
   params?: Record<string, string | number>;

@@ -318,4 +318,65 @@ mod tests {
             .await
             .is_empty());
     }
+
+    /// PRO-296 — through the real orchestrator, a refused patient keeps its
+    /// procedure and its dismissal, and no event is raised.
+    #[tokio::test]
+    async fn test_591_a_refused_patient_keeps_its_dismissals_and_raises_nothing() {
+        use std::sync::Arc;
+
+        use crate::context::fund::{FundService, MockFundRepository};
+        use crate::context::patient::{MockPatientRepository, PatientService};
+        use crate::context::procedure::{MockProcedureTypeRepository, ProcedureTypeService};
+        use crate::shared::event_bus::{EventBus, PatientUpdated};
+        use crate::use_cases::procedure_orchestration::{
+            DeletionOrchestrator, ProcedureOrchestrationError, ProcedureOrchestrationTask,
+        };
+
+        let pool = seeded_pool().await;
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .expect("foreign keys on");
+        for statement in [
+            "INSERT INTO procedure (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('p', 'on-kept', 'kept-type', '2026-03-11', 100000, 'CREATED')",
+            "INSERT INTO patient_duplicate_dismissal (id, patient_a_id, patient_b_id) VALUES ('d', 'on-gone', 'on-kept')",
+        ] {
+            sqlx::query(statement).execute(&pool).await.expect("seed");
+        }
+        let bus = Arc::new(EventBus::new());
+        let mut changed = bus.subscribe::<PatientUpdated>().expect("subscribe");
+        let orchestrator = DeletionOrchestrator::new(
+            Arc::new(ProcedureTypeService::new(
+                Arc::new(MockProcedureTypeRepository::new()),
+                bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(MockFundRepository::new()),
+                bus.clone(),
+            )),
+            Arc::new(PatientService::new(
+                Arc::new(MockPatientRepository::new()),
+                bus,
+            )),
+            Arc::new(SqlxTransactionManager::new(pool.clone())),
+        );
+
+        let result = orchestrator.delete_patient("on-kept").await;
+
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::PatientInUse { procedure_count: 1 }
+            ))
+        ));
+        assert!(ids(&pool, "SELECT id FROM patient")
+            .await
+            .contains(&"on-kept".to_string()));
+        assert_eq!(
+            ids(&pool, "SELECT id FROM patient_duplicate_dismissal").await,
+            ["d"].map(String::from)
+        );
+        assert!(changed.try_recv().is_err());
+    }
 }
