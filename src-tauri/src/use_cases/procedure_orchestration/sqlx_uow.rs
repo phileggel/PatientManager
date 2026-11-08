@@ -5,7 +5,7 @@ use anyhow::Context;
 
 use crate::context::fund::SqliteFundRepository;
 use crate::context::patient::SqlitePatientRepository;
-use crate::context::procedure::SqliteProcedureTypeRepository;
+use crate::context::procedure::{SqliteProcedureRepository, SqliteProcedureTypeRepository};
 use crate::shared::uow::SqlxTransactionManager;
 
 use super::uow::{DeletionOperation, DeletionTransactionManager, DeletionUnitOfWork};
@@ -16,8 +16,12 @@ struct SqlxDeletionUnitOfWork {
 
 #[async_trait::async_trait]
 impl DeletionUnitOfWork for SqlxDeletionUnitOfWork {
-    async fn delete_procedure_type(&mut self, procedure_type_id: &str) -> anyhow::Result<()> {
-        SqliteProcedureTypeRepository::soft_delete_in(&mut self.tx, procedure_type_id).await
+    async fn delete_procedure_type(&mut self, procedure_type_id: &str) -> anyhow::Result<bool> {
+        SqliteProcedureTypeRepository::delete_in(&mut self.tx, procedure_type_id).await
+    }
+
+    async fn count_procedures_of_type(&mut self, procedure_type_id: &str) -> anyhow::Result<usize> {
+        SqliteProcedureRepository::count_with_type_in(&mut self.tx, procedure_type_id).await
     }
 
     async fn clear_procedure_type_defaults(
@@ -71,8 +75,8 @@ mod tests {
             .await
             .expect("migrations");
         for statement in [
-            "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES ('gone-type', 'Gone', 100000, 0)",
-            "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES ('kept-type', 'Kept', 100000, 0)",
+            "INSERT INTO procedure_type (id, name, default_amount) VALUES ('gone-type', 'Gone', 100000)",
+            "INSERT INTO procedure_type (id, name, default_amount) VALUES ('kept-type', 'Kept', 100000)",
             "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('gone-fund', '75', 'Fund 75', 0)",
             "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('kept-fund', '93', 'Fund 93', 0)",
             "INSERT INTO patient (id, name, is_anonymous, is_deleted, latest_procedure_type, latest_fund, latest_date) VALUES ('on-gone', 'Patient A', 0, 0, 'gone-type', 'gone-fund', '2026-03-10')",
@@ -109,7 +113,9 @@ mod tests {
         deleted
     }
 
-    const PROCEDURE_TYPE_DELETED: &str = "SELECT is_deleted FROM procedure_type WHERE id = ?";
+    async fn ids(pool: &SqlitePool, sql: &'static str) -> Vec<String> {
+        sqlx::query_scalar(sql).fetch_all(pool).await.expect("ids")
+    }
     const FUND_DELETED: &str = "SELECT is_deleted FROM fund WHERE id = ?";
 
     #[tokio::test]
@@ -119,14 +125,17 @@ mod tests {
         SqlxTransactionManager::new(pool.clone())
             .run(Box::new(|uow| {
                 Box::pin(async move {
-                    uow.delete_procedure_type("gone-type").await?;
+                    assert!(uow.delete_procedure_type("gone-type").await?);
                     uow.clear_procedure_type_defaults("gone-type").await
                 })
             }))
             .await
             .unwrap();
 
-        assert!(is_deleted(&pool, PROCEDURE_TYPE_DELETED, "gone-type").await);
+        assert_eq!(
+            ids(&pool, "SELECT id FROM procedure_type ORDER BY id").await,
+            ["import-pdf", "kept-type"].map(String::from)
+        );
         assert_eq!(
             defaults(&pool, "on-gone").await,
             (None, Some("gone-fund".into()), None)
@@ -180,5 +189,34 @@ mod tests {
         assert!(result.is_err());
         assert!(!is_deleted(&pool, FUND_DELETED, "gone-fund").await);
         assert_eq!(defaults(&pool, "on-gone").await.1, Some("gone-fund".into()));
+    }
+
+    /// R24 — the foreign key refuses a type a procedure uses; the count names them.
+    #[tokio::test]
+    async fn test_589_a_type_in_use_is_refused_and_counted() {
+        let pool = seeded_pool().await;
+        sqlx::query("INSERT INTO procedure (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('p', 'on-kept', 'kept-type', '2026-03-11', 100000, 'CREATED')")
+            .execute(&pool)
+            .await
+            .expect("seed");
+        let answers = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let seen = answers.clone();
+
+        SqlxTransactionManager::new(pool.clone())
+            .run(Box::new(move |uow| {
+                Box::pin(async move {
+                    let deleted = uow.delete_procedure_type("kept-type").await?;
+                    let count = uow.count_procedures_of_type("kept-type").await?;
+                    *seen.lock().unwrap() = Some((deleted, count));
+                    Ok(())
+                })
+            }))
+            .await
+            .unwrap();
+
+        assert_eq!(*answers.lock().unwrap(), Some((false, 1)));
+        assert!(ids(&pool, "SELECT id FROM procedure_type")
+            .await
+            .contains(&"kept-type".to_string()));
     }
 }

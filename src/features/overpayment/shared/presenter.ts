@@ -49,6 +49,7 @@ export function formatOverpaymentError(err: OverpaymentError): {
     case "ProcedureTypeNotFound":
     case "ProcedureTypeNameDuplicate":
     case "ReservedTypeNotMutable":
+    case "ProcedureTypeInUse":
       return { key: "overpayment:errors.database_error" };
   }
 }

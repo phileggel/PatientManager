@@ -42,6 +42,11 @@ export function formatProcedureError(err: ProcedureError): {
       return { key: "procedure-type:errors.name_duplicate" };
     case "ReservedTypeNotMutable":
       return { key: "procedure-type:errors.reserved_not_mutable" };
+    case "ProcedureTypeInUse":
+      return {
+        key: "procedure-type:errors.in_use",
+        params: { count: err.procedure_count },
+      };
     case "RefundReasonTooLong":
       return { key: "procedure-type:errors.refund_reason_too_long" };
     case "InvalidRefundDateFormat":

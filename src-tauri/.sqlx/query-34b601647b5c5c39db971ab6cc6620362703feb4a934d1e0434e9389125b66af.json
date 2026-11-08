@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT m.amount, m.procedure_type_id\n            FROM excel_amount_type_mapping m\n            WHERE m.procedure_type_id = 'imported-from-excel'\n               OR EXISTS (\n                   SELECT 1 FROM procedure_type\n                   WHERE id = m.procedure_type_id AND is_deleted = 0\n               )\n            ",
+  "query": "\n            SELECT m.amount, m.procedure_type_id\n            FROM excel_amount_type_mapping m\n            WHERE m.procedure_type_id = 'imported-from-excel'\n               OR EXISTS (SELECT 1 FROM procedure_type WHERE id = m.procedure_type_id)\n            ",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "519ac4ffb981cb9b91c43b57fb54d0109d6edd3b84474e2e5037600738f9bffe"
+  "hash": "34b601647b5c5c39db971ab6cc6620362703feb4a934d1e0434e9389125b66af"
 }

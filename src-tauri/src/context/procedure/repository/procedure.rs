@@ -227,6 +227,22 @@ impl SqliteProcedureRepository {
 }
 
 impl SqliteProcedureRepository {
+    /// R24 — how many procedures use `procedure_type_id`, on a connection the caller
+    /// owns (ADR-003).
+    pub async fn count_with_type_in(
+        conn: &mut sqlx::SqliteConnection,
+        procedure_type_id: &str,
+    ) -> anyhow::Result<usize> {
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "count!: i64" FROM "procedure" WHERE procedure_type_id = ?"#,
+            procedure_type_id,
+        )
+        .fetch_one(conn)
+        .await
+        .context("Failed to count the procedures of a procedure type")?;
+        usize::try_from(count).context("A procedure count out of range")
+    }
+
     /// PDU-021 — attach every procedure of one patient to another, on a connection the caller owns (a unit of work, ADR-003).
     /// Returns how many moved.
     pub async fn reassign_patient_in(

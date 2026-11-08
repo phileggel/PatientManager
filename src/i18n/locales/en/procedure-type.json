@@ -55,6 +55,8 @@
     "not_found": "Procedure type not found (id: {{id}})",
     "name_duplicate": "A procedure type with this name already exists",
     "reserved_not_mutable": "The reserved import-pdf procedure type cannot be modified",
+    "in_use_one": "This procedure type is used by {{count}} procedure, so it cannot be deleted",
+    "in_use_other": "This procedure type is used by {{count}} procedures, so it cannot be deleted",
     "refund_reason_too_long": "Refund reason must not exceed 255 characters",
     "invalid_refund_date_format": "Invalid refund date format (expected YYYY-MM-DD)",
     "database_error": "An unexpected database error occurred"

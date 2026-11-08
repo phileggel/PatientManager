@@ -131,7 +131,7 @@ always ignored and never persisted.
 
 **PRO-250 (R18) — Free updates from the frontend (backend)**: The `update_procedure` command accepts every procedure field (`patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `actual_payment_amount`, `payment_status`) without re-inference. References are checked as PRO-251 says. The backend imposes no restriction on which fields are editable based on the procedure's status (including blocking statuses) — the restriction to `procedure_type_id` only for blocking-status procedures is guaranteed exclusively by the frontend (see PRO-190).
 
-**PRO-251 — References checked on edit (backend)**: An edit that changes the patient, the procedure type or the fund to one that does not exist, or has been deleted, is refused, naming the first one found in the order patient, procedure type, fund; nothing is saved. A reference the edit keeps stays valid, even if deleted since (owner, 2026-10-18: the backend judges what it receives, whoever sends it).
+**PRO-251 — References checked on edit (backend)**: An edit that changes the patient, the procedure type or the fund to one that does not exist, or has been deleted, is refused, naming the first one found in the order patient, procedure type, fund; nothing is saved. A reference the edit keeps stays valid, even if deleted since (owner, 2026-10-18: the backend judges what it receives, whoever sends it); a procedure type in use cannot be deleted (R24 of the procedure-type spec).
 
 **PRO-252 — Unknown procedure (backend)**: An edit of a procedure that does not exist is refused; nothing is saved.
 

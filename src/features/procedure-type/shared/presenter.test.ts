@@ -212,6 +212,13 @@ describe("ProcedureTypePresenter", () => {
       });
     }
 
+    it("ticket #589: maps ProcedureTypeInUse to the in_use key with the count (R24)", () => {
+      expect(formatProcedureError({ code: "ProcedureTypeInUse", procedure_count: 3 })).toEqual({
+        key: "procedure-type:errors.in_use",
+        params: { count: 3 },
+      });
+    });
+
     it("maps ProcedureTypeNotFound to the not_found key with the id forwarded as params.id", () => {
       const err: ProcedureError = {
         code: "ProcedureTypeNotFound",

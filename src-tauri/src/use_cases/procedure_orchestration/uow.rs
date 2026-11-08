@@ -2,15 +2,17 @@
 //! PRO-290).
 //!
 //! A deletion writes two bounded contexts: the procedure type or the fund is
-//! soft-deleted, and the patients whose latest-procedure defaults name it lose
-//! them. All of it happens, or none.
+//! deleted, and the patients whose latest-procedure defaults name it lose them.
+//! All of it happens, or none.
 
 use crate::shared::uow::UnitOfWorkFuture;
 
 /// The writes a deletion makes, on one transaction.
 #[async_trait::async_trait]
 pub trait DeletionUnitOfWork: Send {
-    async fn delete_procedure_type(&mut self, procedure_type_id: &str) -> anyhow::Result<()>;
+    /// False when a procedure still uses the type, or no row matched (R6, R24).
+    async fn delete_procedure_type(&mut self, procedure_type_id: &str) -> anyhow::Result<bool>;
+    async fn count_procedures_of_type(&mut self, procedure_type_id: &str) -> anyhow::Result<usize>;
     async fn clear_procedure_type_defaults(
         &mut self,
         procedure_type_id: &str,

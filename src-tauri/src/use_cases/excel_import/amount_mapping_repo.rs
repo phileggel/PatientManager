@@ -45,17 +45,14 @@ impl SqliteExcelAmountMappingRepository {
 #[async_trait::async_trait]
 impl ExcelAmountMappingRepository for SqliteExcelAmountMappingRepository {
     async fn find_all(&self) -> anyhow::Result<Vec<ExcelAmountMapping>> {
-        // Only return mappings whose procedure type still exists (not deleted),
-        // plus the special 'imported-from-excel' sentinel which has no DB row.
+        // EXI-250 — a mapping whose procedure type no longer exists is left out, except
+        // the 'imported-from-excel' sentinel, which has no row.
         let rows = sqlx::query!(
             r#"
             SELECT m.amount, m.procedure_type_id
             FROM excel_amount_type_mapping m
             WHERE m.procedure_type_id = 'imported-from-excel'
-               OR EXISTS (
-                   SELECT 1 FROM procedure_type
-                   WHERE id = m.procedure_type_id AND is_deleted = 0
-               )
+               OR EXISTS (SELECT 1 FROM procedure_type WHERE id = m.procedure_type_id)
             "#
         )
         .fetch_all(&self.pool)
@@ -137,7 +134,7 @@ mod tests {
 
     async fn create_test_procedure_type(pool: &SqlitePool, id: &str) {
         sqlx::query!(
-            "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES ($1, 'Test Type', 24000, 0)",
+            "INSERT INTO procedure_type (id, name, default_amount) VALUES ($1, 'Test Type', 24000)",
             id,
         )
         .execute(pool)
@@ -202,34 +199,39 @@ mod tests {
         assert_eq!(all[0].procedure_type_id, "type-new");
     }
 
+    /// EXI-250 — a mapping whose procedure type is gone is left out; the sentinel
+    /// stays.
     #[tokio::test]
-    async fn test_deleted_type_filtered_out() {
+    async fn test_589_an_orphan_mapping_is_left_out() {
         let (repo, pool) = setup_test_repo().await;
-        create_test_procedure_type(&pool, "type-active").await;
-        create_test_procedure_type(&pool, "type-deleted").await;
-
-        repo.save_mappings(vec![
-            SaveExcelAmountMappingRequest {
-                amount: 24000,
-                procedure_type_id: "type-active".to_string(),
-            },
-            SaveExcelAmountMappingRequest {
-                amount: 30000,
-                procedure_type_id: "type-deleted".to_string(),
-            },
-        ])
+        create_test_procedure_type(&pool, "type-live").await;
+        repo.save_mappings(
+            [
+                ("type-live", 24000),
+                ("type-gone", 30000),
+                ("imported-from-excel", 46000),
+            ]
+            .map(
+                |(procedure_type_id, amount)| SaveExcelAmountMappingRequest {
+                    amount,
+                    procedure_type_id: procedure_type_id.to_string(),
+                },
+            )
+            .to_vec(),
+        )
         .await
         .unwrap();
 
-        // Soft-delete the second type
-        sqlx::query!("UPDATE procedure_type SET is_deleted = 1 WHERE id = 'type-deleted'")
-            .execute(&pool)
+        let mut read: Vec<String> = repo
+            .find_all()
             .await
-            .unwrap();
+            .unwrap()
+            .into_iter()
+            .map(|m| m.procedure_type_id)
+            .collect();
 
-        let all = repo.find_all().await.unwrap();
-        assert_eq!(all.len(), 1);
-        assert_eq!(all[0].procedure_type_id, "type-active");
+        read.sort();
+        assert_eq!(read, ["imported-from-excel", "type-live"]);
     }
 
     #[tokio::test]

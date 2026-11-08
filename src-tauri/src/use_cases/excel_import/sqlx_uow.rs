@@ -92,7 +92,7 @@ mod tests {
             .expect("migrations");
         for statement in [
             "INSERT INTO patient (id, name, ssn, is_anonymous, is_deleted) VALUES ('known', 'Marie Dupont', '1234567890123', 0, 0)",
-            "INSERT INTO procedure_type (id, name, default_amount, is_deleted) VALUES ('type-1', 'Type 1', 100000, 0)",
+            "INSERT INTO procedure_type (id, name, default_amount) VALUES ('type-1', 'Type 1', 100000)",
             "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('fund-1', '75', 'Caisse 75', 0)",
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('jan-old', 'known', 'type-1', '2026-01-10', 100000, 'CREATED')"#,
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('feb-old', 'known', 'type-1', '2026-02-10', 100000, 'CREATED')"#,

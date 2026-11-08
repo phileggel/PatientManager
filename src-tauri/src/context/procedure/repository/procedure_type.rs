@@ -11,7 +11,6 @@ pub struct ProcedureTypeRow {
     pub name: String,
     pub default_amount: i64,
     pub category: Option<String>,
-    pub is_deleted: i64,
 }
 
 // Conversion function from row type to domain object
@@ -30,20 +29,20 @@ impl SqliteProcedureTypeRepository {
         Self { pool }
     }
 
-    /// Soft-delete one procedure type on a connection the caller owns — the
-    /// write of a unit of work (ADR-003, PRO-280).
-    pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(target: BACKEND, procedure_type_id = %id, "Soft-deleting procedure type from database");
+    /// Delete one procedure type on a connection the caller owns — the write of a
+    /// unit of work (ADR-003, PRO-280). False when a procedure still uses it (R6, the
+    /// foreign key refuses), or no row matched.
+    pub async fn delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<bool> {
+        tracing::trace!(target: BACKEND, procedure_type_id = %id, "Deleting procedure type from database");
 
-        sqlx::query!(
-            r#"UPDATE procedure_type SET is_deleted = 1 WHERE id = ?"#,
-            id
-        )
-        .execute(conn)
-        .await
-        .with_context(|| anyhow!("Failed to soft-delete healthcare procedure type"))?;
-
-        Ok(())
+        match sqlx::query!("DELETE FROM procedure_type WHERE id = ?", id)
+            .execute(conn)
+            .await
+        {
+            Ok(result) => Ok(result.rows_affected() > 0),
+            Err(sqlx::Error::Database(e)) if e.is_foreign_key_violation() => Ok(false),
+            Err(e) => Err(e).with_context(|| anyhow!("Failed to delete procedure type")),
+        }
     }
 }
 
@@ -62,8 +61,8 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO procedure_type (id, name, default_amount, category, is_deleted)
-            VALUES ($1, $2, $3, $4, 0)
+            INSERT INTO procedure_type (id, name, default_amount, category)
+            VALUES ($1, $2, $3, $4)
             "#,
             procedure_type.id,
             procedure_type.name,
@@ -84,9 +83,8 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
         let rows = sqlx::query_as!(
             ProcedureTypeRow,
             r#"
-            SELECT id, name, default_amount, category, is_deleted
+            SELECT id, name, default_amount, category
             FROM procedure_type
-            WHERE is_deleted = 0
             "#,
         )
         .fetch_all(&self.pool)
@@ -101,9 +99,9 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
         let row = sqlx::query_as!(
             ProcedureTypeRow,
             r#"
-            SELECT id, name, default_amount, category, is_deleted
+            SELECT id, name, default_amount, category
             FROM procedure_type
-            WHERE id = $1 AND is_deleted = 0
+            WHERE id = $1
             "#,
             id,
         )
@@ -146,9 +144,8 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
         let rows = sqlx::query_as!(
             ProcedureTypeRow,
             r#"
-            SELECT id, name, default_amount, category, is_deleted
+            SELECT id, name, default_amount, category
             FROM procedure_type
-            WHERE is_deleted = 0
             "#,
         )
         .fetch_all(&self.pool)

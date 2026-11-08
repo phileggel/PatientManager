@@ -55,6 +55,8 @@
     "not_found": "Type d'acte introuvable (id : {{id}})",
     "name_duplicate": "Un type d'acte avec ce nom existe déjà",
     "reserved_not_mutable": "Le type réservé import-pdf ne peut pas être modifié",
+    "in_use_one": "Ce type d'acte est utilisé par {{count}} acte, il ne peut pas être supprimé",
+    "in_use_other": "Ce type d'acte est utilisé par {{count}} actes, il ne peut pas être supprimé",
     "refund_reason_too_long": "Le motif de remboursement ne doit pas dépasser 255 caractères",
     "invalid_refund_date_format": "Format de date de remboursement invalide (attendu : AAAA-MM-JJ)",
     "database_error": "Une erreur de base de données est survenue"

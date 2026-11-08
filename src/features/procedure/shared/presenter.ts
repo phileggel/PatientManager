@@ -67,6 +67,9 @@ export function formatProcedureOrchestrationError(err: ProcedureOrchestrationErr
       return { key: "procedure:errors.procedure_type_name_duplicate" };
     case "ReservedTypeNotMutable":
       return { key: "procedure:errors.reserved_type_not_mutable" };
+    // R24 — reached only by the procedure-type deletion.
+    case "ProcedureTypeInUse":
+      return { key: "procedure:errors.database_error" };
     case "RefundReasonTooLong":
       return { key: "procedure:errors.refund_reason_too_long" };
     case "InvalidRefundDateFormat":

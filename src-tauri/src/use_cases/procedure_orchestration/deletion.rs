@@ -32,22 +32,33 @@ impl DeletionOrchestrator {
         }
     }
 
-    /// PRO-280 — soft-delete a procedure type; the patients whose latest type
-    /// it is lose that default and its date. The reserved type is refused.
+    /// R6, PRO-280 — delete a procedure type; the patients whose latest type it
+    /// is lose that default and its date. The reserved type is refused, and so is
+    /// a type procedures use (R24).
     pub async fn delete_procedure_type(&self, id: &str) -> Result<(), ProcedureError> {
         ProcedureType::ensure_mutable(id)?;
         let id = id.to_string();
         self.deletion
             .run(Box::new(move |uow| {
                 Box::pin(async move {
-                    uow.delete_procedure_type(&id).await?;
+                    if !uow.delete_procedure_type(&id).await? {
+                        let procedure_count = uow.count_procedures_of_type(&id).await?;
+                        if procedure_count > 0 {
+                            return Err(ProcedureError::ProcedureTypeInUse { procedure_count }.into());
+                        }
+                        // An unknown id changes nothing.
+                        return Ok(());
+                    }
                     uow.clear_procedure_type_defaults(&id).await
                 })
             }))
             .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "delete_procedure_type: unit of work failed");
-                ProcedureError::DatabaseError
+            .map_err(|e| match e.downcast::<ProcedureError>() {
+                Ok(refusal) => refusal,
+                Err(e) => {
+                    tracing::error!(target: BACKEND, err = ?e, "delete_procedure_type: unit of work failed");
+                    ProcedureError::DatabaseError
+                }
             })?;
 
         self.procedure_type_service.notify_procedure_types_updated();
@@ -96,10 +107,16 @@ mod tests {
     struct RecordingDeletion {
         writes: Arc<Mutex<Vec<String>>>,
         fail: bool,
+        /// The type's row is absent (unknown id) or refused by a procedure.
+        not_deleted: bool,
+        /// How many procedures use the type.
+        procedures_using: usize,
     }
 
     struct RecordingUnitOfWork {
         writes: Arc<Mutex<Vec<String>>>,
+        not_deleted: bool,
+        procedures_using: usize,
     }
 
     impl RecordingUnitOfWork {
@@ -111,8 +128,13 @@ mod tests {
 
     #[async_trait::async_trait]
     impl DeletionUnitOfWork for RecordingUnitOfWork {
-        async fn delete_procedure_type(&mut self, id: &str) -> anyhow::Result<()> {
-            self.record(format!("delete_procedure_type {id}"))
+        async fn delete_procedure_type(&mut self, id: &str) -> anyhow::Result<bool> {
+            self.record(format!("delete_procedure_type {id}"))?;
+            Ok(!self.not_deleted)
+        }
+        async fn count_procedures_of_type(&mut self, id: &str) -> anyhow::Result<usize> {
+            self.record(format!("count_procedures_of_type {id}"))?;
+            Ok(self.procedures_using)
         }
         async fn clear_procedure_type_defaults(&mut self, id: &str) -> anyhow::Result<()> {
             self.record(format!("clear_procedure_type_defaults {id}"))
@@ -133,6 +155,8 @@ mod tests {
             }
             let mut uow = RecordingUnitOfWork {
                 writes: self.writes.clone(),
+                not_deleted: self.not_deleted,
+                procedures_using: self.procedures_using,
             };
             operation(&mut uow).await
         }
@@ -172,6 +196,53 @@ mod tests {
             vec![
                 "delete_procedure_type type-1",
                 "clear_procedure_type_defaults type-1"
+            ]
+        );
+    }
+
+    /// R24 — a type procedures use is refused with their count, and nothing else is
+    /// written.
+    #[tokio::test]
+    async fn test_589_a_type_in_use_is_refused_with_the_count() {
+        let deletion = RecordingDeletion {
+            not_deleted: true,
+            procedures_using: 3,
+            ..Default::default()
+        };
+        let writes = deletion.writes.clone();
+
+        let result = orchestrator(deletion).delete_procedure_type("type-1").await;
+
+        assert!(matches!(
+            result,
+            Err(ProcedureError::ProcedureTypeInUse { procedure_count: 3 })
+        ));
+        assert_eq!(
+            *writes.lock().unwrap(),
+            vec![
+                "delete_procedure_type type-1",
+                "count_procedures_of_type type-1"
+            ]
+        );
+    }
+
+    /// An unknown id is not an error, and nothing else is written.
+    #[tokio::test]
+    async fn test_589_an_unknown_type_changes_nothing() {
+        let deletion = RecordingDeletion {
+            not_deleted: true,
+            ..Default::default()
+        };
+        let writes = deletion.writes.clone();
+
+        let result = orchestrator(deletion).delete_procedure_type("type-1").await;
+
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(
+            *writes.lock().unwrap(),
+            vec![
+                "delete_procedure_type type-1",
+                "count_procedures_of_type type-1"
             ]
         );
     }
