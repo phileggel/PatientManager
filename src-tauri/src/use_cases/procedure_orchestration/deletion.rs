@@ -3,11 +3,12 @@
 
 use std::sync::Arc;
 
-use crate::context::fund::{FundError, FundService};
+use crate::context::fund::FundService;
 use crate::context::patient::PatientService;
-use crate::context::procedure::{ProcedureError, ProcedureType, ProcedureTypeService};
+use crate::context::procedure::{ProcedureType, ProcedureTypeService};
 use crate::shared::logger::BACKEND;
 
+use super::error::{ProcedureOrchestrationError, ProcedureOrchestrationTask};
 use super::uow::DeletionTransactionManager;
 
 pub struct DeletionOrchestrator {
@@ -35,7 +36,7 @@ impl DeletionOrchestrator {
     /// R6, PRO-280 — delete a procedure type; the patients whose latest type it
     /// is lose that default and its date. The reserved type is refused, and so is
     /// a type procedures use (R24).
-    pub async fn delete_procedure_type(&self, id: &str) -> Result<(), ProcedureError> {
+    pub async fn delete_procedure_type(&self, id: &str) -> Result<(), ProcedureOrchestrationError> {
         ProcedureType::ensure_mutable(id)?;
         let id = id.to_string();
         self.deletion
@@ -44,7 +45,7 @@ impl DeletionOrchestrator {
                     if !uow.delete_procedure_type(&id).await? {
                         let procedure_count = uow.count_procedures_of_type(&id).await?;
                         if procedure_count > 0 {
-                            return Err(ProcedureError::ProcedureTypeInUse { procedure_count }.into());
+                            return Err(ProcedureOrchestrationTask::ProcedureTypeInUse { procedure_count }.into());
                         }
                         if uow.procedure_type_exists(&id).await? {
                             anyhow::bail!("procedure type refused by a reference nothing counts");
@@ -56,11 +57,11 @@ impl DeletionOrchestrator {
                 })
             }))
             .await
-            .map_err(|e| match e.downcast::<ProcedureError>() {
+            .map_err(|e| match e.downcast::<ProcedureOrchestrationTask>() {
                 Ok(refusal) => refusal,
                 Err(e) => {
                     tracing::error!(target: BACKEND, err = ?e, "delete_procedure_type: unit of work failed");
-                    ProcedureError::DatabaseError
+                    ProcedureOrchestrationTask::DatabaseError
                 }
             })?;
 
@@ -71,7 +72,7 @@ impl DeletionOrchestrator {
 
     /// PRO-290, PRO-291 — delete a fund; the patients whose latest fund it is lose
     /// that default. A fund procedures or fund payment groups use is refused.
-    pub async fn delete_fund(&self, id: &str) -> Result<(), FundError> {
+    pub async fn delete_fund(&self, id: &str) -> Result<(), ProcedureOrchestrationError> {
         let id = id.to_string();
         self.deletion
             .run(Box::new(move |uow| {
@@ -80,7 +81,7 @@ impl DeletionOrchestrator {
                         let (procedure_count, payment_group_count) =
                             uow.count_fund_uses(&id).await?;
                         if procedure_count + payment_group_count > 0 {
-                            return Err(FundError::FundInUse {
+                            return Err(ProcedureOrchestrationTask::FundInUse {
                                 procedure_count,
                                 payment_group_count,
                             }
@@ -96,11 +97,11 @@ impl DeletionOrchestrator {
                 })
             }))
             .await
-            .map_err(|e| match e.downcast::<FundError>() {
+            .map_err(|e| match e.downcast::<ProcedureOrchestrationTask>() {
                 Ok(refusal) => refusal,
                 Err(e) => {
                     tracing::error!(target: BACKEND, err = ?e, "delete_fund: unit of work failed");
-                    FundError::DatabaseError
+                    ProcedureOrchestrationTask::DatabaseError
                 }
             })?;
 
@@ -120,6 +121,7 @@ mod tests {
     use crate::context::fund::MockFundRepository;
     use crate::context::patient::MockPatientRepository;
     use crate::context::procedure::MockProcedureTypeRepository;
+    use crate::context::procedure::ProcedureError;
     use crate::shared::event_bus::EventBus;
     use crate::use_cases::procedure_orchestration::uow::{DeletionOperation, DeletionUnitOfWork};
 
@@ -260,7 +262,9 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(ProcedureError::ProcedureTypeInUse { procedure_count: 3 })
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::ProcedureTypeInUse { procedure_count: 3 }
+            ))
         ));
         assert_eq!(
             *writes.lock().unwrap(),
@@ -321,10 +325,12 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(FundError::FundInUse {
-                procedure_count: 2,
-                payment_group_count: 1
-            })
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::FundInUse {
+                    procedure_count: 2,
+                    payment_group_count: 1
+                }
+            ))
         ));
         assert_eq!(
             *writes.lock().unwrap(),
@@ -368,8 +374,18 @@ mod tests {
             .delete_procedure_type("type-1")
             .await;
 
-        assert!(matches!(fund, Err(FundError::DatabaseError)));
-        assert!(matches!(procedure_type, Err(ProcedureError::DatabaseError)));
+        assert!(matches!(
+            fund,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::DatabaseError
+            ))
+        ));
+        assert!(matches!(
+            procedure_type,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::DatabaseError
+            ))
+        ));
     }
 
     #[tokio::test]
@@ -383,7 +399,9 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(ProcedureError::ReservedTypeNotMutable)
+            Err(ProcedureOrchestrationError::Procedure(
+                ProcedureError::ReservedTypeNotMutable
+            ))
         ));
         assert!(writes.lock().unwrap().is_empty());
     }
@@ -400,8 +418,18 @@ mod tests {
             .await;
         let fund_result = orchestrator(failing()).delete_fund("fund-1").await;
 
-        assert!(matches!(type_result, Err(ProcedureError::DatabaseError)));
-        assert!(matches!(fund_result, Err(FundError::DatabaseError)));
+        assert!(matches!(
+            type_result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::DatabaseError
+            ))
+        ));
+        assert!(matches!(
+            fund_result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::DatabaseError
+            ))
+        ));
     }
 
     /// PRO-292, PRO-293 — a deletion and an unknown fund are both signaled through

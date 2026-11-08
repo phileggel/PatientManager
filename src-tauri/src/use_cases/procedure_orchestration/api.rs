@@ -1,4 +1,3 @@
-use crate::context::fund::FundError;
 use crate::context::procedure::{PaymentMethod, Procedure, ProcedureError, ProcedureStatus};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::procedure_orchestration::{
@@ -216,7 +215,7 @@ pub async fn read_procedures_by_ids(
 pub async fn delete_procedure_type(
     id: String,
     orchestrator: State<'_, Arc<DeletionOrchestrator>>,
-) -> Result<(), ProcedureError> {
+) -> Result<(), ProcedureOrchestrationError> {
     tracing::info!(target: BACKEND, procedure_type_id = %id, "Processing delete procedure type request");
     orchestrator.delete_procedure_type(&id).await
 }
@@ -227,7 +226,7 @@ pub async fn delete_procedure_type(
 pub async fn delete_fund(
     id: String,
     orchestrator: State<'_, Arc<DeletionOrchestrator>>,
-) -> Result<(), FundError> {
+) -> Result<(), ProcedureOrchestrationError> {
     tracing::info!(target: BACKEND, fund_id = %id, "Processing delete fund request");
     orchestrator.delete_fund(&id).await
 }

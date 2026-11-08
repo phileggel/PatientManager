@@ -58,7 +58,6 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
     case "FundInvalid":
     case "FundNotFound":
     case "IdentifierAlreadyUsed":
-    case "FundInUse":
     case "FundIdEmpty":
     case "TotalAmountNotPositive":
     case "InvalidPaymentDateFormat":
@@ -74,7 +73,6 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
     case "ProcedureTypeNotFound":
     case "ProcedureTypeNameDuplicate":
     case "ReservedTypeNotMutable":
-    case "ProcedureTypeInUse":
     case "RefundReasonTooLong":
     case "InvalidRefundDateFormat":
       return { key: "bank:errors.unexpected" };

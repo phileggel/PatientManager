@@ -1,4 +1,4 @@
-import type { ProcedureError, ProcedureType } from "@/bindings";
+import type { ProcedureError, ProcedureOrchestrationError, ProcedureType } from "@/bindings";
 import type { ProcedureTypeFormData, ProcedureTypeRow } from "./types";
 
 /** The backend's refusal of the name: shown under the name field, not as a toast. */
@@ -17,6 +17,24 @@ export function isNameMissing(err: ProcedureError): boolean {
  * invariants, ProcedureRefund variants) still map to keys so future use-case
  * composites that surface them through this presenter remain typed.
  */
+/**
+ * The procedure type deletion's refusals (R6, R24), or the generic failure:
+ * `delete_procedure_type` raises no other code of the use case's union.
+ */
+export function formatProcedureTypeDeletionError(err: ProcedureOrchestrationError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
+  switch (err.code) {
+    case "ProcedureTypeInUse":
+      return { key: "procedure-type:errors.in_use", params: { count: err.procedure_count } };
+    case "ReservedTypeNotMutable":
+      return { key: "procedure-type:errors.reserved_not_mutable" };
+    default:
+      return { key: "procedure-type:errors.database_error" };
+  }
+}
+
 export function formatProcedureError(err: ProcedureError): {
   key: string;
   params?: Record<string, string | number>;
@@ -42,11 +60,6 @@ export function formatProcedureError(err: ProcedureError): {
       return { key: "procedure-type:errors.name_duplicate" };
     case "ReservedTypeNotMutable":
       return { key: "procedure-type:errors.reserved_not_mutable" };
-    case "ProcedureTypeInUse":
-      return {
-        key: "procedure-type:errors.in_use",
-        params: { count: err.procedure_count },
-      };
     case "RefundReasonTooLong":
       return { key: "procedure-type:errors.refund_reason_too_long" };
     case "InvalidRefundDateFormat":

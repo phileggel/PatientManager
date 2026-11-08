@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Fund, FundError } from "@/bindings";
-import { FundPresenter, formatFundError, fundFieldErrorKeys } from "./presenter";
+import {
+  FundPresenter,
+  formatFundDeletionError,
+  formatFundError,
+  fundFieldErrorKeys,
+} from "./presenter";
 
 /**
  * FundPresenter - Gold Test Suite
@@ -233,8 +238,14 @@ describe("formatFundError - F27 Layer 3 (pure code → key mapping)", () => {
 
   it("ticket #590: maps FundInUse to the in_use key with both counts (PRO-291)", () => {
     expect(
-      formatFundError({ code: "FundInUse", procedure_count: 2, payment_group_count: 1 }),
+      formatFundDeletionError({ code: "FundInUse", procedure_count: 2, payment_group_count: 1 }),
     ).toEqual({ key: "fund:errors.in_use", params: { procedures: 2, groups: 1 } });
+  });
+
+  it("ticket #590: maps any other deletion failure to the database error key", () => {
+    expect(formatFundDeletionError({ code: "DatabaseError" })).toEqual({
+      key: "fund:errors.database_error",
+    });
   });
 
   it("maps FundIdEmpty to its key", () => {

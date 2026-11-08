@@ -2,7 +2,11 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCacheStore } from "@/infra/cache/store";
 import { deleteProcedureType, reloadProcedureTypes } from "../gateway";
-import { formatProcedureError, ProcedureTypePresenter } from "../shared/presenter";
+import {
+  formatProcedureError,
+  formatProcedureTypeDeletionError,
+  ProcedureTypePresenter,
+} from "../shared/presenter";
 import { RESERVED_PROCEDURE_TYPE_ID } from "../shared/types";
 
 /**
@@ -54,7 +58,7 @@ export function useProcedureTypeList() {
     async (id: string) => {
       const result = await deleteProcedureType(id);
       if (!result.success) {
-        const { key, params } = formatProcedureError(result.error);
+        const { key, params } = formatProcedureTypeDeletionError(result.error);
         throw new Error(t(key, params) || t("action.delete.failed_fallback"));
       }
     },

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ProcedureError, ProcedureType } from "@/bindings";
-import { formatProcedureError, isNameMissing, ProcedureTypePresenter } from "./presenter";
+import {
+  formatProcedureError,
+  formatProcedureTypeDeletionError,
+  isNameMissing,
+  ProcedureTypePresenter,
+} from "./presenter";
 
 /**
  * ProcedureTypePresenter - Gold Test Suite
@@ -213,9 +218,17 @@ describe("ProcedureTypePresenter", () => {
     }
 
     it("ticket #589: maps ProcedureTypeInUse to the in_use key with the count (R24)", () => {
-      expect(formatProcedureError({ code: "ProcedureTypeInUse", procedure_count: 3 })).toEqual({
-        key: "procedure-type:errors.in_use",
-        params: { count: 3 },
+      expect(
+        formatProcedureTypeDeletionError({ code: "ProcedureTypeInUse", procedure_count: 3 }),
+      ).toEqual({ key: "procedure-type:errors.in_use", params: { count: 3 } });
+    });
+
+    it("ticket #590: maps the deletion's other codes to their keys", () => {
+      expect(formatProcedureTypeDeletionError({ code: "ReservedTypeNotMutable" })).toEqual({
+        key: "procedure-type:errors.reserved_not_mutable",
+      });
+      expect(formatProcedureTypeDeletionError({ code: "DatabaseError" })).toEqual({
+        key: "procedure-type:errors.database_error",
       });
     });
 

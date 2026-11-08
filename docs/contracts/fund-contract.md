@@ -44,7 +44,7 @@ Deletes a fund (PRO-292); its identifier can be used again. Refuses a fund proce
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `FundInUse { procedure_count, payment_group_count }` (PRO-291), `DatabaseError`
+- **Errors:** `ProcedureOrchestrationError` — `FundInUse { procedure_count, payment_group_count }` (PRO-291), `DatabaseError`
 
 ---
 
@@ -144,4 +144,4 @@ enum FundPaymentGroupStatus {
 - 2026-11-02 — Modified by `fund-payment-manual-match` spec (FPM-400, #585): `delete_fund_payment_group` really deletes the group's lines; no signature change.
 - 2026-10-18 — Modified by `overpayment` spec (REF-240, ticket #355): `FundPaymentGroup` carries `origin` (`GroupOrigin`); `delete_fund_payment_group` answers `RefundGroupProtected` from the use case, its errors listed as the code sends them
 - 2026-10-14 — Modified by `procedure-orchestration` spec (DEBT-042): delete_fund
-- 2026-11-08 — `delete_fund` (#590, PRO-291): a fund is really deleted; a fund in use is refused with `FundInUse`.
+- 2026-11-08 — `delete_fund` (#590, PRO-291): a fund is really deleted; a fund in use is refused with `FundInUse`, a code of the use case's `ProcedureOrchestrationError`.

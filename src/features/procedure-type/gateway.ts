@@ -1,4 +1,4 @@
-import type { ProcedureError, ProcedureType } from "@/bindings";
+import type { ProcedureError, ProcedureOrchestrationError, ProcedureType } from "@/bindings";
 import { commands } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
@@ -57,7 +57,7 @@ export async function updateProcedureType(
 
 export async function deleteProcedureType(
   id: string,
-): Promise<ServiceResult<void, ProcedureError>> {
+): Promise<ServiceResult<void, ProcedureOrchestrationError>> {
   logger.info("Deleting procedure type", { typeId: id });
   const result = await commands.deleteProcedureType(id);
   if (result.status === "ok") {

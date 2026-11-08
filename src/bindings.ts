@@ -88,7 +88,7 @@ async updateFund(fund: Fund) : Promise<Result<Fund, FundError>> {
 /**
  * PRO-290 — delete a fund; the patients' defaults that name it go.
  */
-async deleteFund(id: string) : Promise<Result<null, FundError>> {
+async deleteFund(id: string) : Promise<Result<null, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_fund", { id }) };
 } catch (e) {
@@ -198,7 +198,7 @@ async updateProcedureType(raw: RawProcedureType) : Promise<Result<ProcedureType,
 /**
  * PRO-280 — delete a procedure type; the patients' defaults that name it go.
  */
-async deleteProcedureType(id: string) : Promise<Result<null, ProcedureError>> {
+async deleteProcedureType(id: string) : Promise<Result<null, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_procedure_type", { id }) };
 } catch (e) {
@@ -1736,11 +1736,6 @@ export type FundError =
  */
 { code: "PaymentGroupNotFound"; fund_payment_group_id: string } | 
 /**
- * PRO-291 — the deletion use case refused a fund procedures or fund payment
- * groups still use.
- */
-{ code: "FundInUse"; procedure_count: number; payment_group_count: number } | 
-/**
  * Repository / sqlx-level failure. Underlying error is logged at the
  * call site via `tracing::error!`; the wire surface carries no detail.
  */
@@ -2395,10 +2390,6 @@ export type ProcedureError =
  */
 { code: "ReservedTypeNotMutable" } | 
 /**
- * R24 — the deletion use case refused a procedure type procedures still use.
- */
-{ code: "ProcedureTypeInUse"; procedure_count: number } | 
-/**
  * `ProcedureRefund::validate` rejected a reason exceeding the 255-char cap.
  */
 { code: "RefundReasonTooLong" } | 
@@ -2466,6 +2457,14 @@ export type ProcedureOrchestrationTask =
  * transaction (a blocking status) and cannot be deleted directly.
  */
 { code: "ProcedureDeleteBlocked" } | 
+/**
+ * R24 — a procedure type procedures still use is not deleted.
+ */
+{ code: "ProcedureTypeInUse"; procedure_count: number } | 
+/**
+ * PRO-291 — a fund procedures or fund payment groups still use is not deleted.
+ */
+{ code: "FundInUse"; procedure_count: number; payment_group_count: number } | 
 /**
  * Failure from a repository the orchestrator holds directly (patient /
  * fund / procedure-type / refund). Logged at the call site via

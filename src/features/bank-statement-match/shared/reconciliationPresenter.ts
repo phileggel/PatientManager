@@ -164,7 +164,6 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "FundInvalid":
     case "FundNotFound":
     case "IdentifierAlreadyUsed":
-    case "FundInUse":
     case "FundIdEmpty":
     case "TotalAmountNotPositive":
     case "InvalidPaymentDateFormat":

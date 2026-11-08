@@ -57,14 +57,6 @@ pub enum FundError {
     #[error("Fund payment group not found: {fund_payment_group_id}")]
     PaymentGroupNotFound { fund_payment_group_id: String },
 
-    /// PRO-291 — the deletion use case refused a fund procedures or fund payment
-    /// groups still use.
-    #[error("The fund is used by {procedure_count} procedure(s) and {payment_group_count} fund payment(s)")]
-    FundInUse {
-        procedure_count: usize,
-        payment_group_count: usize,
-    },
-
     // --- Infra catch-all ---
     /// Repository / sqlx-level failure. Underlying error is logged at the
     /// call site via `tracing::error!`; the wire surface carries no detail.
