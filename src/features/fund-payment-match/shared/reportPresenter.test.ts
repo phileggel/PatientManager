@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AutoCorrection, ReconciliationMatch } from "@/bindings";
 import type { CorrectionGroupsInput } from "./reportPresenter";
-import { buildCorrectionGroups } from "./reportPresenter";
+import { buildCorrectionGroups, buildLeftOutSection } from "./reportPresenter";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -387,5 +387,31 @@ describe("buildCorrectionGroups — within-group date sort ascending (FPR-041)",
     // Earliest date must come first
     expect(rows[0]).toContain("PATIENT EARLY");
     expect(rows[1]).toContain("PATIENT LATE");
+  });
+});
+
+describe("buildLeftOutSection (FPR-050, FPR-051)", () => {
+  const t = (key: string) => key;
+
+  it("ticket #595: lists each group left out, in the order of the PDF, with its values", () => {
+    const section = buildLeftOutSection(
+      [
+        { fund_label: "CPAM 75", payment_date: "2026-03-12", total_amount: -76800 },
+        { fund_label: "MSA", payment_date: "2026-03-14", total_amount: 0 },
+      ],
+      "fr",
+      t,
+    );
+
+    expect(section?.heading).toBe("print.section3.heading");
+    expect(section?.note).toBe("print.section3.note");
+    expect(section?.rows.map((row) => row.replace(/\s/g, " "))).toEqual([
+      "CPAM 75 | 12/03/2026 | -76,80 €",
+      "MSA | 14/03/2026 | 0,00 €",
+    ]);
+  });
+
+  it("ticket #595: with no group left out, the section is omitted", () => {
+    expect(buildLeftOutSection([], "fr", t)).toBeNull();
   });
 });

@@ -59,6 +59,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<fund_payment_report_pdf::UnreconciledColumns>()
         .typ::<fund_payment_report_pdf::UnreconciledRow>()
         .typ::<fund_payment_report_pdf::CorrectionGroup>()
+        .typ::<fund_payment_report_pdf::LeftOutSection>()
         .commands(tauri_specta::collect_commands![
             patient::add_patient,
             patient::read_all_patients,

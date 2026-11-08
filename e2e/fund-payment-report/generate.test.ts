@@ -14,7 +14,7 @@
  *
  * Coverage:
  *   - Happy path — minimal valid request (Empty section 1, no corrections)
- *   - Happy path — populated request (Rows section 1 + correction groups)
+ *   - Happy path — populated request (Rows section 1 + correction groups + Section 3)
  *   - Error path — InvalidRequest (empty title)
  *   - Error path — InvalidRequest (control character in title)
  */
@@ -51,12 +51,13 @@ const MINIMAL_REQUEST = {
   },
   correction_section_heading: "Corrections appliquées",
   correction_groups: [],
+  left_out_section: null,
   page_label: "Page",
 } as const;
 
 /**
  * A populated ReportGenerationRequest with Section 1 rows (FPR-031, FPR-033)
- * and two correction groups (FPR-041, FPR-042). Exercises the renderer's
+ * two correction groups (FPR-041, FPR-042), and Section 3 (FPR-050). Exercises the renderer's
  * table layout and multi-section flow.
  */
 const POPULATED_REQUEST = {
@@ -112,6 +113,12 @@ const POPULATED_REQUEST = {
       rows: ["PETIT Lucas | 10/04/2026 | CPAM 75 → CPAM 93"],
     },
   ],
+  // FPR-050 (#595) — Section 3, the groups left out.
+  left_out_section: {
+    heading: "Groupes non importés",
+    note: "Leur total est négatif ou nul : la caisse reprend une somme. L'import n'enregistre pas ces montants ; notez-les.",
+    rows: ["CPAM 75 | 12/04/2026 | -76,80 €"],
+  },
   page_label: "Page",
 } as const;
 

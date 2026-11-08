@@ -22,6 +22,10 @@
         "DateMismatch": "Date corrections"
       }
     },
+    "section3": {
+      "heading": "Groups not imported",
+      "note": "Their total is negative or zero: the fund is taking money back. The import does not record these amounts; note them."
+    },
     "columns": {
       "date": "Procedure date",
       "patient": "Patient",

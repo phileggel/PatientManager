@@ -5,7 +5,7 @@ use printpdf::{
 
 use super::error::ReportPdfError;
 use super::request::{
-    CorrectionGroup, ReportGenerationRequest, UnreconciledRow, UnreconciledSection,
+    CorrectionGroup, LeftOutSection, ReportGenerationRequest, UnreconciledRow, UnreconciledSection,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -86,9 +86,35 @@ fn build_document(
     renderer.render_header(req);
     renderer.render_section_unreconciled(&req.unreconciled);
     renderer.render_section_corrections(&req.correction_section_heading, &req.correction_groups);
+    if let Some(section) = &req.left_out_section {
+        renderer.render_section_left_out(section);
+    }
     let pages = renderer.finish_pages(&regular_id, &req.page_label);
 
     Ok((doc, pages))
+}
+
+/// Characters per line of a 9 pt note: the text width between the margins holds about
+/// 100 average glyphs; 90 leaves room for wide ones.
+const NOTE_LINE_CHARS: usize = 90;
+
+/// Break `text` into lines of at most `max` characters at spaces; a longer word stands alone.
+fn wrap_words(text: &str, max: usize) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    let mut line = String::new();
+    for word in text.split_whitespace() {
+        if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > max {
+            lines.push(std::mem::take(&mut line));
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+    lines
 }
 
 #[cfg(test)]
@@ -230,6 +256,25 @@ impl<'a> Renderer<'a> {
                 self.y -= ROW_HEIGHT;
             }
             self.y -= 5.0;
+        }
+    }
+
+    /// Section 3 — FPR-050: the groups left out, after the corrections. FPR-051 —
+    /// the caller renders nothing when there is no section.
+    fn render_section_left_out(&mut self, section: &LeftOutSection) {
+        self.ensure_room(20.0);
+        self.draw_text_bold(MARGIN_X, self.y, 12.0, &section.heading);
+        self.y -= 8.0;
+        for row in &section.rows {
+            self.ensure_room(ROW_HEIGHT);
+            let baseline = self.y - 4.0;
+            self.draw_text(MARGIN_X + 4.0, baseline, 9.0, row);
+            self.y -= ROW_HEIGHT;
+        }
+        for line in wrap_words(&section.note, NOTE_LINE_CHARS) {
+            self.ensure_room(ROW_HEIGHT);
+            self.draw_text(MARGIN_X, self.y - 4.0, 9.0, &line);
+            self.y -= ROW_HEIGHT;
         }
     }
 
@@ -392,6 +437,7 @@ mod tests {
             },
             correction_section_heading: "Corrections applied".into(),
             correction_groups: vec![],
+            left_out_section: None,
             page_label: "Page".into(),
         };
         let bytes = render(&req).expect("render must succeed for the EN-resolved request");
@@ -562,6 +608,7 @@ mod tests {
                 title: "GROUPTITLEMARK".into(),
                 rows: vec!["GROUPROWMARK".into()],
             }],
+            left_out_section: None,
             page_label: "PAGELABELMARK".into(),
         };
 
@@ -665,5 +712,88 @@ mod tests {
             page2.iter().any(|s| s == &expected_page2),
             "page 2 footer must equal '{expected_page2}', got: {page2:?}"
         );
+    }
+
+    // ── FPR-050, FPR-051 — Section 3, the groups left out (#595) ────────────
+
+    fn left_out_request() -> ReportGenerationRequest {
+        ReportGenerationRequest {
+            left_out_section: Some(LeftOutSection {
+                heading: "LEFTOUTHEADMARK".into(),
+                note: "LEFTOUTNOTEMARK".into(),
+                rows: vec![
+                    "CPAM 75 · 12/03/2026 · -76,80 €".into(),
+                    "MSA · 14/03/2026 · 0,00 €".into(),
+                ],
+            }),
+            ..valid_request()
+        }
+    }
+
+    #[test]
+    fn test_595_the_groups_left_out_are_listed_last_in_the_order_of_the_pdf() {
+        let pages = build_pages_for_test(&left_out_request()).expect("build must succeed");
+        let text: Vec<String> = collect_text_ops(&pages).into_iter().flatten().collect();
+        let at = |needle: &str| {
+            text.iter()
+                .position(|s| s == needle)
+                .unwrap_or_else(|| panic!("'{needle}' not emitted in {text:?}"))
+        };
+
+        let heading = at("LEFTOUTHEADMARK");
+        let first = at("CPAM 75 · 12/03/2026 · -76,80 €");
+        let second = at("MSA · 14/03/2026 · 0,00 €");
+        let note = at("LEFTOUTNOTEMARK");
+        assert!(
+            at("Actes non rapprochés") < heading,
+            "Section 3 follows Section 1"
+        );
+        assert!(
+            heading < first && first < second && second < note,
+            "{text:?}"
+        );
+    }
+
+    #[test]
+    fn test_595_section_3_follows_the_corrections_when_there_are_some() {
+        let req = ReportGenerationRequest {
+            correction_groups: vec![CorrectionGroup {
+                title: "Corrections de montant".into(),
+                rows: vec!["CORRROWMARK".into()],
+            }],
+            ..left_out_request()
+        };
+        let pages = build_pages_for_test(&req).expect("build must succeed");
+        let text: Vec<String> = collect_text_ops(&pages).into_iter().flatten().collect();
+        let at = |needle: &str| text.iter().position(|s| s == needle);
+
+        assert!(at("CORRROWMARK") < at("LEFTOUTHEADMARK"), "{text:?}");
+        assert!(at("LEFTOUTHEADMARK").is_some());
+    }
+
+    #[test]
+    fn test_595_no_group_left_out_omits_section_3() {
+        let pages = build_pages_for_test(&valid_request()).expect("build must succeed");
+        let text: Vec<String> = collect_text_ops(&pages).into_iter().flatten().collect();
+        let with = build_pages_for_test(&left_out_request()).expect("build must succeed");
+        let with_text: Vec<String> = collect_text_ops(&with).into_iter().flatten().collect();
+
+        assert_eq!(
+            with_text.len(),
+            text.len() + 4,
+            "heading, two rows and the note"
+        );
+        assert!(!text.iter().any(|s| s.contains("LEFTOUT")));
+    }
+
+    #[test]
+    fn test_595_a_long_note_wraps_at_spaces() {
+        let note = "Leur total est négatif ou nul : la caisse reprend une somme. L'import n'enregistre pas ces montants ; notez-les.";
+
+        let lines = wrap_words(note, NOTE_LINE_CHARS);
+
+        assert!(lines.len() > 1, "{lines:?}");
+        assert!(lines.iter().all(|l| l.chars().count() <= NOTE_LINE_CHARS));
+        assert_eq!(lines.join(" "), note);
     }
 }

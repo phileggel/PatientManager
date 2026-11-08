@@ -26,6 +26,6 @@ pub use error::ReportPdfError;
 pub use orchestrator::{generate, save};
 pub use renderer::render;
 pub use request::{
-    CorrectionGroup, ReportGenerationRequest, UnreconciledColumns, UnreconciledRow,
+    CorrectionGroup, LeftOutSection, ReportGenerationRequest, UnreconciledColumns, UnreconciledRow,
     UnreconciledSection,
 };
