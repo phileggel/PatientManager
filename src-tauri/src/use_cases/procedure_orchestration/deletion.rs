@@ -1,5 +1,6 @@
 //! PRO-280, PRO-290 — deleting a procedure type or a fund clears it from every
-//! patient's latest-procedure defaults, in the same transaction.
+//! patient's latest-procedure defaults, in the same transaction; PRO-296 — a
+//! patient goes with its duplicate dismissals.
 
 use std::sync::Arc;
 
@@ -109,6 +110,42 @@ impl DeletionOrchestrator {
         self.patient_service.notify_patients_updated();
         Ok(())
     }
+
+    /// PRO-296 to PRO-298 — delete a patient with its duplicate dismissals. A patient
+    /// that procedures reference is refused with their count; nothing changes.
+    pub async fn delete_patient(&self, id: &str) -> Result<(), ProcedureOrchestrationError> {
+        let id = id.to_string();
+        self.deletion
+            .run(Box::new(move |uow| {
+                Box::pin(async move {
+                    uow.delete_patient_dismissals(&id).await?;
+                    if !uow.delete_patient(&id).await? {
+                        let procedure_count = uow.count_procedures_of_patient(&id).await?;
+                        if procedure_count > 0 {
+                            return Err(
+                                ProcedureOrchestrationTask::PatientInUse { procedure_count }.into()
+                            );
+                        }
+                        if uow.patient_exists(&id).await? {
+                            anyhow::bail!("patient refused by a reference nothing counts");
+                        }
+                    }
+                    // An unknown id changes nothing.
+                    Ok(())
+                })
+            }))
+            .await
+            .map_err(|e| match e.downcast::<ProcedureOrchestrationTask>() {
+                Ok(refusal) => refusal,
+                Err(e) => {
+                    tracing::error!(target: BACKEND, err = ?e, "delete_patient: unit of work failed");
+                    ProcedureOrchestrationTask::DatabaseError
+                }
+            })?;
+
+        self.patient_service.notify_patients_updated();
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -132,7 +169,7 @@ mod tests {
         fail: bool,
         /// The type's row is absent (unknown id) or refused by a procedure.
         not_deleted: bool,
-        /// How many procedures use the type.
+        /// How many procedures use the type, or name the patient.
         procedures_using: usize,
         /// (procedures, fund payment groups) that use the fund.
         fund_uses: (usize, usize),
@@ -182,6 +219,21 @@ mod tests {
         }
         async fn fund_exists(&mut self, id: &str) -> anyhow::Result<bool> {
             self.record(format!("fund_exists {id}"))?;
+            Ok(self.still_stored)
+        }
+        async fn delete_patient(&mut self, id: &str) -> anyhow::Result<bool> {
+            self.record(format!("delete_patient {id}"))?;
+            Ok(!self.not_deleted)
+        }
+        async fn count_procedures_of_patient(&mut self, id: &str) -> anyhow::Result<usize> {
+            self.record(format!("count_procedures_of_patient {id}"))?;
+            Ok(self.procedures_using)
+        }
+        async fn delete_patient_dismissals(&mut self, id: &str) -> anyhow::Result<()> {
+            self.record(format!("delete_patient_dismissals {id}"))
+        }
+        async fn patient_exists(&mut self, id: &str) -> anyhow::Result<bool> {
+            self.record(format!("patient_exists {id}"))?;
             Ok(self.still_stored)
         }
         async fn clear_fund_defaults(&mut self, id: &str) -> anyhow::Result<()> {
@@ -467,5 +519,70 @@ mod tests {
             }
             assert_eq!(received, events);
         }
+    }
+
+    /// PRO-297 — a patient nothing names goes with its dismissals, signaled
+    /// through `PatientUpdated`.
+    #[tokio::test]
+    async fn test_591_a_patient_goes_with_its_dismissals() {
+        use crate::shared::event_bus::PatientUpdated;
+        let deletion = RecordingDeletion::default();
+        let writes = deletion.writes.clone();
+        let bus = Arc::new(EventBus::new());
+        let mut changed = bus.subscribe::<PatientUpdated>().expect("subscribe");
+
+        let result = orchestrator_on(deletion, bus).delete_patient("pat-1").await;
+
+        assert!(result.is_ok());
+        assert_eq!(
+            *writes.lock().unwrap(),
+            vec!["delete_patient_dismissals pat-1", "delete_patient pat-1"]
+        );
+        assert!(changed.try_recv().is_ok());
+    }
+
+    /// PRO-296 — a patient that procedures reference is refused with their count.
+    #[tokio::test]
+    async fn test_591_a_patient_with_procedures_is_refused_with_the_count() {
+        let deletion = RecordingDeletion {
+            not_deleted: true,
+            procedures_using: 4,
+            ..Default::default()
+        };
+
+        let result = orchestrator(deletion).delete_patient("pat-1").await;
+
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::PatientInUse { procedure_count: 4 }
+            ))
+        ));
+    }
+
+    /// PRO-298 — an unknown patient changes nothing and is not an error; a refusal
+    /// nothing counts is a fault.
+    #[tokio::test]
+    async fn test_591_an_unknown_patient_is_not_an_error_but_an_uncounted_refusal_is() {
+        let unknown = RecordingDeletion {
+            not_deleted: true,
+            ..Default::default()
+        };
+        let uncounted = RecordingDeletion {
+            not_deleted: true,
+            still_stored: true,
+            ..Default::default()
+        };
+
+        let unknown = orchestrator(unknown).delete_patient("pat-1").await;
+        let uncounted = orchestrator(uncounted).delete_patient("pat-1").await;
+
+        assert!(unknown.is_ok());
+        assert!(matches!(
+            uncounted,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::DatabaseError
+            ))
+        ));
     }
 }

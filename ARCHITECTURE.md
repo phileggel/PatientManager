@@ -80,7 +80,7 @@ Each context exposes its public surface via `api.rs` (B0). External callers (oth
 
 Use cases may import from contexts; never from another use case. No domain events.
 
-- **`procedure_orchestration`** — Procedure CRUD + patient tracking + FK validation. ([spec](docs/spec/procedure-orchestration.md))
+- **`procedure_orchestration`** — Procedure CRUD + patient tracking + FK validation; the deletion of a procedure type, a fund or a patient, refused while procedures use it. ([spec](docs/spec/procedure-orchestration.md))
 - **`excel_import`** — Procedure + Patient + Fund + ProcedureType from `.xlsx`. ([spec](docs/spec/excel-import.md))
 - **`fund_payment_reconciliation`** — PDF-driven auto-reconciliation: parse PDF → match procedures → create groups. ([spec](docs/spec/fund-payment-auto-match.md))
 - **`fund_payment_manual_management`** — Manual CRUD on fund payment groups from the FundPaymentManager page (list delete, Add panel create, Edit modal update). Coordinates group lifecycle + linked procedure statuses. ([spec](docs/spec/fund-payment-manual-match.md))

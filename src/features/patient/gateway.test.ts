@@ -92,6 +92,18 @@ describe("deletePatient", () => {
     expect(result).toEqual({ success: false, error: { code: "DatabaseError" } });
   });
 
+  it("ticket #591: forwards the in-use refusal with its count (PRO-296)", async () => {
+    vi.mocked(commands.deletePatient).mockResolvedValue({
+      status: "error",
+      error: { code: "PatientInUse", procedure_count: 3 },
+    });
+    const result = await deletePatient("patient-1");
+    expect(result).toEqual({
+      success: false,
+      error: { code: "PatientInUse", procedure_count: 3 },
+    });
+  });
+
   it("returns success with undefined data on ok", async () => {
     vi.mocked(commands.deletePatient).mockResolvedValue({ status: "ok", data: null });
     const result = await deletePatient("patient-1");

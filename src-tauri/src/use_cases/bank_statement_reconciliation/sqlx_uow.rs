@@ -71,7 +71,7 @@ mod tests {
             .await
             .expect("migrations");
         for statement in [
-            "INSERT INTO patient (id, is_anonymous, is_deleted) VALUES ('patient-1', 0, 0)",
+            "INSERT INTO patient (id, is_anonymous) VALUES ('patient-1', 0)",
             "INSERT INTO fund (id, fund_identifier, name) VALUES ('fund-1', 'F1', 'Fund 1')",
             "INSERT INTO procedure_type (id, name, default_amount) VALUES ('type-1', 'Type 1', 100000)",
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('procedure-1', 'patient-1', 'type-1', '2026-03-10', 100000, 'RECONCILIATED')"#,

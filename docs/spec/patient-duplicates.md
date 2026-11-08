@@ -14,8 +14,8 @@ scope. The SSN is shown on screen as « INS ».
 The comparison ignores accents; the Excel import's own name match (EXI-080) does not, so an import
 can create "Elodie" beside "Élodie" and this page then proposes the pair. That is intended.
 
-Two patients that each have an SSN can be merged; the other patient's SSN then stays on the deleted
-patient only. A later import carrying that SSN creates a patient again, and the pair comes back.
+Two patients that each have an SSN can be merged; the other patient's SSN then leaves the
+database with that patient. A later import carrying that SSN creates a patient again, and the pair comes back.
 
 ---
 
@@ -32,7 +32,7 @@ The user's statement that two patients with the same name are different people.
 
 A dismissal has no direction: (A, B) and (B, A) are the same dismissal, and a pair has at most one.
 It belongs to the patient context and has no life of its own: recorded once, removed only with one
-of its patients (PDU-026).
+of its patients (PDU-026, PRO-297, PRO-299).
 
 ---
 
@@ -41,7 +41,7 @@ of its patients (PDU-026).
 ### Listing (010–019)
 
 **PDU-010 — Candidate pair (backend)**: Two patients form a candidate pair when neither is
-deleted nor anonymous, both have a name, and their names are equal once leading and trailing
+anonymous, both have a name, and their names are equal once leading and trailing
 spaces are removed and case and accents are ignored. A pair the user dismissed (PDU-030) is not a
 candidate.
 
@@ -75,8 +75,8 @@ dialog states how many procedures move to the kept patient (the other patient's 
 and that the other patient is deleted, and that the action cannot be undone.
 
 **PDU-021 — Merge (backend)**: Merging moves every procedure of the other patient, whatever their
-payment status, to the kept patient, and deletes the other patient. Deleted means hidden from every
-screen and kept in the database, as for any patient deletion.
+payment status, to the kept patient, and deletes the other patient: it is removed, its name and SSN
+included, as for any patient deletion (PRO-297) (#591).
 
 **PDU-022 — SSN on merge (backend)**: When the kept patient has no SSN and the other has one, the
 kept patient takes it. When the kept patient has an SSN, it is unchanged, whatever the other's.
@@ -89,7 +89,7 @@ date is more recent, or when the kept patient has none and the other has one.
 patient is deleted and its dismissals are removed (PDU-026) together, or none of it happens.
 
 **PDU-025 — Refused merges (backend)**: A merge is refused, and nothing changes, when the two
-identifiers are the same, when either patient does not exist or is deleted, or when the two
+identifiers are the same, when either patient does not exist, or when the two
 patients do not meet PDU-010's conditions on the patients themselves (not anonymous, same name). A
 dismissal does not make a merge refused.
 
@@ -108,7 +108,7 @@ reloads.
 two differ, the merge dialog shows the notice « Ces deux fiches ont un INS différent : il s'agit
 peut-être de deux personnes. L'INS de la fiche N ne sera pas conservé. », N being the patient that
 is not the kept patient; it follows the choice of PDU-020. That SSN is not carried to the kept
-patient and stays on the deleted patient (PDU-021, PDU-022). The merge stays allowed (PDU-025). No
+patient (PDU-021, PDU-022). The merge stays allowed (PDU-025). No
 notice when an SSN is missing or the two are equal.
 
 ### Dismissal (030–039)
@@ -120,7 +120,7 @@ notice when an SSN is missing or the two are equal.
 nothing and is not an error.
 
 **PDU-032 — Refused dismissals (backend)**: A dismissal is refused when the two identifiers are
-the same or when either patient does not exist or is deleted. The names are not checked: any two
+the same or when either patient does not exist. The names are not checked: any two
 existing patients can be declared different people. A dismissal publishes no event: no patient
 changes.
 
@@ -180,7 +180,8 @@ patient, and the actions « Pas un doublon » and « Fusionner ».
 - [x] What happens to the SSN when the kept patient has none? — Decided by the owner on
       2026-10-03: the kept patient takes the other's SSN (PDU-022).
 - [x] What happens to the patient that is not kept? — Decided by the owner on 2026-10-03: hidden
-      and kept in the database (PDU-021).
+      and kept in the database; superseded by the owner on 2026-11-01 (#579): really deleted
+      (PDU-021, #591).
 - [x] Two patients that each have an SSN? — Decided by the owner on 2026-10-03, completed on
       2026-10-04: the kept patient's SSN stays, the merge is not refused (PDU-022), and the dialog
       warns when the two differ (PDU-029).

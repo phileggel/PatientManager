@@ -28,7 +28,7 @@ Creates a new procedure. Validates mandatory fields, every missing or malformed 
 
 ### `update_procedure` — PRO-125, PRO-250, PRO-251, PRO-252, PRO-255, PRO-256, REF-170
 
-Accepts all procedure fields without re-inference (PRO-250). Refuses a missing patient, type or date, or a malformed date, all at once (PRO-125). Values all equal to the stored procedure are answered `Unchanged` and nothing is written (PRO-255). Refusals in order (PRO-256): missing fields (PRO-125), an unknown procedure (PRO-252), a changed `patient_id`, `procedure_type_id` or `fund_id` that does not exist or was deleted; a kept one stays valid (PRO-251). For procedures in `Overpaid` status, propagates any `procedure_type_id` change to the linked refund procedure atomically (REF-170).
+Accepts all procedure fields without re-inference (PRO-250). Refuses a missing patient, type or date, or a malformed date, all at once (PRO-125). Values all equal to the stored procedure are answered `Unchanged` and nothing is written (PRO-255). Refusals in order (PRO-256): missing fields (PRO-125), an unknown procedure (PRO-252), a changed `patient_id`, `procedure_type_id` or `fund_id` that does not exist; a kept one stays valid (PRO-251). For procedures in `Overpaid` status, propagates any `procedure_type_id` change to the linked refund procedure atomically (REF-170).
 
 - **Args:** `raw: RawProcedure`
 - **Returns:** `ProcedureEdit`

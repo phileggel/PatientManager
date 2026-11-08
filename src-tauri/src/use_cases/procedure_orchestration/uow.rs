@@ -1,5 +1,5 @@
-//! Unit of work for deleting a procedure type or a fund (ADR-003, PRO-280,
-//! PRO-290).
+//! Unit of work for deleting a procedure type, a fund or a patient (ADR-003,
+//! PRO-280, PRO-290, PRO-296).
 //!
 //! A deletion writes two bounded contexts: the procedure type or the fund is
 //! deleted, and the patients whose latest-procedure defaults name it lose them.
@@ -26,6 +26,14 @@ pub trait DeletionUnitOfWork: Send {
     /// Whether the row is still there: a refused delete nothing counted is a fault.
     async fn procedure_type_exists(&mut self, procedure_type_id: &str) -> anyhow::Result<bool>;
     async fn fund_exists(&mut self, fund_id: &str) -> anyhow::Result<bool>;
+    /// False when a procedure still names the patient, or no row matched (PRO-296).
+    async fn delete_patient(&mut self, patient_id: &str) -> anyhow::Result<bool>;
+    /// How many procedures name the patient, for the refusal (PRO-296).
+    async fn count_procedures_of_patient(&mut self, patient_id: &str) -> anyhow::Result<usize>;
+    /// The duplicate dismissals that involve the patient go first (PRO-297).
+    async fn delete_patient_dismissals(&mut self, patient_id: &str) -> anyhow::Result<()>;
+    /// Whether the refused patient is still stored: then nothing counted it, a fault.
+    async fn patient_exists(&mut self, patient_id: &str) -> anyhow::Result<bool>;
 }
 
 /// What the orchestrator asks to run atomically.

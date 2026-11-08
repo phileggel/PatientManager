@@ -14,11 +14,11 @@ use crate::context::procedure::ProcedureError;
 #[derive(Debug, Clone, Error, Serialize, Type)]
 #[serde(tag = "code")]
 pub enum ProcedureOrchestrationTask {
-    /// FK validation: the referenced patient does not exist (or is deleted).
+    /// FK validation: the referenced patient does not exist.
     #[error("Patient not found: {patient_id}")]
     PatientNotFound { patient_id: String },
 
-    /// FK validation: the referenced fund does not exist (or is deleted).
+    /// FK validation: the referenced fund does not exist.
     #[error("Fund not found: {fund_id}")]
     FundNotFound { fund_id: String },
 
@@ -37,6 +37,10 @@ pub enum ProcedureOrchestrationTask {
         procedure_count: usize,
         payment_group_count: usize,
     },
+
+    /// PRO-296 — a patient that procedures still reference is not deleted.
+    #[error("The patient has {procedure_count} procedure(s)")]
+    PatientInUse { procedure_count: usize },
 
     /// Failure from a repository the orchestrator holds directly (patient /
     /// fund / procedure-type / refund). Logged at the call site via

@@ -925,7 +925,7 @@ mod tests {
         let fund_id = Uuid::new_v4().to_string();
         let proc_type_id = Uuid::new_v4().to_string();
 
-        sqlx::query("INSERT INTO patient (id, is_anonymous, is_deleted) VALUES (?, 0, 0)")
+        sqlx::query("INSERT INTO patient (id, is_anonymous) VALUES (?, 0)")
             .bind(&patient_id)
             .execute(pool)
             .await

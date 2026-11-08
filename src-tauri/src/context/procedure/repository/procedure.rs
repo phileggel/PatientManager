@@ -259,6 +259,22 @@ impl SqliteProcedureRepository {
         usize::try_from(count).context("A procedure count out of range")
     }
 
+    /// PRO-296 — how many procedures name `patient_id`, on a connection the caller
+    /// owns (ADR-003).
+    pub async fn count_with_patient_in(
+        conn: &mut sqlx::SqliteConnection,
+        patient_id: &str,
+    ) -> anyhow::Result<usize> {
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "count!: i64" FROM "procedure" WHERE patient_id = ?"#,
+            patient_id,
+        )
+        .fetch_one(conn)
+        .await
+        .context("Failed to count the procedures of a patient")?;
+        usize::try_from(count).context("A procedure count out of range")
+    }
+
     /// PDU-021 — attach every procedure of one patient to another, on a connection the caller owns (a unit of work, ADR-003).
     /// Returns how many moved.
     pub async fn reassign_patient_in(
@@ -494,7 +510,6 @@ impl ProcedureRepository for SqliteProcedureRepository {
             WHERE p.ssn = $1
               AND hp.procedure_date >= $2
               AND hp.procedure_date <= $3
-              AND p.is_deleted = 0
             ORDER BY hp.procedure_date ASC
             "#,
             ssn,
@@ -553,7 +568,7 @@ impl ProcedureRepository for SqliteProcedureRepository {
             .push_bind_unseparated(end_date)
             .push_unseparated(" AND hp.payment_status = ")
             .push_bind_unseparated(ProcedureStatus::Created.as_db_str())
-            .push_unseparated(" AND p.is_deleted = 0 ORDER BY p.ssn, hp.procedure_date ASC");
+            .push_unseparated(" ORDER BY p.ssn, hp.procedure_date ASC");
 
         let rows = builder
             .build_query_as::<ProcedureWithSSNRow>()
@@ -1256,7 +1271,7 @@ mod tests {
 
     async fn seed_patient(pool: &sqlx::SqlitePool, id: &str, ssn: &str) {
         sqlx::query!(
-            "INSERT INTO patient (id, is_anonymous, ssn, is_deleted) VALUES (?, 0, ?, 0)",
+            "INSERT INTO patient (id, is_anonymous, ssn) VALUES (?, 0, ?)",
             id,
             ssn
         )
@@ -1719,7 +1734,7 @@ mod tests {
     /// leaves `name` NULL) — needed to assert the patient-name JOIN.
     async fn seed_named_patient(pool: &sqlx::SqlitePool, id: &str, name: &str) {
         sqlx::query!(
-            "INSERT INTO patient (id, is_anonymous, name, is_deleted) VALUES (?, 0, ?, 0)",
+            "INSERT INTO patient (id, is_anonymous, name) VALUES (?, 0, ?)",
             id,
             name
         )
