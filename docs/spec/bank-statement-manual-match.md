@@ -161,7 +161,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 ### Entering a direct payment (CHECK / CREDIT_CARD / CASH)
 
 ```
-[User picks the type and the date; the account only for a fund wire]
+[User picks the type and the date; the account only for a FUND transfer]
           │
           ▼
 [Select procedures]

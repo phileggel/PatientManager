@@ -411,7 +411,7 @@ mod tests {
         ));
     }
 
-    /// BAC-050, BAC-051 — a technical account is never edited, deleted or read as
+    /// BAC-050A, BAC-051 — a technical account is never edited, deleted or read as
     /// one of the user's accounts.
     #[tokio::test]
     async fn test_518_a_technical_account_is_protected_and_never_read() {

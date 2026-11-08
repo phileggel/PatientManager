@@ -1124,7 +1124,7 @@ export type BankError =
 { code: "BankAccountNotFound"; bank_account_id: string } | 
 /**
  * BAC-051 — `BankAccountService::update_account` / `delete_account` rejected a
- * technical account (BAC-050).
+ * technical account (BAC-050A).
  */
 { code: "ProtectedTechnicalAccount" } | 
 /**

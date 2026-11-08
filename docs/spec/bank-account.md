@@ -4,7 +4,7 @@
 
 Bank accounts represent the practice's accounts on which bank entries are recorded. They identify the account when importing a PDF statement and let manual bank entries be associated with the correct account. Technical accounts, one per direct payment type, hold the direct payments and are never shown (BAC-055).
 
-> Numbered R1–R9 until 2026-10-24 (#503); shipped migrations and older records name them so: R1 → BAC-010 to BAC-012 and BAC-017, R2 → BAC-030, R3 → BAC-041, R4 → BAC-050 to BAC-052, R5 → BAC-014, R6 → BAC-043, R7 → BAC-060, R8 → BAC-061, R9 → BAC-062. Since #518, the cash account of the former BAC-050 is BAC-054.
+> Numbered R1–R9 until 2026-10-24 (#503); shipped migrations and older records name them so: R1 → BAC-010 to BAC-012 and BAC-017, R2 → BAC-030, R3 → BAC-041, R4 → BAC-050 to BAC-052, R5 → BAC-014, R6 → BAC-043, R7 → BAC-060, R8 → BAC-061, R9 → BAC-062. Since #518, BAC-050's cash account is BAC-054.
 
 ---
 
@@ -14,11 +14,11 @@ Bank accounts represent the practice's accounts on which bank entries are record
 
 An account of the practice on which bank entries are recorded.
 
-| Field  | Business meaning                                                                        |
-| ------ | --------------------------------------------------------------------------------------- |
-| `name` | How the user names the account; required.                                               |
-| `iban` | The account's IBAN, optional; a PDF statement is matched to it.                         |
-| `type` | `bank`, `cash`, `check` or `card` (BAC-050); set by the system, never chosen (BAC-059). |
+| Field  | Business meaning                                                                         |
+| ------ | ---------------------------------------------------------------------------------------- |
+| `name` | How the user names the account; required.                                                |
+| `iban` | The account's IBAN, optional; a PDF statement is matched to it.                          |
+| `type` | `bank`, `cash`, `check` or `card` (BAC-050A); set by the system, never chosen (BAC-059). |
 
 ---
 
@@ -32,7 +32,7 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-012 — IBAN stored without spaces (backend)**: An IBAN is stored without its spaces, and compared in that form.
 
-**BAC-013 — Name uniqueness (frontend + backend)**: Two `bank` accounts cannot share a name (BAC-050); names are compared exactly, case included, once their surrounding spaces are dropped. Creating or editing an account with such a name is rejected with a specific error, which the user reads as its own message, and nothing is saved (owner, 2026-10-24, #503). A deleted account is gone, so its name can be used again.
+**BAC-013 — Name uniqueness (frontend + backend)**: Two `bank` accounts cannot share a name (BAC-050A); names are compared exactly, case included, once their surrounding spaces are dropped. Creating or editing an account with such a name is rejected with a specific error, which the user reads as its own message, and nothing is saved (owner, 2026-10-24, #503). A deleted account is gone, so its name can be used again.
 
 **BAC-014 — IBAN uniqueness (backend)**: Two accounts cannot share the same IBAN, so that account resolution by IBAN (used by the bank-statement import flow, see BAS-010) stays unambiguous. Creating or editing an account with an IBAN another account uses is rejected with a specific error. A deleted account is gone, so its IBAN can be used again (#584).
 
@@ -74,7 +74,9 @@ An account of the practice on which bank entries are recorded.
 
 ### Account types (050–059)
 
-**BAC-050 — Account types (backend)**: Every account has a type: `bank`, one of the user's accounts, or `cash`, `check` or `card`, the technical account of that direct payment type (owner, 2026-11-07, #518).
+**BAC-050** — removed (#518): the cash account, now BAC-054.
+
+**BAC-050A — Account types (backend)**: Every account has a type: `bank`, one of the user's accounts, or `cash`, `check` or `card`, the technical account of that direct payment type (owner, 2026-11-07, #518).
 
 **BAC-051 — A technical account is protected (backend)**: Editing or deleting a technical account is rejected with a specific error.
 
@@ -86,7 +88,7 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-055 — Only `bank` accounts are listed (backend)**: No listing returns a technical account, and none is read by its identity: it is unknown, but for an edit or a deletion, refused as BAC-051 says.
 
-**BAC-055A — Only `bank` accounts are chosen (backend)**: A technical account given wherever an account is chosen — a fund wire (BSM-021), a refund (REF-070), a bank statement (BAS-063A), a bank entry edited onto it — is unknown.
+**BAC-055A — Only `bank` accounts are chosen (backend)**: A technical account given wherever an account is chosen — a FUND transfer (BSM-021), a refund (REF-070), a bank statement (BAS-063A), a bank entry edited onto it — is unknown.
 
 **BAC-056 — A direct payment's account (backend)**: A patient's direct payment (BSM R14 to R20) is recorded on the technical account of its type — `CASH` on `cash`, `CHECK` on `check`, `CREDIT_CARD` on `card` — and an account given with it is ignored, even an unknown one (BSM-026). A refund paid by check or card stays on its `bank` account (REF-070).
 
@@ -106,7 +108,7 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-063 — Deleted accounts removed on upgrade (backend)**: An account deleted before BAC-041 took effect is deleted once, on upgrade, with its bank statement labels. One a bank entry still holds is kept and listed again, as BAC-060 to BAC-062 say, once the other deleted accounts are removed (owner, 2026-11-01, #579).
 
-**BAC-064 — An upgrade refused (backend)**: The upgrade of BAC-057 is refused, and nothing changes, while a bank entry other than a patient's direct payment — a fund wire, a refund — is recorded on the former cash account: the application does not start and its log names the refusal; the entry is dealt with by hand first (owner, 2026-11-08, #518).
+**BAC-064 — An upgrade refused (backend)**: The upgrade of BAC-057 is refused, and nothing changes, while a bank entry other than a patient's direct payment — a FUND transfer, a refund — is recorded on the former cash account: the application does not start and its log names the refusal; the entry is dealt with by hand first (owner, 2026-11-08, #518).
 
 ### The list (070–079)
 

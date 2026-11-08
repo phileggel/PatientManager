@@ -22,7 +22,7 @@ interface UseManagementModalReturn {
 
 /**
  * Hook for the management modal.
- * Checks prerequisites (funds, bank accounts) before navigating to fund-payment and bank-transfer.
+ * Checks the funds prerequisite before navigating to fund-payment.
  */
 export function useManagementModal({
   onNavigate,

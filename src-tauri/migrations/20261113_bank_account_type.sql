@@ -1,6 +1,6 @@
 -- Every account has a type (#518, owner 2026-11-07): `bank` for the user's real accounts,
 -- `cash`, `check` and `card` for the technical accounts a direct payment of that type is
--- recorded on (BAC-050). The user's accounts become `bank`; the cash account becomes the
+-- recorded on (BAC-050A). The user's accounts become `bank`; the cash account becomes the
 -- `cash` account, its stored name a marker never shown; the `check` and `card` accounts are
 -- created. Name uniqueness covers the `bank` accounts only (BAC-013), so the unique index
 -- becomes partial, dropped before the cash account takes the name `cash`. Entry types are

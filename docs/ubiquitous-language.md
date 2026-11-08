@@ -224,7 +224,7 @@ identified by a name and optional IBAN.
 
 ### Account type (« Type de compte »)
 
-What a `BankAccount` is (BAC-050): `bank`, one of the user's accounts, the only ones shown or
+What a `BankAccount` is (BAC-050A): `bank`, one of the user's accounts, the only ones shown or
 chosen; or `cash`, `check`, `card`, the technical account a direct payment of that type is
 recorded on, never shown. Replaces the former "cash account".
 

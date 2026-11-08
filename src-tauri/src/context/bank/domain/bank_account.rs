@@ -4,13 +4,13 @@ use uuid::Uuid;
 
 use crate::context::bank::error::BankError;
 
-/// BAC-050 — the technical accounts a direct payment of each type is recorded on,
+/// BAC-050A — the technical accounts a direct payment of each type is recorded on,
 /// seeded by migration.
 pub const CASH_ACCOUNT_ID: &str = "cash-account-default";
 pub const CHECK_ACCOUNT_ID: &str = "check-account-default";
 pub const CARD_ACCOUNT_ID: &str = "card-account-default";
 
-/// BAC-050 — what an account is: one of the user's bank accounts, or the technical
+/// BAC-050A — what an account is: one of the user's bank accounts, or the technical
 /// account of a direct payment type, never shown or chosen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BankAccountType {
@@ -53,7 +53,7 @@ pub struct BankAccount {
     /// Metadata - not a domain property
     pub id: String,
 
-    /// BAC-050 — never sent: a client only ever sees `bank` accounts.
+    /// BAC-050A — never sent: a client only ever sees `bank` accounts.
     #[serde(skip)]
     pub account_type: BankAccountType,
 }
@@ -103,7 +103,7 @@ impl BankAccount {
         Self::restore_of_type(id, name, iban, BankAccountType::Bank)
     }
 
-    /// Restores an account of a stored type (BAC-050).
+    /// Restores an account of a stored type (BAC-050A).
     pub fn restore_of_type(
         id: String,
         name: String,
@@ -118,7 +118,7 @@ impl BankAccount {
         }
     }
 
-    /// BAC-050 — one of the user's accounts, not a technical one.
+    /// BAC-050A — one of the user's accounts, not a technical one.
     pub fn is_bank(&self) -> bool {
         self.account_type == BankAccountType::Bank
     }

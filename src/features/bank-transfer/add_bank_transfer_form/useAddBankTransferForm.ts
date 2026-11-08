@@ -34,7 +34,7 @@ export function useAddBankTransferForm() {
 
   const isFund = transferType === "FUND_WIRE";
 
-  // BAC-050 — the store holds the user's accounts only: a direct payment asks for none.
+  // BAC-050A — the store holds the user's accounts only: a direct payment asks for none.
   const bankAccountOptions = bankAccounts.map((acc: BankAccount) => ({
     value: acc.id,
     label: acc.name,

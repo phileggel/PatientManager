@@ -108,14 +108,14 @@ impl BankEntryService {
             .ok_or_else(|| BankError::BankAccountNotFound {
                 bank_account_id: bank_account_id.clone(),
             })?;
-        // BAC-055A — a fund wire goes on one of the user's accounts, never a technical one.
-        if !transfer_type.is_patient_payment() && !bank_account.is_bank() {
-            return Err(BankError::BankAccountNotFound { bank_account_id });
-        }
-
         // Domain construction happens in the service so typed domain errors
         // (e.g. `AmountNotPositive`) surface directly — the repo just persists.
-        BankEntry::new(transfer_date, amount, transfer_type, bank_account)
+        let entry = BankEntry::new(transfer_date, amount, transfer_type, bank_account.clone())?;
+        // BAC-055A — a FUND transfer goes on one of the user's accounts, never a technical one.
+        if !entry.is_on_its_own_account(&bank_account) {
+            return Err(BankError::BankAccountNotFound { bank_account_id });
+        }
+        Ok(entry)
     }
 
     /// Check that an edited transfer's account exists and is its own, writing nothing
@@ -164,7 +164,7 @@ impl BankEntryService {
                 BankError::DatabaseError
             })?
             // BAC-055A — a refund leaves from one of the user's accounts.
-            .filter(|account| account.is_bank())
+            .filter(|account| transfer.is_on_its_own_account(account))
             .ok_or(BankError::BankAccountNotFound {
                 bank_account_id: account_id,
             })?;

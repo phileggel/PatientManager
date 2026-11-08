@@ -31,7 +31,7 @@ interface UseImportModalReturn {
 /**
  * Hook for the unified import modal.
  * Opens the OS file picker on button click (no page navigation until a file is selected).
- * Checks prerequisites (funds, bank accounts) before opening the picker.
+ * Checks the funds prerequisite before opening the fund picker.
  */
 export function useImportModal({
   onNavigate,

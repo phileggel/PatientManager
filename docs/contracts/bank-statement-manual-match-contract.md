@@ -1,7 +1,7 @@
 # Contract — Bank Statement Manual Match
 
 > Domain: bank-statement-manual-match
-> Last updated by: `bank-statement-manual-match` spec (BSM-040, ticket #601)
+> Last updated by: `bank-statement-manual-match` spec (BSM-026, BAC-056, ticket #518)
 
 > Wire errors are the composite `BankManualMatchError` (untagged union of `BankError`, `FundError`, `ProcedureError`, and the use-case `BankManualMatchTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 

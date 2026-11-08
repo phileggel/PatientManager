@@ -2,13 +2,13 @@
 
 > Domain: bank
 > Backend module: context/bank
-> Last updated by: bank-account spec, BAC-014, BAC-041 (#584), 2026-11-07
+> Last updated by: bank-account spec, BAC-050A to BAC-059 (#518), 2026-11-08
 
 ## Commands
 
 ### `create_bank_account` — BAC-010 to BAC-014, BAC-020
 
-Creates a new bank account with a name and an optional IBAN. The IBAN is stripped of spaces and stored normalised. If the name is empty or whitespace-only, the command fails immediately. A name another account holds — compared exactly, case included, once trimmed, among the `bank` accounts (BAC-050) — is refused with `BankAccountNameAlreadyUsed` (BAC-013). An IBAN another account uses is refused with `IbanAlreadyUsed` (BAC-014); a deleted account is gone, so its name and IBAN can be used again.
+Creates a new bank account with a name and an optional IBAN. The IBAN is stripped of spaces and stored normalised. If the name is empty or whitespace-only, the command fails immediately. A name another account holds — compared exactly, case included, once trimmed, among the `bank` accounts (BAC-050A) — is refused with `BankAccountNameAlreadyUsed` (BAC-013). An IBAN another account uses is refused with `IbanAlreadyUsed` (BAC-014); a deleted account is gone, so its name and IBAN can be used again.
 
 - **Args:** `name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
@@ -28,7 +28,7 @@ Returns the `bank` accounts, never a technical one (BAC-055); a deleted account 
 
 ### `update_bank_account` — BAC-010 to BAC-014, BAC-030, BAC-051
 
-Replaces the name and IBAN of an account: both are sent, and `iban: None` clears it; the IBAN is stored without spaces. An unknown account, a deleted one included, is refused with `BankAccountNotFound` (BAC-030). A technical account is refused with `ProtectedTechnicalAccount` (BAC-051). A name another account holds — compared exactly, case included, once trimmed, among the `bank` accounts (BAC-050) — is refused with `BankAccountNameAlreadyUsed` (BAC-013). An IBAN another account uses is refused with `IbanAlreadyUsed` (BAC-014).
+Replaces the name and IBAN of an account: both are sent, and `iban: None` clears it; the IBAN is stored without spaces. An unknown account, a deleted one included, is refused with `BankAccountNotFound` (BAC-030). A technical account is refused with `ProtectedTechnicalAccount` (BAC-051). A name another account holds — compared exactly, case included, once trimmed, among the `bank` accounts (BAC-050A) — is refused with `BankAccountNameAlreadyUsed` (BAC-013). An IBAN another account uses is refused with `IbanAlreadyUsed` (BAC-014).
 
 - **Args:** `id: String, name: String, iban: Option<String>`
 - **Returns:** `BankAccount`
@@ -78,7 +78,7 @@ Returns a single bank entry by ID.
 
 ### `update_bank_transfer`
 
-Updates an existing bank entry's fields (bare update — does not touch linked groups/procedures). Its account must be its own: a direct payment's technical account (BAC-056), a `bank` account for anything else (BAC-055A).
+Updates an existing bank entry's fields (bare update — does not touch linked groups/procedures). Its account must be its own: a patient's direct payment (a positive `PatientCash`, `PatientCheck` or `PatientCreditCard` entry) on its type's technical account (BAC-056); anything else, a check or card refund included, on a `bank` account (BAC-055A).
 
 - **Args:** `transfer: BankEntry`
 - **Returns:** `BankEntry`
@@ -142,5 +142,5 @@ enum BankEntryType {
 - 2026-10-24 — `delete_bank_account`: refused with `BankAccountHoldsBankEntries` while a bank entry is on the account (R6, #448); the Errors of `create_bank_account` and `update_bank_account` spelled as on the wire; `read_all_bank_accounts` lists `DatabaseError`
 - 2026-10-24 — the `bank-account` rules renumbered R1–R9 → BAC (#503); `create_bank_account` and `update_bank_account` refuse a taken name with `BankAccountNameAlreadyUsed` (BAC-013); `update_bank_account` returns `BankAccountNotFound` for an unknown or deleted account (BAC-030)
 - 2026-11-07 — `delete_bank_account` really deletes the account (BAC-041, #584), its refusal kept when an entry is written meanwhile (BAC-043); a deleted account's name and IBAN can be used again (BAC-013, BAC-014); no signature change.
-- 2026-11-08 — #518 (BAC-050 to BAC-059): `get_cash_bank_account_id` is removed; `read_all_bank_accounts` returns the `bank` accounts only; `ProtectedCashAccount` becomes `ProtectedTechnicalAccount`.
+- 2026-11-08 — #518 (BAC-050A to BAC-059): `get_cash_bank_account_id` is removed; `read_all_bank_accounts` returns the `bank` accounts only; `ProtectedCashAccount` becomes `ProtectedTechnicalAccount`.
 - 2026-11-08 — `update_bank_transfer`: an entry moved off its own account is refused with `BankAccountNotFound` (BAC-055A, BAC-056, #518).

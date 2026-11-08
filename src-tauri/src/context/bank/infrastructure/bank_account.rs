@@ -14,7 +14,7 @@ impl SqliteBankAccountRepository {
     }
 }
 
-/// Rebuilds an account from its row, its type included (BAC-050).
+/// Rebuilds an account from its row, its type included (BAC-050A).
 pub(super) fn restore_row(
     id: String,
     name: String,

@@ -54,7 +54,7 @@ pub enum BankError {
     BankAccountNotFound { bank_account_id: String },
 
     /// BAC-051 — `BankAccountService::update_account` / `delete_account` rejected a
-    /// technical account (BAC-050).
+    /// technical account (BAC-050A).
     #[error("A technical account cannot be modified or deleted")]
     ProtectedTechnicalAccount,
 
