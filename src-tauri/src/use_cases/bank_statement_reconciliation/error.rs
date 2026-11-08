@@ -59,8 +59,8 @@ pub enum BankStatementReconciliationTask {
     GroupAlreadyConsumed,
 
     /// BAS-113 — a procedure referenced by an `AssignProcedures` correction is
-    /// not an open candidate for the line: unknown, soft-deleted, not
-    /// `Created`, already in a group line, or not of the line's fund.
+    /// not an open candidate for the line: unknown, not `Created`, already in
+    /// a group line, or not of the line's fund.
     /// The correction is rejected.
     #[error("Procedure is not eligible for this line")]
     ProcedureNotEligible,

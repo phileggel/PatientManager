@@ -1744,9 +1744,8 @@ mod tests {
     }
 
     // D1 — the predicate: fund_id matches, payment_status == CREATED,
-    // billed_amount > 0, not soft-deleted. Wrong fund, non-CREATED,
-    // zero-billed, and soft-deleted procedures are all excluded; the patient
-    // name resolves via the JOIN.
+    // billed_amount > 0. Wrong fund, non-CREATED and zero-billed
+    // procedures are all excluded; the patient name resolves via the JOIN.
     #[tokio::test]
     async fn find_open_by_fund_with_patient_matches_the_d1_predicate() {
         let repo = setup().await;

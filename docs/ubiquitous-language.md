@@ -218,7 +218,7 @@ How a procedure's payment was made. Shared between regular and refund procedures
 ### BankAccount
 
 The aggregate root of the bank context. Represents a bank account belonging to the practice,
-identified by a name and optional IBAN.
+identified by a name and an optional IBAN; it has an account type (below).
 
 > Status: confirmed
 

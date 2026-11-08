@@ -181,7 +181,7 @@ impl BankEntryService {
         Ok(persisted)
     }
 
-    /// Soft-delete a transfer
+    /// Delete a transfer
     pub async fn delete_transfer(&self, id: &str) -> Result<(), BankError> {
         // Verify transfer exists
         let row = self.repository.read_transfer(id).await.map_err(|e| {
