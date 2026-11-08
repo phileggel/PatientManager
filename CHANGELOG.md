@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0] - 2026-11-08
+
+### Added
+
+- the reconciliation report lists the groups left out of the import
+- direct payments no longer ask for an account
+
+### Fixed
+
+- a patient with procedures can no longer be deleted
+- a fund still in use can no longer be deleted
+- a procedure type still in use can no longer be deleted
+
 ## [0.27.1] - 2026-11-07
 
 ### Fixed
