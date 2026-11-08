@@ -125,6 +125,10 @@ Cross-spec conventions, each for what it names.
 
 - Each rule atomic (one behaviour), testable on its own against the backend: its scope is
   `(backend)`. A notable edge case is a rule of its own.
+  Not a finding, until daneel `app` 0.4.2 is adopted (temporary, #659): a new
+  rule scoped `(backend)` alone because the frontend translates or formats what it carries
+  (ADR-006) or sends nothing for an omitted part. An older `(frontend + backend)` rule is no
+  precedent: it migrates in #643–#647.
 - Every business outcome has a rule: a refusal, a state change, a computed amount, the
   default order when it is a business rule. What the screen shows and how — a modal or a
   panel, a disabled control, an empty state — is no rule: the mock holds it. A clause about
