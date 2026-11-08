@@ -32,9 +32,9 @@ impl DeletionOrchestrator {
         }
     }
 
-    /// R6, PRO-280 — delete a procedure type with its Excel amount mappings; the
-    /// patients whose latest type it is lose that default and its date. The
-    /// reserved type is refused, and so is a type procedures use (R24).
+    /// R6, PRO-280 — delete a procedure type; the patients whose latest type it
+    /// is lose that default and its date. The reserved type is refused, and so is
+    /// a type procedures use (R24).
     pub async fn delete_procedure_type(&self, id: &str) -> Result<(), ProcedureError> {
         ProcedureType::ensure_mutable(id)?;
         let id = id.to_string();
@@ -49,7 +49,6 @@ impl DeletionOrchestrator {
                         // An unknown id changes nothing.
                         return Ok(());
                     }
-                    uow.delete_excel_mappings_of_type(&id).await?;
                     uow.clear_procedure_type_defaults(&id).await
                 })
             }))
@@ -137,9 +136,6 @@ mod tests {
             self.record(format!("count_procedures_of_type {id}"))?;
             Ok(self.procedures_using)
         }
-        async fn delete_excel_mappings_of_type(&mut self, id: &str) -> anyhow::Result<()> {
-            self.record(format!("delete_excel_mappings_of_type {id}"))
-        }
         async fn clear_procedure_type_defaults(&mut self, id: &str) -> anyhow::Result<()> {
             self.record(format!("clear_procedure_type_defaults {id}"))
         }
@@ -199,7 +195,6 @@ mod tests {
             *writes.lock().unwrap(),
             vec![
                 "delete_procedure_type type-1",
-                "delete_excel_mappings_of_type type-1",
                 "clear_procedure_type_defaults type-1"
             ]
         );

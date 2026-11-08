@@ -38,19 +38,19 @@ All fields (`name`, `default_amount`, `category`) are editable after creation fo
 
 **R5 — Event after mutation (backend)**: Any mutation of a `ProcedureType` (create, edit, or delete) publishes the `ProcedureTypeUpdated` event on the event bus. This event is a systematic side effect that triggers a frontend store refresh without manual reloading.
 
-**R6 — Deletion (backend)**: Deleting a `ProcedureType` removes it and the Excel amount mappings that name it (EXI-250), and clears the patients' defaults as PRO-280 says, in one transaction. Deleting a type that does not exist changes nothing and is not an error. The reserved `import-pdf` type is protected against deletion (see R22), and a type in use is kept (R24); for the reserved type, R22's refusal comes first.
-
-**R24 — A type in use is kept (backend)**: Deleting a procedure type that procedures still use is refused with a specific error carrying the number of those procedures; nothing changes (owner, 2026-11-01, #579). A procedure recorded at the same moment as the deletion still keeps the type, with the same refusal.
-
-**R25 — Deleted types removed on upgrade (backend)**: Procedure types deleted before deletion was real, hidden but kept, are removed when the application is upgraded, once the deleted procedures are removed (PRO-031), with their Excel amount mappings; the patients' defaults naming them are cleared as PRO-280 says. A type a procedure still uses, and the reserved type, are kept (R26) (owner, 2026-11-01, #579).
-
-**R26 — A deleted type still used comes back (backend)**: A type R25 keeps is listed again as it was stored: its name, default amount and category (owner, 2026-11-01, #579: the real database held none).
+**R6 — Deletion (backend)**: Deleting a `ProcedureType` removes it and clears the patients' defaults as PRO-280 says, in one transaction; the Excel amount mappings that name it are left to the import, which ignores them (EXI-250). Deleting a type that does not exist changes nothing and is not an error. The reserved `import-pdf` type is protected against deletion (see R22), and a type in use is kept (R24); for the reserved type, R22's refusal comes first.
 
 **R21 — Reserved-type seed (backend)**: A `ProcedureType` with the fixed identifier `import-pdf` is created automatically by the initial database migration (historical name `"Import PDF"`). A subsequent migration renames this type to `"Import"` as part of this feature. The identifier `import-pdf` is preserved as-is so existing data (procedures and mappings) remain valid. The name `"Import"` participates in the uniqueness check (R4): any attempt to create a type with this name (regardless of case) is rejected as a duplicate.
 
 **R22 — Reserved-type protection (backend)**: The backend includes `import-pdf` in the results of `read_all_procedure_types` (filtering is delegated to the frontend, R23). It rejects any attempt to edit or delete this type with an explicit error.
 
 **R23 — Exclusion from the table (frontend)**: The reserved `import-pdf` type is filtered out of the store before display. It never appears in the procedure-types table.
+
+**R24 — A type in use is kept (backend)**: Deleting a procedure type that procedures still use is refused with a specific error carrying the number of those procedures; nothing changes (owner, 2026-11-01, #579). A procedure recorded at the same moment as the deletion still keeps the type, with the same refusal.
+
+**R25 — Deleted types removed on upgrade (backend)**: Procedure types deleted before deletion was real, hidden but kept, are removed when the application is upgraded, once the deleted procedures are removed (PRO-031), with their Excel amount mappings; the patients' defaults naming them are cleared as PRO-280 says. A type a procedure still uses, and the reserved type, are kept (R26) (owner, 2026-11-01, #579).
+
+**R26 — A deleted type still used comes back (backend)**: A type R25 keeps is listed again as it was stored: its name, default amount and category (owner, 2026-11-01, #579: the real database held none).
 
 ### Frontend
 

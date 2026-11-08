@@ -24,24 +24,6 @@ impl DeletionUnitOfWork for SqlxDeletionUnitOfWork {
         SqliteProcedureRepository::count_with_type_in(&mut self.tx, procedure_type_id).await
     }
 
-    async fn delete_excel_mappings_of_type(
-        &mut self,
-        procedure_type_id: &str,
-    ) -> anyhow::Result<()> {
-        // The mapping table is the Excel import's, which no context owns (B26).
-        // reviewer-arch FP: its repository belongs to the `excel_import` use case, and
-        // calling it from here is a use-case import (B18, `just arch-check`); no other
-        // writer holds this statement — see PR #650.
-        sqlx::query!(
-            "DELETE FROM excel_amount_type_mapping WHERE procedure_type_id = ?",
-            procedure_type_id,
-        )
-        .execute(&mut *self.tx)
-        .await
-        .context("Failed to delete the procedure type's Excel amount mappings")?;
-        Ok(())
-    }
-
     async fn clear_procedure_type_defaults(
         &mut self,
         procedure_type_id: &str,
@@ -99,8 +81,6 @@ mod tests {
             "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('kept-fund', '93', 'Fund 93', 0)",
             "INSERT INTO patient (id, name, is_anonymous, is_deleted, latest_procedure_type, latest_fund, latest_date) VALUES ('on-gone', 'Patient A', 0, 0, 'gone-type', 'gone-fund', '2026-03-10')",
             "INSERT INTO patient (id, name, is_anonymous, is_deleted, latest_procedure_type, latest_fund, latest_date) VALUES ('on-kept', 'Patient B', 0, 0, 'kept-type', 'kept-fund', '2026-03-11')",
-            "INSERT INTO excel_amount_type_mapping (id, amount, procedure_type_id) VALUES ('m-gone', 100000, 'gone-type')",
-            "INSERT INTO excel_amount_type_mapping (id, amount, procedure_type_id) VALUES ('m-kept', 200000, 'kept-type')",
         ] {
             sqlx::query(statement)
                 .execute(&pool)
@@ -146,7 +126,6 @@ mod tests {
             .run(Box::new(|uow| {
                 Box::pin(async move {
                     assert!(uow.delete_procedure_type("gone-type").await?);
-                    uow.delete_excel_mappings_of_type("gone-type").await?;
                     uow.clear_procedure_type_defaults("gone-type").await
                 })
             }))
@@ -156,10 +135,6 @@ mod tests {
         assert_eq!(
             ids(&pool, "SELECT id FROM procedure_type ORDER BY id").await,
             ["import-pdf", "kept-type"].map(String::from)
-        );
-        assert_eq!(
-            ids(&pool, "SELECT id FROM excel_amount_type_mapping").await,
-            ["m-kept"].map(String::from)
         );
         assert_eq!(
             defaults(&pool, "on-gone").await,

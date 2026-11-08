@@ -2,8 +2,8 @@
 //! PRO-290).
 //!
 //! A deletion writes two bounded contexts: the procedure type or the fund is
-//! deleted, and the patients whose latest-procedure defaults name it lose them;
-//! a procedure type's Excel amount mappings go too. All of it happens, or none.
+//! deleted, and the patients whose latest-procedure defaults name it lose them.
+//! All of it happens, or none.
 
 use crate::shared::uow::UnitOfWorkFuture;
 
@@ -13,11 +13,6 @@ pub trait DeletionUnitOfWork: Send {
     /// False when a procedure still uses the type, or no row matched (R6, R24).
     async fn delete_procedure_type(&mut self, procedure_type_id: &str) -> anyhow::Result<bool>;
     async fn count_procedures_of_type(&mut self, procedure_type_id: &str) -> anyhow::Result<usize>;
-    /// EXI-250 — the Excel amount mappings naming the type go with it.
-    async fn delete_excel_mappings_of_type(
-        &mut self,
-        procedure_type_id: &str,
-    ) -> anyhow::Result<()>;
     async fn clear_procedure_type_defaults(
         &mut self,
         procedure_type_id: &str,

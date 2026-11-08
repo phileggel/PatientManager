@@ -140,7 +140,7 @@ This report is informative and non-blocking.
 
 **EXI-240 (R23) — Reload as defaults (frontend)**: On a later import, the saved preferences are offered as defaults on the mapping screen. The user can edit any value — there is no auto-validation.
 
-**EXI-250 (R24) — Mappings of deleted types (backend)**: Deleting a procedure type deletes the mappings that name it, so every saved mapping names a procedure type or the default type `imported-from-excel`; a mapping keeps that value as such (EXI-131 applies to the procedure only). An amount whose type was deleted since the last import has no mapping, and the pre-fill of EXI-120 applies.
+**EXI-250 (R24) — Filtering of deleted types (backend)**: Mapping preferences are filtered before being passed to the frontend: only mappings whose procedure type still exists (not deleted) or whose value is the default type `imported-from-excel` are returned; a mapping keeps that value as such (EXI-131 applies to the procedure only). If a type was deleted since the last import, its mapping is excluded — the UI then falls back to the pre-fill of EXI-120.
 
 ### Last-folder memory
 
@@ -182,7 +182,7 @@ This report is informative and non-blocking.
           │
           ▼
 [Procedure-type mapping] (frontend)
-  → Load saved preferences
+  → Load saved preferences (backend filters out deleted types)
   → Table: amount → procedure type (pre-filled with preferences or first available type)
   → Options: existing type / create new / default type
   → Inline creation via modal

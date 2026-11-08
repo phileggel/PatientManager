@@ -8,6 +8,7 @@
 
 DROP INDEX idx_procedure_type_deleted;
 
+DROP TABLE IF EXISTS removed_procedure_type;
 CREATE TEMP TABLE removed_procedure_type AS
 SELECT id FROM procedure_type
 WHERE is_deleted = 1

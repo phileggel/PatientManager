@@ -45,12 +45,19 @@ impl SqliteExcelAmountMappingRepository {
 #[async_trait::async_trait]
 impl ExcelAmountMappingRepository for SqliteExcelAmountMappingRepository {
     async fn find_all(&self) -> anyhow::Result<Vec<ExcelAmountMapping>> {
-        // A deleted procedure type takes its mappings with it (EXI-250), so every
-        // stored mapping names a type, or the 'imported-from-excel' sentinel.
-        let rows = sqlx::query!("SELECT amount, procedure_type_id FROM excel_amount_type_mapping")
-            .fetch_all(&self.pool)
-            .await
-            .context("Failed to fetch excel amount mappings")?;
+        // EXI-250 — a mapping whose procedure type no longer exists is left out, except
+        // the 'imported-from-excel' sentinel, which has no row.
+        let rows = sqlx::query!(
+            r#"
+            SELECT m.amount, m.procedure_type_id
+            FROM excel_amount_type_mapping m
+            WHERE m.procedure_type_id = 'imported-from-excel'
+               OR EXISTS (SELECT 1 FROM procedure_type WHERE id = m.procedure_type_id)
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await
+        .context("Failed to fetch excel amount mappings")?;
 
         Ok(rows
             .into_iter()
@@ -190,6 +197,41 @@ mod tests {
         let all = repo.find_all().await.unwrap();
         assert_eq!(all.len(), 1);
         assert_eq!(all[0].procedure_type_id, "type-new");
+    }
+
+    /// EXI-250 — a mapping whose procedure type is gone is left out; the sentinel
+    /// stays.
+    #[tokio::test]
+    async fn test_589_an_orphan_mapping_is_left_out() {
+        let (repo, pool) = setup_test_repo().await;
+        create_test_procedure_type(&pool, "type-live").await;
+        repo.save_mappings(
+            [
+                ("type-live", 24000),
+                ("type-gone", 30000),
+                ("imported-from-excel", 46000),
+            ]
+            .map(
+                |(procedure_type_id, amount)| SaveExcelAmountMappingRequest {
+                    amount,
+                    procedure_type_id: procedure_type_id.to_string(),
+                },
+            )
+            .to_vec(),
+        )
+        .await
+        .unwrap();
+
+        let mut read: Vec<String> = repo
+            .find_all()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|m| m.procedure_type_id)
+            .collect();
+
+        read.sort();
+        assert_eq!(read, ["imported-from-excel", "type-live"]);
     }
 
     #[tokio::test]
