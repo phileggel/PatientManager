@@ -136,7 +136,6 @@
     "type_check": "Check",
     "type_credit_card": "Credit Card",
     "type_cash": "Cash",
-    "cash_account": "Cash account (automatic)",
     "selected_fund": "Fund: {{name}}",
     "no_fund": "No fund selected",
     "change_fund": "Change Fund",
@@ -260,7 +259,6 @@
       },
       "edit_aria_label": "Edit account {{name}}",
       "delete_aria_label": "Delete account {{name}}",
-      "cash_account_protected_tooltip": "The cash account is managed automatically and cannot be modified",
       "success": {
         "deleted": "Account \"{{name}}\" deleted successfully"
       },
@@ -302,7 +300,7 @@
     "bank_account_name_already_used": "An account already has this name",
     "iban_already_used": "IBAN already used by another bank account",
     "bank_account_not_found": "Bank account not found (id: {{id}})",
-    "protected_cash_account": "The cash account is protected and cannot be modified or deleted",
+    "protected_technical_account": "A technical account cannot be modified or deleted",
     "bank_account_holds_bank_entries": "This account holds entries and cannot be deleted",
     "transfer_not_found": "Bank transfer not found (id: {{id}})",
     "wrong_transfer_type": "This transfer's type does not match the requested operation",

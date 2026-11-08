@@ -31,8 +31,8 @@ export function formatBankError(err: BankError): {
         key: "bank:errors.bank_account_not_found",
         params: { id: err.bank_account_id },
       };
-    case "ProtectedCashAccount":
-      return { key: "bank:errors.protected_cash_account" };
+    case "ProtectedTechnicalAccount":
+      return { key: "bank:errors.protected_technical_account" };
     case "BankAccountHoldsBankEntries":
       return { key: "bank:errors.bank_account_holds_bank_entries" };
     case "TransferNotFound":

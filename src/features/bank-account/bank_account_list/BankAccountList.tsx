@@ -27,8 +27,7 @@ interface BankAccountListProps {
 export function BankAccountList({ searchTerm }: BankAccountListProps) {
   const { t } = useTranslation("bank");
   const { t: tCommon } = useTranslation("common");
-  const { bankAccountRows, accounts, loading, cashAccountId, deleteBankAccount } =
-    useBankAccountList();
+  const { bankAccountRows, accounts, loading, deleteBankAccount } = useBankAccountList();
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [lastClickTime, setLastClickTime] = useState<number>(0);
   const { sortedAndFilteredAccounts, sortConfig, handleSort } = useSortBankAccountList(
@@ -41,7 +40,7 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
   const [editData, setEditData] = useState<BankAccount | null>(null);
 
   const handleRowClick = (accountId: string | undefined) => {
-    if (!accountId || accountId === cashAccountId) return;
+    if (!accountId) return;
 
     const now = Date.now();
     const isDoubleClick = lastClickedId === accountId && now - lastClickTime < 300;
@@ -95,17 +94,12 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
           ) : (
             sortedAndFilteredAccounts.map((account: BankAccountRow) => {
               const accountObject = accounts.find((a) => a.id === account.id);
-              const isCash = account.id === cashAccountId;
               return (
                 <tr
                   key={account.rowId}
                   onClick={() => handleRowClick(account.id)}
                   className="m3-tr cursor-pointer select-none"
-                  title={
-                    isCash
-                      ? t("account.list.cash_account_protected_tooltip")
-                      : tCommon("table.double_click_to_edit")
-                  }
+                  title={tCommon("table.double_click_to_edit")}
                 >
                   <td className="m3-td font-medium text-m3-on-surface">{account.name}</td>
                   <td className="m3-td text-m3-on-surface-variant font-mono text-sm">
@@ -118,7 +112,6 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                         variant="ghost"
                         size="sm"
                         shape="round"
-                        disabled={isCash}
                         aria-label={t("account.list.edit_aria_label", { name: account.name })}
                         icon={<Edit2 size={16} />}
                         onClick={(e) => {
@@ -131,7 +124,6 @@ export function BankAccountList({ searchTerm }: BankAccountListProps) {
                         variant="danger"
                         size="sm"
                         shape="round"
-                        disabled={isCash}
                         aria-label={t("account.list.delete_aria_label", { name: account.name })}
                         icon={<Trash2 size={16} />}
                         onClick={(e) => {

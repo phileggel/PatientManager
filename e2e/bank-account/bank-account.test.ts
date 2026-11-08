@@ -5,7 +5,6 @@ import { openManagementPage } from "../helpers/navigation";
 
 // Skipped commands (no UI surface):
 //   read_bank_account        — internal / no dedicated UI entry point
-//   get_cash_bank_account_id — internal / auto-called by bank-transfer form
 
 const SEED_NAME = "E2E Smoke Seed";
 const CREATE_NAME = "E2E Smoke Create";

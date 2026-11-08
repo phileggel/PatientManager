@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, name, iban\n            FROM bank_account\n            WHERE iban = $1\n            ",
+  "query": "\n            SELECT id, name, iban, account_type\n            FROM bank_account\n            WHERE iban = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -35,6 +35,17 @@
             "name": "iban"
           }
         }
+      },
+      {
+        "name": "account_type",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_account",
+            "name": "account_type"
+          }
+        }
       }
     ],
     "parameters": {
@@ -43,8 +54,9 @@
     "nullable": [
       false,
       false,
-      true
+      true,
+      false
     ]
   },
-  "hash": "1982077f2769c044bd9a73186a026e7b56165d3b120a948ee6faea31ea80b13f"
+  "hash": "a7b0be5f631aaec3e8e40c1145a36d03f66f9d1cc1e247cd7573557cf113dd76"
 }

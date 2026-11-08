@@ -471,8 +471,8 @@ impl BankManualMatchOrchestrator {
         transfer_type: BankEntryType,
         procedure_ids: Vec<String>,
     ) -> Result<BankManualMatchResult, BankManualMatchError> {
-        // BSM-020, BSM-021 — the form's fields first; a cash payment's account
-        // is not asked of the form: the bank context records it on the cash account (BSM-026).
+        // BSM-020, BSM-021 — the form's fields first; a direct payment's account is not
+        // asked of the form: the bank context records it on its technical account (BSM-026).
         let confirmed_date = BankEntry::read_form(
             transfer_type.asked_account(&bank_account_id),
             &transfer_date,
@@ -863,8 +863,9 @@ mod tests {
     use uuid::Uuid;
 
     use crate::context::bank::{
-        BankEntryService, BankEntryType, SqliteBankAccountRepository,
-        SqliteBankEntryLinkRepository, SqliteBankEntryRepository, CASH_ACCOUNT_ID,
+        BankAccount, BankAccountRepository, BankEntryService, BankEntryType,
+        SqliteBankAccountRepository, SqliteBankEntryLinkRepository, SqliteBankEntryRepository,
+        CARD_ACCOUNT_ID, CASH_ACCOUNT_ID, CHECK_ACCOUNT_ID,
     };
     use crate::context::fund::{
         FundPaymentGroupStatus, FundPaymentService, SqliteFundPaymentRepository,
@@ -883,6 +884,13 @@ mod tests {
             .run(&pool)
             .await
             .expect("Migrations failed");
+        SqliteBankAccountRepository::new(pool.clone())
+            .create_account(
+                BankAccount::with_id("bank-acc".to_string(), "Bank".to_string(), None)
+                    .expect("a valid account"),
+            )
+            .await
+            .expect("seed the bank account");
         pool
     }
 
@@ -1104,7 +1112,7 @@ mod tests {
 
         let result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-15".to_string(),
                 vec![group_id.clone()],
             )
@@ -1154,7 +1162,7 @@ mod tests {
 
         let result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-15".to_string(),
                 vec![group_id.clone()],
             )
@@ -1221,7 +1229,7 @@ mod tests {
 
         let create_result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-15".to_string(),
                 vec![group_a.clone()],
             )
@@ -1304,10 +1312,10 @@ mod tests {
         Ok(())
     }
 
-    /// BSM-026 (ticket #455) — a cash payment lands on the cash account, whatever account
-    /// it is sent: none, another one, or an unknown one.
+    /// BSM-026, BAC-056 (tickets #455, #518) — a direct payment lands on its type's technical
+    /// account, whatever account it is sent: none, another one, or an unknown one.
     #[tokio::test]
-    async fn test_create_direct_transfer_cash_sent_another_account_stores_the_cash_account(
+    async fn test_create_direct_transfer_sent_another_account_stores_its_technical_account(
     ) -> anyhow::Result<()> {
         let pool = setup_db().await;
         let (patient_id, _, proc_type_id) = seed_base(&pool).await;
@@ -1316,7 +1324,15 @@ mod tests {
             .execute(&pool)
             .await?;
 
-        for sent in ["", "acc-other", "acc-unknown"] {
+        let placements = [
+            (BankEntryType::PatientCash, CASH_ACCOUNT_ID),
+            (BankEntryType::PatientCheck, CHECK_ACCOUNT_ID),
+            (BankEntryType::PatientCreditCard, CARD_ACCOUNT_ID),
+        ];
+        for (sent, (entry_type, technical)) in ["", "acc-other", "acc-unknown"]
+            .into_iter()
+            .flat_map(|sent| placements.map(|placement| (sent, placement)))
+        {
             let proc_id = seed_procedure(
                 &pool,
                 &patient_id,
@@ -1331,7 +1347,7 @@ mod tests {
                 .create_direct_transfer(
                     sent.to_string(),
                     "2026-03-15".to_string(),
-                    BankEntryType::PatientCash,
+                    entry_type,
                     vec![proc_id],
                 )
                 .await?;
@@ -1341,7 +1357,7 @@ mod tests {
                     .bind(&result.transfer_id)
                     .fetch_one(&pool)
                     .await?;
-            assert_eq!(stored, CASH_ACCOUNT_ID, "sent {sent}");
+            assert_eq!(stored, technical, "{entry_type:?} sent {sent}");
         }
 
         Ok(())
@@ -1698,7 +1714,7 @@ mod tests {
         .await;
         let result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-10".to_string(),
                 vec![group_id],
             )
@@ -1787,7 +1803,7 @@ mod tests {
         .await;
         let result = orchestrator
             .create_fund_transfer(
-                "cash-account-default".to_string(),
+                "bank-acc".to_string(),
                 "2026-03-10".to_string(),
                 vec![group_id],
             )

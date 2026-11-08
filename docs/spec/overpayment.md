@@ -57,11 +57,11 @@ Represents the link between the original paid procedure and the refund procedure
 
 **REF-060 — Refund Payment Method Validation (frontend + backend)**: The user must select a payment method for the refund. Accepted values are `CreditCard`, `Check`, and `OutgoingWire` (domain enum names). `Cash` and `Fund` are not accepted for refunds: `Fund` is an incoming payment type and `Cash` cannot be remitted to an insurance body. The backend rejects any other value with a validation error.
 
-**REF-070 — Bank Account Selection (frontend + backend)**: The refund bank transfer must be linked to a bank account. Resolution logic:
+**REF-070 — Bank Account Selection (frontend + backend)**: The refund bank transfer must be linked to a `bank` account; a technical one is refused as unknown (BAC-055A). Resolution logic:
 
-- If **no bank account exists** in the system: the "Refund" button is disabled and a message is shown — "A bank account must be created before recording a refund."
-- If **exactly one bank account** exists: the selector is pre-filled with it automatically.
-- If **multiple bank accounts** exist: the selector is pre-filled with the bank account from the source procedure's original bank entry. "Resolvable" means the source has a linked bank entry whose `bank_account_id` exists in the bank accounts. If not resolvable, the selector is shown empty and the user must pick one.
+- If **no `bank` account exists** in the system: the "Refund" button is disabled and a message is shown — "A bank account must be created before recording a refund."
+- If **exactly one `bank` account** exists: the selector is pre-filled with it automatically.
+- If **multiple `bank` accounts** exist: the selector is pre-filled with the bank account from the source procedure's original bank entry. "Resolvable" means the source has a linked bank entry whose `bank_account_id` is a `bank` account (BAC-055): a direct payment's technical account never resolves. If not resolvable, the selector is shown empty and the user must pick one.
 
 The backend rejects the request if no `bank_account_id` is provided.
 

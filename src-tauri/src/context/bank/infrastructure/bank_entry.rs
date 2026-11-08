@@ -1,8 +1,9 @@
 use anyhow::Context;
 use sqlx::SqlitePool;
 
+use super::bank_account::restore_row;
 use crate::context::bank::{
-    domain::{BankAccount, BankEntry, BankEntryType},
+    domain::{BankEntry, BankEntryType},
     BankEntryRepository,
 };
 use crate::shared::logger::BACKEND;
@@ -117,7 +118,8 @@ impl BankEntryRepository for SqliteBankEntryRepository {
                 bt.bank_account_id,
                 ba.id as account_id,
                 ba.name as account_name,
-                ba.iban as account_iban
+                ba.iban as account_iban,
+                ba.account_type
             FROM bank_transfer bt
             JOIN bank_account ba ON bt.bank_account_id = ba.id
             WHERE bt.id = $1
@@ -128,16 +130,22 @@ impl BankEntryRepository for SqliteBankEntryRepository {
         .await
         .context("Failed to read bank transfer")?;
 
-        Ok(row.map(|r| {
-            let account = BankAccount::restore(r.account_id, r.account_name, r.account_iban);
-            BankEntry::restore(
+        row.map(|r| {
+            let account = restore_row(
+                r.account_id,
+                r.account_name,
+                r.account_iban,
+                &r.account_type,
+            )?;
+            Ok(BankEntry::restore(
                 r.id,
                 r.transfer_date,
                 r.amount,
                 parse_transfer_type(&r.transfer_type),
                 account,
-            )
-        }))
+            ))
+        })
+        .transpose()
     }
 
     async fn read_all_transfers(&self) -> anyhow::Result<Vec<BankEntry>> {
@@ -153,7 +161,8 @@ impl BankEntryRepository for SqliteBankEntryRepository {
                 bt.bank_account_id,
                 ba.id as account_id,
                 ba.name as account_name,
-                ba.iban as account_iban
+                ba.iban as account_iban,
+                ba.account_type
             FROM bank_transfer bt
             JOIN bank_account ba ON bt.bank_account_id = ba.id
             ORDER BY bt.transfer_date DESC
@@ -163,19 +172,23 @@ impl BankEntryRepository for SqliteBankEntryRepository {
         .await
         .context("Failed to read all bank transfers")?;
 
-        Ok(rows
-            .into_iter()
+        rows.into_iter()
             .map(|r| {
-                let account = BankAccount::restore(r.account_id, r.account_name, r.account_iban);
-                BankEntry::restore(
+                let account = restore_row(
+                    r.account_id,
+                    r.account_name,
+                    r.account_iban,
+                    &r.account_type,
+                )?;
+                Ok(BankEntry::restore(
                     r.id,
                     r.transfer_date,
                     r.amount,
                     parse_transfer_type(&r.transfer_type),
                     account,
-                )
+                ))
             })
-            .collect())
+            .collect()
     }
 
     async fn delete_transfer(&self, id: &str) -> anyhow::Result<()> {

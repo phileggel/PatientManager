@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    context::bank::{BankAccount, BankAccountRepository, BankError, CASH_ACCOUNT_ID},
+    context::bank::{BankAccount, BankAccountRepository, BankError},
     shared::{
         event_bus::{BankAccountUpdated, EventBus},
         logger::BACKEND,
@@ -42,8 +42,7 @@ impl BankAccountService {
         Err(BankError::IbanAlreadyUsed)
     }
 
-    /// BAC-013 — name uniqueness among the accounts, the
-    /// cash account included; `exempt_id` lets an edit keep its own name.
+    /// BAC-013 — name uniqueness among the `bank` accounts; `exempt_id` lets an edit keep its own name.
     /// Names are compared exactly, once the factory has trimmed them.
     async fn ensure_name_free(&self, name: &str, exempt_id: Option<&str>) -> Result<(), BankError> {
         let taken = self
@@ -82,8 +81,20 @@ impl BankAccountService {
         Ok(created)
     }
 
-    /// Read a single account — fails with `BankAccountNotFound` if the account does not exist.
+    /// Read one of the user's accounts — fails with `BankAccountNotFound` if it does
+    /// not exist or is a technical account, which is never chosen (BAC-055).
     pub async fn read_account(&self, id: &str) -> Result<BankAccount, BankError> {
+        let account = self.read_any_account(id).await?;
+        if !account.is_bank() {
+            return Err(BankError::BankAccountNotFound {
+                bank_account_id: id.to_string(),
+            });
+        }
+        Ok(account)
+    }
+
+    /// Read any account, a technical one included.
+    async fn read_any_account(&self, id: &str) -> Result<BankAccount, BankError> {
         let row = self.repository.read_account(id).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "read_account: repository failed");
             BankError::DatabaseError
@@ -109,7 +120,7 @@ impl BankAccountService {
         })
     }
 
-    /// Update an existing account — fails with `ProtectedCashAccount` for the default cash account (BAC-051),
+    /// Update an existing account — fails with `ProtectedTechnicalAccount` for a technical account (BAC-051),
     /// `BankAccountNotFound` for an unknown or deleted one (BAC-030),
     /// `BankAccountNameAlreadyUsed` for a taken name (BAC-013), and
     /// `IbanAlreadyUsed` for a taken IBAN (BAC-014).
@@ -119,11 +130,8 @@ impl BankAccountService {
         name: String,
         iban: Option<String>,
     ) -> Result<BankAccount, BankError> {
-        if id == CASH_ACCOUNT_ID {
-            return Err(BankError::ProtectedCashAccount);
-        }
-        // BAC-030 — an unknown or deleted account is not edited.
-        self.read_account(&id).await?;
+        // BAC-030 — an unknown account is not edited; BAC-051 — nor a technical one.
+        self.read_any_account(&id).await?.ensure_editable()?;
         // BAC-014 — Normalize and check IBAN uniqueness BEFORE calling the factory.
         // Self-match (same id) is allowed via the exempt_id arg.
         let normalized_iban = BankAccount::normalize_iban(iban.as_deref());
@@ -145,22 +153,11 @@ impl BankAccountService {
         Ok(updated)
     }
 
-    /// Really delete an account (BAC-041) — fails with `ProtectedCashAccount` for the default cash account (BAC-051)
+    /// Really delete an account (BAC-041) — fails with `ProtectedTechnicalAccount` for a technical account (BAC-051)
     /// and with `BankAccountHoldsBankEntries` while a bank entry is recorded on it (BAC-043).
     pub async fn delete_account(&self, id: &str) -> Result<(), BankError> {
-        if id == CASH_ACCOUNT_ID {
-            return Err(BankError::ProtectedCashAccount);
-        }
-        // Verify account exists
-        let row = self.repository.read_account(id).await.map_err(|e| {
-            tracing::error!(target: BACKEND, err = ?e, "delete_account: read_account failed");
-            BankError::DatabaseError
-        })?;
-        if row.is_none() {
-            return Err(BankError::BankAccountNotFound {
-                bank_account_id: id.to_string(),
-            });
-        }
+        // BAC-051 — a technical account is never deleted.
+        self.read_any_account(id).await?.ensure_editable()?;
         let holds_bank_entries = self.repository.holds_bank_entries(id).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "delete_account: holds_bank_entries failed");
             BankError::DatabaseError
@@ -414,26 +411,52 @@ mod tests {
         ));
     }
 
+    /// BAC-050A, BAC-051 — a technical account is never edited, deleted or read as
+    /// one of the user's accounts.
     #[tokio::test]
-    async fn test_update_cash_account_is_protected() {
-        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
-        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
+    async fn test_518_a_technical_account_is_protected_and_never_read() {
+        struct TechnicalRepo;
 
-        let result = service
-            .update_account(CASH_ACCOUNT_ID.to_string(), "New Name".to_string(), None)
+        #[async_trait::async_trait]
+        impl BankAccountRepository for TechnicalRepo {
+            async fn create_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+                Ok(a)
+            }
+            async fn read_all_accounts(&self) -> anyhow::Result<Vec<BankAccount>> {
+                Ok(vec![])
+            }
+            async fn find_by_iban(&self, _: &str) -> anyhow::Result<Option<BankAccount>> {
+                Ok(None)
+            }
+            async fn read_account(&self, id: &str) -> anyhow::Result<Option<BankAccount>> {
+                Ok(Some(BankAccount::restore_of_type(
+                    id.to_string(),
+                    "check".to_string(),
+                    None,
+                    crate::context::bank::BankAccountType::Check,
+                )))
+            }
+            async fn update_account(&self, a: BankAccount) -> anyhow::Result<BankAccount> {
+                Ok(a)
+            }
+            async fn delete_account(&self, _: &str) -> anyhow::Result<bool> {
+                Ok(true)
+            }
+            async fn holds_bank_entries(&self, _id: &str) -> anyhow::Result<bool> {
+                Ok(false)
+            }
+        }
+        let service = BankAccountService::new(Arc::new(TechnicalRepo), Arc::new(EventBus::new()));
+
+        let updated = service
+            .update_account("check-account-default".into(), "New Name".into(), None)
             .await;
+        let deleted = service.delete_account("check-account-default").await;
+        let read = service.read_account("check-account-default").await;
 
-        assert!(matches!(result, Err(BankError::ProtectedCashAccount)));
-    }
-
-    #[tokio::test]
-    async fn test_delete_cash_account_is_protected() {
-        let repo = Arc::new(MockBankAccountRepository { should_fail: false });
-        let service = BankAccountService::new(repo, Arc::new(EventBus::new()));
-
-        let result = service.delete_account(CASH_ACCOUNT_ID).await;
-
-        assert!(matches!(result, Err(BankError::ProtectedCashAccount)));
+        assert!(matches!(updated, Err(BankError::ProtectedTechnicalAccount)));
+        assert!(matches!(deleted, Err(BankError::ProtectedTechnicalAccount)));
+        assert!(matches!(read, Err(BankError::BankAccountNotFound { .. })));
     }
 
     #[tokio::test]

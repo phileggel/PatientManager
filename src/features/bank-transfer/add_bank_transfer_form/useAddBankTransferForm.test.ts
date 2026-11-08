@@ -1,11 +1,10 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCacheStore } from "@/infra/cache/store";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { toastService } from "@/ui/components/snackbar";
 
 vi.mock("../gateway", () => ({
-  getCashBankAccountId: vi.fn(),
   createFundTransfer: vi.fn(),
   createDirectTransfer: vi.fn(),
 }));
@@ -13,68 +12,49 @@ vi.mock("../gateway", () => ({
 import * as gateway from "../gateway";
 import { useAddBankTransferForm } from "./useAddBankTransferForm";
 
-const CASH_ID = "cash-account-default";
-
-describe("useAddBankTransferForm — R13 (cash account set by the backend)", () => {
+describe("useAddBankTransferForm — BSM-026 (a direct payment's account is set by the backend)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
     useCacheStore.setState({
-      bankAccounts: [
-        makeBankAccount({ id: CASH_ID, name: "Caisse" }),
-        makeBankAccount({ id: "acc-1", name: "Compte principal" }),
-      ],
+      bankAccounts: [makeBankAccount({ id: "acc-1", name: "Compte principal" })],
     });
   });
 
-  it("fetches the cash account id on mount", async () => {
-    renderHook(() => useAddBankTransferForm());
-
-    await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalledOnce());
-  });
-
-  it("excludes the cash account from bankAccountOptions once id is loaded", async () => {
+  it("ticket #518: offers the store's accounts, the user's only", () => {
     const { result } = renderHook(() => useAddBankTransferForm());
 
-    await waitFor(() => expect(result.current.bankAccountOptions).toHaveLength(1));
-    expect(result.current.bankAccountOptions[0]?.value).toBe("acc-1");
+    expect(result.current.bankAccountOptions).toEqual([
+      { value: "acc-1", label: "Compte principal" },
+    ]);
   });
 
-  it("ticket #455: a CASH creation sends no account, the backend sets the cash account", async () => {
+  it("ticket #518: every direct payment type sends no account", async () => {
     vi.mocked(gateway.createDirectTransfer).mockResolvedValue({
       success: true,
       data: { transfer_id: "t-1", linked_count: 1 },
     });
-    const { result } = renderHook(() => useAddBankTransferForm());
-    await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
+    for (const type of ["PATIENT_CASH", "PATIENT_CHECK", "PATIENT_CREDIT_CARD"] as const) {
+      const { result } = renderHook(() => useAddBankTransferForm());
+      act(() => result.current.setBankAccount("acc-1"));
+      act(() => result.current.handleTypeChange(type));
+      act(() => result.current.setTransferDate("2026-03-10"));
+      act(() => result.current.handleProcedureSelectionChange(["p-1"], 30000));
+      await act(async () => {
+        await result.current.handleSubmit({
+          preventDefault: vi.fn(),
+        } as unknown as React.FormEvent);
+      });
 
-    act(() => result.current.handleTypeChange("PATIENT_CASH"));
-    act(() => result.current.setTransferDate("2026-03-10"));
-    act(() => result.current.handleProcedureSelectionChange(["p-1"], 30000));
-    await act(async () => {
-      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
-    });
-
-    expect(gateway.createDirectTransfer).toHaveBeenCalledWith("", "2026-03-10", "PATIENT_CASH", [
-      "p-1",
-    ]);
-  });
-
-  it("does not assign cash account for non-CASH types on mount", async () => {
-    const { result } = renderHook(() => useAddBankTransferForm());
-
-    await waitFor(() => expect(gateway.getCashBankAccountId).toHaveBeenCalled());
-
-    // Default type is FUND — bankAccount should remain empty
-    expect(result.current.transferType).toBe("FUND_WIRE");
-    expect(result.current.bankAccount).toBe("");
+      expect(gateway.createDirectTransfer).toHaveBeenLastCalledWith("", "2026-03-10", type, [
+        "p-1",
+      ]);
+    }
   });
 });
 
 describe("useAddBankTransferForm — form fields and validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
     useCacheStore.setState({ bankAccounts: [] });
   });
 
@@ -207,7 +187,6 @@ describe("useAddBankTransferForm — refusals at the field (BSM-022 to BSM-025)"
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(gateway.getCashBankAccountId).mockResolvedValue({ success: true, data: CASH_ID });
     useCacheStore.setState({ bankAccounts: [] });
   });
 

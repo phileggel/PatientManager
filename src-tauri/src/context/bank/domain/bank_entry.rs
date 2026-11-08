@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use uuid::Uuid;
 
-use super::bank_account::{BankAccount, CASH_ACCOUNT_ID};
+use super::bank_account::{BankAccount, CARD_ACCOUNT_ID, CASH_ACCOUNT_ID, CHECK_ACCOUNT_ID};
 use crate::context::bank::error::{BankEntryInvalidReason, BankError};
 
 /// Payment type for bank transfers
@@ -34,19 +34,27 @@ impl BankEntryType {
         )
     }
 
-    /// BSM-026 — the account the form is asked for: none for a cash payment,
+    /// BSM-026 — the account the form is asked for: none for a direct payment,
     /// whose account is not the user's choice.
     pub fn asked_account(self, sent: &str) -> Option<&str> {
-        (self != Self::PatientCash).then_some(sent)
+        (!self.is_patient_payment()).then_some(sent)
     }
 
-    /// BSM-026 — the account an entry of this type is recorded on: a cash
-    /// payment's is the cash account, whatever is sent; any other's is the one sent.
+    /// BSM-026, BAC-056 — the account an entry of this type is recorded on: a direct
+    /// payment's is the technical account of its type, whatever is sent; any other's
+    /// is the one sent.
     pub fn account_for(self, sent: String) -> String {
-        if self == Self::PatientCash {
-            CASH_ACCOUNT_ID.to_string()
-        } else {
-            sent
+        self.technical_account_id()
+            .map_or(sent, |technical| technical.to_string())
+    }
+
+    /// BAC-056 — the technical account of a direct payment type; none for a fund wire.
+    pub fn technical_account_id(self) -> Option<&'static str> {
+        match self {
+            Self::PatientCash => Some(CASH_ACCOUNT_ID),
+            Self::PatientCheck => Some(CHECK_ACCOUNT_ID),
+            Self::PatientCreditCard => Some(CARD_ACCOUNT_ID),
+            Self::FundWire | Self::FundOutgoingWire => None,
         }
     }
 
@@ -85,6 +93,15 @@ where
 }
 
 impl BankEntry {
+    /// BAC-056 — a patient's direct payment sits on its type's technical account;
+    /// BAC-055A — anything else, a refund included, on one of the user's accounts.
+    pub fn is_on_its_own_account(&self, account: &BankAccount) -> bool {
+        match self.transfer_type.technical_account_id() {
+            Some(technical) if self.amount > 0 => account.id == technical,
+            _ => account.is_bank(),
+        }
+    }
+
     /// Creates a new BankEntry with validation and generates ID.
     pub fn new(
         transfer_date: String,
@@ -331,22 +348,22 @@ mod tests {
         }
     }
 
+    /// BSM-026, BAC-056 — a direct payment goes on its type's technical account,
+    /// whatever is sent, and asks for none; a fund wire goes on the account sent.
     #[test]
-    fn test_account_for_records_a_cash_payment_on_the_cash_account_only() {
-        for ty in [
-            BankEntryType::FundWire,
-            BankEntryType::PatientCheck,
-            BankEntryType::PatientCreditCard,
-            BankEntryType::FundOutgoingWire,
-        ] {
+    fn test_518_a_direct_payment_goes_on_its_technical_account() {
+        for ty in [BankEntryType::FundWire, BankEntryType::FundOutgoingWire] {
             assert_eq!(ty.account_for("acc-1".into()), "acc-1", "{ty:?}");
             assert_eq!(ty.asked_account("acc-1"), Some("acc-1"), "{ty:?}");
         }
-        assert_eq!(
-            BankEntryType::PatientCash.account_for("acc-1".into()),
-            CASH_ACCOUNT_ID
-        );
-        assert_eq!(BankEntryType::PatientCash.asked_account("acc-1"), None);
+        for (ty, technical) in [
+            (BankEntryType::PatientCash, CASH_ACCOUNT_ID),
+            (BankEntryType::PatientCheck, CHECK_ACCOUNT_ID),
+            (BankEntryType::PatientCreditCard, CARD_ACCOUNT_ID),
+        ] {
+            assert_eq!(ty.account_for("acc-1".into()), technical, "{ty:?}");
+            assert_eq!(ty.asked_account("acc-1"), None, "{ty:?}");
+        }
     }
 
     #[test]

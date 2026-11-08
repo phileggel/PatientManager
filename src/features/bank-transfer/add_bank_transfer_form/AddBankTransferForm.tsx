@@ -43,7 +43,6 @@ export function AddBankTransferForm() {
     fieldErrors,
     bankAccountOptions,
     isFund,
-    isCash,
     handleSubmit,
   } = useAddBankTransferForm();
 
@@ -77,13 +76,8 @@ export function AddBankTransferForm() {
         ]}
       />
 
-      {/* Bank Account — hidden for CASH (auto-assigned, R13) */}
-      {isCash ? (
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-neutral-90">{t("transfer.bank_account")}</span>
-          <span className="text-sm text-neutral-60">{t("transfer.cash_account")}</span>
-        </div>
-      ) : (
+      {/* Bank account — a fund wire only: a direct payment's is set by the backend (BSM-026) */}
+      {isFund && (
         <SelectField
           id="bankAccount"
           label={t("transfer.bank_account")}

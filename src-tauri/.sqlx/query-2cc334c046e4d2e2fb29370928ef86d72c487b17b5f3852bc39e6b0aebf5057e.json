@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, name, iban\n            FROM bank_account\n            WHERE id = $1\n            ",
+  "query": "\n            SELECT id, name, iban\n            FROM bank_account\n            WHERE account_type = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -46,5 +46,5 @@
       true
     ]
   },
-  "hash": "4ef4b5a83e6bf2242ea9f8acaeafcda4e294ba7b7d531522b42d39825150b59f"
+  "hash": "2cc334c046e4d2e2fb29370928ef86d72c487b17b5f3852bc39e6b0aebf5057e"
 }

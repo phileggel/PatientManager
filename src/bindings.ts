@@ -86,8 +86,8 @@ async deleteFund(id: string) : Promise<Result<null, ProcedureOrchestrationError>
 }
 },
 /**
- * PRO-296 — delete a patient with its duplicate dismissals; a patient procedures
- * name is refused.
+ * PRO-296 — delete a patient with its duplicate dismissals; a patient that
+ * procedures reference is refused.
  */
 async deletePatient(id: string) : Promise<Result<null, ProcedureOrchestrationError>> {
     try {
@@ -518,13 +518,6 @@ async deleteBankAccount(id: string) : Promise<Result<null, BankError>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
-},
-/**
- * Tauri command: Returns the ID of the default cash account.
- * Used by the frontend to auto-assign the account for CASH entries (BAC-050, BSM-026).
- */
-async getCashBankAccountId() : Promise<string> {
-    return await TAURI_INVOKE("get_cash_bank_account_id");
 },
 /**
  * Parse a bank statement PDF and return structured data
@@ -1130,10 +1123,10 @@ export type BankError =
  */
 { code: "BankAccountNotFound"; bank_account_id: string } | 
 /**
- * `BankAccountService::update_account` / `delete_account` rejected
- * mutation of the protected cash account.
+ * BAC-051 — `BankAccountService::update_account` / `delete_account` rejected a
+ * technical account (BAC-050A).
  */
-{ code: "ProtectedCashAccount" } | 
+{ code: "ProtectedTechnicalAccount" } | 
 /**
  * `BankAccountService::delete_account` refused an account a bank entry
  * is recorded on (BAC-043).
@@ -2446,11 +2439,11 @@ export type ProcedureOrchestrationError = ProcedureError | ProcedureOrchestratio
  */
 export type ProcedureOrchestrationTask = 
 /**
- * FK validation: the referenced patient does not exist (or is deleted).
+ * FK validation: the referenced patient does not exist.
  */
 { code: "PatientNotFound"; patient_id: string } | 
 /**
- * FK validation: the referenced fund does not exist (or is deleted).
+ * FK validation: the referenced fund does not exist.
  */
 { code: "FundNotFound"; fund_id: string } | 
 /**
@@ -2467,7 +2460,7 @@ export type ProcedureOrchestrationTask =
  */
 { code: "FundInUse"; procedure_count: number; payment_group_count: number } | 
 /**
- * PRO-296 — a patient procedures still name is not deleted.
+ * PRO-296 — a patient that procedures still reference is not deleted.
  */
 { code: "PatientInUse"; procedure_count: number } | 
 /**

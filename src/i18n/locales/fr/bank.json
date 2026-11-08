@@ -136,7 +136,6 @@
     "type_check": "Chèque",
     "type_credit_card": "Carte de crédit",
     "type_cash": "Espèces",
-    "cash_account": "Caisse (automatique)",
     "selected_fund": "Caisse : {{name}}",
     "no_fund": "Aucune caisse sélectionnée",
     "change_fund": "Modifier la caisse",
@@ -260,7 +259,6 @@
       },
       "edit_aria_label": "Modifier le compte {{name}}",
       "delete_aria_label": "Supprimer le compte {{name}}",
-      "cash_account_protected_tooltip": "Le compte caisse est géré automatiquement et ne peut pas être modifié",
       "success": {
         "deleted": "Compte \"{{name}}\" supprimé avec succès"
       },
@@ -302,7 +300,7 @@
     "bank_account_name_already_used": "Un compte porte déjà ce nom",
     "iban_already_used": "IBAN déjà utilisé par un autre compte bancaire",
     "bank_account_not_found": "Compte bancaire introuvable (id : {{id}})",
-    "protected_cash_account": "Le compte caisse est protégé et ne peut pas être modifié ou supprimé",
+    "protected_technical_account": "Un compte technique ne peut pas être modifié ou supprimé",
     "bank_account_holds_bank_entries": "Ce compte porte des opérations et ne peut pas être supprimé",
     "transfer_not_found": "Virement bancaire introuvable (id : {{id}})",
     "wrong_transfer_type": "Le type de ce virement ne correspond pas à l'opération demandée",

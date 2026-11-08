@@ -83,9 +83,9 @@ describe("formatBankError - F27 Layer 3 (pure code → key mapping)", () => {
     });
   });
 
-  it("maps ProtectedCashAccount to its key", () => {
-    const err: BankError = { code: "ProtectedCashAccount" };
-    expect(formatBankError(err)).toEqual({ key: "bank:errors.protected_cash_account" });
+  it("maps ProtectedTechnicalAccount to its key", () => {
+    const err: BankError = { code: "ProtectedTechnicalAccount" };
+    expect(formatBankError(err)).toEqual({ key: "bank:errors.protected_technical_account" });
   });
 
   it("ticket #448: maps BankAccountHoldsBankEntries to its key (BAC-043)", () => {
