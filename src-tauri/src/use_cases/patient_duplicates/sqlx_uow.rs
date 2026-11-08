@@ -26,7 +26,12 @@ impl PatientMergeUnitOfWork for SqlxPatientMergeUnitOfWork {
     }
 
     async fn delete_patient(&mut self, patient_id: &str) -> anyhow::Result<()> {
-        SqlitePatientRepository::soft_delete_in(&mut self.tx, patient_id).await
+        if !SqlitePatientRepository::delete_in(&mut self.tx, patient_id).await? {
+            anyhow::bail!(
+                "merged patient {patient_id} not deleted: no row, or a reference still names it"
+            );
+        }
+        Ok(())
     }
 
     async fn delete_dismissals_of(&mut self, patient_id: &str) -> anyhow::Result<()> {
@@ -68,9 +73,9 @@ mod tests {
             .await
             .expect("migrations");
         for statement in [
-            "INSERT INTO patient (id, name, is_anonymous, is_deleted) VALUES ('kept', 'Marie Dupont', 0, 0)",
-            "INSERT INTO patient (id, name, ssn, is_anonymous, is_deleted) VALUES ('other', 'Marie Dupont', '1234567890123', 0, 0)",
-            "INSERT INTO patient (id, name, is_anonymous, is_deleted) VALUES ('third', 'Marie Dupont', 0, 0)",
+            "INSERT INTO patient (id, name, is_anonymous) VALUES ('kept', 'Marie Dupont', 0)",
+            "INSERT INTO patient (id, name, ssn, is_anonymous) VALUES ('other', 'Marie Dupont', '1234567890123', 0)",
+            "INSERT INTO patient (id, name, is_anonymous) VALUES ('third', 'Marie Dupont', 0)",
             "INSERT INTO procedure_type (id, name, default_amount) VALUES ('type-1', 'Type 1', 100000)",
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('live', 'other', 'type-1', '2026-03-10', 100000, 'RECONCILIATED')"#,
             r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('second', 'other', 'type-1', '2026-03-11', 100000, 'NONE')"#,
@@ -84,7 +89,7 @@ mod tests {
         pool
     }
 
-    /// (procedures on `kept`, procedures on `other`, `other` is deleted, dismissals left)
+    /// (procedures on `kept`, procedures on `other`, `other` is gone, dismissals left)
     async fn stored(pool: &SqlitePool) -> (i64, i64, bool, i64) {
         let count = |sql: &'static str| async move {
             let (n,): (i64,) = sqlx::query_as(sql).fetch_one(pool).await.expect("count");
@@ -93,7 +98,7 @@ mod tests {
         (
             count(r#"SELECT COUNT(*) FROM "procedure" WHERE patient_id = 'kept'"#).await,
             count(r#"SELECT COUNT(*) FROM "procedure" WHERE patient_id = 'other'"#).await,
-            count("SELECT is_deleted FROM patient WHERE id = 'other'").await == 1,
+            count("SELECT COUNT(*) FROM patient WHERE id = 'other'").await == 0,
             count("SELECT COUNT(*) FROM patient_duplicate_dismissal").await,
         )
     }
@@ -123,15 +128,23 @@ mod tests {
                 Box::pin(async move {
                     uow.reassign_procedures("other", "kept").await?;
                     uow.update_patient(&merged).await?;
-                    uow.delete_patient("other").await?;
-                    uow.delete_dismissals_of("other").await
+                    uow.delete_dismissals_of("other").await?;
+                    uow.delete_patient("other").await
                 })
             }))
             .await
             .expect("merge");
 
-        // PDU-021: both procedures moved. PDU-026: the dismissal is gone.
+        // PDU-021: both procedures moved, the other patient and its SSN gone.
+        // PDU-026: the dismissal is gone.
         assert_eq!(stored(&pool).await, (2, 0, true, 0));
+        let other_ssn: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM patient WHERE ssn = '1234567890123' AND id = 'other'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("count");
+        assert_eq!(other_ssn, 0, "PDU-021");
         let kept = SqlitePatientRepository::new(pool.clone())
             .read_patient("kept")
             .await
@@ -150,6 +163,7 @@ mod tests {
                 Box::pin(async move {
                     uow.reassign_procedures("other", "kept").await?;
                     uow.update_patient(&merged).await?;
+                    uow.delete_dismissals_of("other").await?;
                     uow.delete_patient("other").await?;
                     anyhow::bail!("failure before the last write")
                 })

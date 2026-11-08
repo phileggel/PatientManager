@@ -119,7 +119,7 @@ mod tests {
             .run(&pool)
             .await
             .expect("migrations");
-        sqlx::query("INSERT INTO patient (id, name, ssn, is_anonymous, is_deleted) VALUES ('p1', ?, ?, 0, 0)")
+        sqlx::query("INSERT INTO patient (id, name, ssn, is_anonymous) VALUES ('p1', ?, ?, 0)")
             .bind(PATIENT_NAME)
             .bind(PATIENT_SSN)
             .execute(&pool)

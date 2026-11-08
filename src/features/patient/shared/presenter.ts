@@ -1,4 +1,10 @@
-import type { Fund, Patient, PatientError, ProcedureType } from "@/bindings";
+import type {
+  Fund,
+  Patient,
+  PatientError,
+  ProcedureOrchestrationError,
+  ProcedureType,
+} from "@/bindings";
 import type { PatientFormData, PatientRow } from "./types";
 
 /** Rust's two ways of saying the name is missing: shown under the name field, not as a toast. */
@@ -30,6 +36,20 @@ export function formatPatientError(err: PatientError): {
     case "DatabaseError":
       return { key: "patient:errors.database_error" };
   }
+}
+
+/**
+ * The patient deletion's refusal (PRO-296), or the generic failure:
+ * `delete_patient` raises no other code of the use case's union.
+ */
+export function formatPatientDeletionError(err: ProcedureOrchestrationError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
+  if (err.code === "PatientInUse") {
+    return { key: "patient:errors.in_use", params: { count: err.procedure_count } };
+  }
+  return { key: "patient:errors.database_error" };
 }
 
 /**

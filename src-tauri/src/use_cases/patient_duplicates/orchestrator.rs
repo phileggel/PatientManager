@@ -82,8 +82,8 @@ impl PatientDuplicatesOrchestrator {
                 Box::pin(async move {
                     uow.reassign_procedures(&other_id, &merged.id).await?;
                     uow.update_patient(&merged).await?;
-                    uow.delete_patient(&other_id).await?;
-                    uow.delete_dismissals_of(&other_id).await
+                    uow.delete_dismissals_of(&other_id).await?;
+                    uow.delete_patient(&other_id).await
                 })
             }))
             .await
@@ -111,7 +111,7 @@ impl PatientDuplicatesOrchestrator {
             .await?)
     }
 
-    /// PDU-025, PDU-032 — two different patients that both exist and are not deleted.
+    /// PDU-025, PDU-032 — two different patients that both exist.
     async fn read_pair(
         &self,
         first_id: &str,
@@ -357,8 +357,8 @@ mod tests {
             vec![
                 "reassign other -> kept",
                 "update kept ssn=1234567890123",
-                "delete other",
                 "delete dismissals of other",
+                "delete other",
             ]
         );
     }

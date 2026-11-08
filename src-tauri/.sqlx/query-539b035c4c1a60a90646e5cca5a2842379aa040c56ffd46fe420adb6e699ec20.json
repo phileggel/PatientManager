@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,\n                   hp.procedure_date AS \"procedure_date: NaiveDate\", hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date AS \"fund_reconciliation_date?: NaiveDate\", hp.confirmed_payment_date AS \"confirmed_payment_date?: NaiveDate\", hp.paid_amount, hp.payment_status\n            FROM procedure hp\n            JOIN patient p ON hp.patient_id = p.id\n            WHERE p.ssn = $1\n              AND hp.procedure_date >= $2\n              AND hp.procedure_date <= $3\n              AND p.is_deleted = 0\n            ORDER BY hp.procedure_date ASC\n            ",
+  "query": "\n            SELECT hp.id, hp.patient_id, hp.fund_id, hp.procedure_type_id,\n                   hp.procedure_date AS \"procedure_date: NaiveDate\", hp.billed_amount, hp.payment_method, hp.fund_reconciliation_date AS \"fund_reconciliation_date?: NaiveDate\", hp.confirmed_payment_date AS \"confirmed_payment_date?: NaiveDate\", hp.paid_amount, hp.payment_status\n            FROM procedure hp\n            JOIN patient p ON hp.patient_id = p.id\n            WHERE p.ssn = $1\n              AND hp.procedure_date >= $2\n              AND hp.procedure_date <= $3\n            ORDER BY hp.procedure_date ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -142,5 +142,5 @@
       false
     ]
   },
-  "hash": "27d219ef3ca678691b48b452845b19cac60e82be829418f543acf2eca08914df"
+  "hash": "539b035c4c1a60a90646e5cca5a2842379aa040c56ffd46fe420adb6e699ec20"
 }

@@ -130,16 +130,6 @@ impl PatientService {
                 PatientError::DatabaseError
             })
     }
-
-    /// Delete an existing patient (soft delete)
-    pub async fn delete_patient(&self, id: &str) -> Result<(), PatientError> {
-        self.repository.delete_patient(id).await.map_err(|e| {
-            tracing::error!(target: BACKEND, err = ?e, "delete_patient: repository failed");
-            PatientError::DatabaseError
-        })?;
-        let _ = self.event_bus.publish::<PatientUpdated>(PatientUpdated);
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -161,7 +151,6 @@ mod tests {
         mock.expect_update_patient().returning(Ok);
         mock.expect_find_patient_by_ssn().returning(|_| Ok(None));
         mock.expect_find_patient_by_name().returning(|_| Ok(None));
-        mock.expect_delete_patient().returning(|_| Ok(()));
         Arc::new(mock)
     }
 
@@ -178,8 +167,6 @@ mod tests {
         mock.expect_find_patient_by_ssn()
             .returning(|_| Err(anyhow::anyhow!("Mock repository error")));
         mock.expect_find_patient_by_name()
-            .returning(|_| Err(anyhow::anyhow!("Mock repository error")));
-        mock.expect_delete_patient()
             .returning(|_| Err(anyhow::anyhow!("Mock repository error")));
         Arc::new(mock)
     }
@@ -236,28 +223,6 @@ mod tests {
         let event_bus = Arc::new(EventBus::new());
         let service = PatientService::new(Arc::new(mock), event_bus);
         let result = service.get_all_patients().await;
-
-        assert!(matches!(result, Err(PatientError::DatabaseError)));
-    }
-
-    #[tokio::test]
-    async fn test_delete_patient_success() {
-        let repo = make_repo_ok();
-        let event_bus = Arc::new(EventBus::new());
-        let service = PatientService::new(repo, event_bus);
-
-        let result = service.delete_patient("test-id").await;
-
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_delete_patient_repository_error() {
-        let repo = make_repo_fail();
-        let event_bus = Arc::new(EventBus::new());
-        let service = PatientService::new(repo, event_bus);
-
-        let result = service.delete_patient("test-id").await;
 
         assert!(matches!(result, Err(PatientError::DatabaseError)));
     }

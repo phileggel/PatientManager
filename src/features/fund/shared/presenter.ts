@@ -22,23 +22,6 @@ export function fundFieldErrorKeys(err: FundError): FormErrors | null {
  * Layer 3 of the F27 typed-error pipeline: pure code → i18n key mapping for
  * the Fund bounded context. Caller (Layer 4) calls `t(key, params)`.
  */
-/**
- * The fund deletion's refusal (PRO-291), or the generic failure: `delete_fund`
- * raises no other code of the use case's union.
- */
-export function formatFundDeletionError(err: ProcedureOrchestrationError): {
-  key: string;
-  params?: Record<string, string | number>;
-} {
-  if (err.code === "FundInUse") {
-    return {
-      key: "fund:errors.in_use",
-      params: { procedures: err.procedure_count, groups: err.payment_group_count },
-    };
-  }
-  return { key: "fund:errors.database_error" };
-}
-
 export function formatFundError(err: FundError): {
   key: string;
   params?: Record<string, string | number>;
@@ -74,6 +57,23 @@ export function formatFundError(err: FundError): {
     case "DatabaseError":
       return { key: "fund:errors.database_error" };
   }
+}
+
+/**
+ * The fund deletion's refusal (PRO-291), or the generic failure: `delete_fund`
+ * raises no other code of the use case's union.
+ */
+export function formatFundDeletionError(err: ProcedureOrchestrationError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
+  if (err.code === "FundInUse") {
+    return {
+      key: "fund:errors.in_use",
+      params: { procedures: err.procedure_count, groups: err.payment_group_count },
+    };
+  }
+  return { key: "fund:errors.database_error" };
 }
 
 /**

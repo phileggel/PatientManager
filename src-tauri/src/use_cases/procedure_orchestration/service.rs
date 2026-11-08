@@ -684,8 +684,6 @@ mod tests {
             .returning(|_| panic!("not expected"));
         mock.expect_find_patient_by_ssn()
             .returning(|_| panic!("not expected"));
-        mock.expect_delete_patient()
-            .returning(|_| panic!("not expected"));
         mock
     }
 

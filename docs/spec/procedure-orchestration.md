@@ -131,7 +131,7 @@ always ignored and never persisted.
 
 **PRO-250 (R18) — Free updates from the frontend (backend)**: The `update_procedure` command accepts every procedure field (`patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `actual_payment_amount`, `payment_status`) without re-inference. References are checked as PRO-251 says. The backend imposes no restriction on which fields are editable based on the procedure's status (including blocking statuses) — the restriction to `procedure_type_id` only for blocking-status procedures is guaranteed exclusively by the frontend (see PRO-190).
 
-**PRO-251 — References checked on edit (backend)**: An edit that changes the patient, the procedure type or the fund to one that does not exist, or has been deleted, is refused, naming the first one found in the order patient, procedure type, fund; nothing is saved. A reference the edit keeps stays valid, even if deleted since (owner, 2026-10-18: the backend judges what it receives, whoever sends it); a procedure type or a fund in use cannot be deleted (R24 of the procedure-type spec, PRO-291).
+**PRO-251 — References checked on edit (backend)**: An edit that changes the patient, the procedure type or the fund to one that does not exist is refused, naming the first one found in the order patient, procedure type, fund; nothing is saved. A reference the edit keeps stays valid (owner, 2026-10-18: the backend judges what it receives, whoever sends it); a procedure type, a fund or a patient in use cannot be deleted (R24 of the procedure-type spec, PRO-291, PRO-296).
 
 **PRO-252 — Unknown procedure (backend)**: An edit of a procedure that does not exist is refused; nothing is saved.
 
@@ -169,6 +169,14 @@ any patient whose `latest_procedure_type` references this type has
 **PRO-294 — Deleted funds removed on upgrade (backend)**: Funds deleted before deletion was real, hidden but kept, are removed when the application is upgraded, once the deleted procedures (PRO-031) and fund payment groups (FPM-401) are removed; the patients' defaults naming them are cleared as PRO-290 says, and their bank statement labels are treated as unknown (BAS-041D). A fund a procedure or a fund payment group still uses is kept (PRO-295) (owner, 2026-11-01, #579).
 
 **PRO-295 — A deleted fund still used comes back (backend)**: A fund PRO-294 keeps is listed again as it was stored, except that an identifier another fund holds becomes `{identifier} (restauré {first 8 characters of its id})`, stored as data, never translated, so identifiers stay unique (owner, 2026-11-01, #579: the real database held none).
+
+**PRO-296 — A patient with procedures is kept (backend)**: Deleting a patient that procedures name, whatever their payment status, is refused with a specific error carrying the number of those procedures; nothing changes, so a paid procedure never goes with its patient. A procedure recorded at the same moment as the deletion still keeps the patient, with the same refusal (owner, 2026-11-01, #579).
+
+**PRO-297 — A patient without procedures is removed (backend)**: Deleting a patient no procedure names removes it, its name and SSN included, together with its duplicate dismissals (PDU-030), atomically, and is signaled through the `PatientUpdated` event (#591).
+
+**PRO-298 — An unknown patient (backend)**: Deleting a patient that does not exist changes no data and is not an error; the `PatientUpdated` event is still raised.
+
+**PRO-299 — Deleted patients removed on upgrade (backend)**: Patients deleted before deletion was real, hidden but kept, are removed with their duplicate dismissals when the application is upgraded, once the deleted procedures are removed (PRO-031). A patient a procedure still names comes back as it was stored (owner, 2026-11-01, #579: the real database held none).
 
 **PRO-300 (R23) — Batch creation: single transaction and at most one event (backend)**: A
 batch of procedures (the Excel import, EXI-175) is persisted in a single transaction and

@@ -55,6 +55,22 @@ impl DeletionUnitOfWork for SqlxDeletionUnitOfWork {
     async fn fund_exists(&mut self, fund_id: &str) -> anyhow::Result<bool> {
         SqliteFundRepository::exists_in(&mut self.tx, fund_id).await
     }
+
+    async fn delete_patient(&mut self, patient_id: &str) -> anyhow::Result<bool> {
+        SqlitePatientRepository::delete_in(&mut self.tx, patient_id).await
+    }
+
+    async fn count_procedures_of_patient(&mut self, patient_id: &str) -> anyhow::Result<usize> {
+        SqliteProcedureRepository::count_with_patient_in(&mut self.tx, patient_id).await
+    }
+
+    async fn delete_patient_dismissals(&mut self, patient_id: &str) -> anyhow::Result<()> {
+        SqlitePatientRepository::delete_duplicate_dismissals_of_in(&mut self.tx, patient_id).await
+    }
+
+    async fn patient_exists(&mut self, patient_id: &str) -> anyhow::Result<bool> {
+        SqlitePatientRepository::exists_in(&mut self.tx, patient_id).await
+    }
 }
 
 #[async_trait::async_trait]
@@ -95,8 +111,8 @@ mod tests {
             "INSERT INTO procedure_type (id, name, default_amount) VALUES ('kept-type', 'Kept', 100000)",
             "INSERT INTO fund (id, fund_identifier, name) VALUES ('gone-fund', '75', 'Fund 75')",
             "INSERT INTO fund (id, fund_identifier, name) VALUES ('kept-fund', '93', 'Fund 93')",
-            "INSERT INTO patient (id, name, is_anonymous, is_deleted, latest_procedure_type, latest_fund, latest_date) VALUES ('on-gone', 'Patient A', 0, 0, 'gone-type', 'gone-fund', '2026-03-10')",
-            "INSERT INTO patient (id, name, is_anonymous, is_deleted, latest_procedure_type, latest_fund, latest_date) VALUES ('on-kept', 'Patient B', 0, 0, 'kept-type', 'kept-fund', '2026-03-11')",
+            "INSERT INTO patient (id, name, is_anonymous, latest_procedure_type, latest_fund, latest_date) VALUES ('on-gone', 'Patient A', 0, 'gone-type', 'gone-fund', '2026-03-10')",
+            "INSERT INTO patient (id, name, is_anonymous, latest_procedure_type, latest_fund, latest_date) VALUES ('on-kept', 'Patient B', 0, 'kept-type', 'kept-fund', '2026-03-11')",
         ] {
             sqlx::query(statement)
                 .execute(&pool)
@@ -262,5 +278,105 @@ mod tests {
         assert!(ids(&pool, "SELECT id FROM fund")
             .await
             .contains(&"kept-fund".to_string()));
+    }
+
+    /// PRO-296, PRO-297 — a patient a procedure names is refused and counted; one
+    /// nothing names goes with its dismissals.
+    #[tokio::test]
+    async fn test_591_a_patient_goes_with_its_dismissals_unless_a_procedure_names_it() {
+        let pool = seeded_pool().await;
+        for statement in [
+            "INSERT INTO procedure (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('p', 'on-kept', 'kept-type', '2026-03-11', 100000, 'CREATED')",
+            "INSERT INTO patient_duplicate_dismissal (id, patient_a_id, patient_b_id) VALUES ('d', 'on-gone', 'on-kept')",
+        ] {
+            sqlx::query(statement).execute(&pool).await.expect("seed");
+        }
+        let answers = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let seen = answers.clone();
+
+        SqlxTransactionManager::new(pool.clone())
+            .run(Box::new(move |uow| {
+                Box::pin(async move {
+                    let refused = uow.delete_patient("on-kept").await?;
+                    let count = uow.count_procedures_of_patient("on-kept").await?;
+                    uow.delete_patient_dismissals("on-gone").await?;
+                    let removed = uow.delete_patient("on-gone").await?;
+                    let gone_exists = uow.patient_exists("on-gone").await?;
+                    *seen.lock().unwrap() = Some((refused, count, removed, gone_exists));
+                    Ok(())
+                })
+            }))
+            .await
+            .unwrap();
+
+        assert_eq!(*answers.lock().unwrap(), Some((false, 1, true, false)));
+        assert_eq!(
+            ids(&pool, "SELECT id FROM patient").await,
+            ["on-kept"].map(String::from)
+        );
+        assert!(ids(&pool, "SELECT id FROM patient_duplicate_dismissal")
+            .await
+            .is_empty());
+    }
+
+    /// PRO-296 — through the real orchestrator, a refused patient keeps its
+    /// procedure and its dismissal, and no event is raised.
+    #[tokio::test]
+    async fn test_591_a_refused_patient_keeps_its_dismissals_and_raises_nothing() {
+        use std::sync::Arc;
+
+        use crate::context::fund::{FundService, MockFundRepository};
+        use crate::context::patient::{MockPatientRepository, PatientService};
+        use crate::context::procedure::{MockProcedureTypeRepository, ProcedureTypeService};
+        use crate::shared::event_bus::{EventBus, PatientUpdated};
+        use crate::use_cases::procedure_orchestration::{
+            DeletionOrchestrator, ProcedureOrchestrationError, ProcedureOrchestrationTask,
+        };
+
+        let pool = seeded_pool().await;
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .expect("foreign keys on");
+        for statement in [
+            "INSERT INTO procedure (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('p', 'on-kept', 'kept-type', '2026-03-11', 100000, 'CREATED')",
+            "INSERT INTO patient_duplicate_dismissal (id, patient_a_id, patient_b_id) VALUES ('d', 'on-gone', 'on-kept')",
+        ] {
+            sqlx::query(statement).execute(&pool).await.expect("seed");
+        }
+        let bus = Arc::new(EventBus::new());
+        let mut changed = bus.subscribe::<PatientUpdated>().expect("subscribe");
+        let orchestrator = DeletionOrchestrator::new(
+            Arc::new(ProcedureTypeService::new(
+                Arc::new(MockProcedureTypeRepository::new()),
+                bus.clone(),
+            )),
+            Arc::new(FundService::new(
+                Arc::new(MockFundRepository::new()),
+                bus.clone(),
+            )),
+            Arc::new(PatientService::new(
+                Arc::new(MockPatientRepository::new()),
+                bus,
+            )),
+            Arc::new(SqlxTransactionManager::new(pool.clone())),
+        );
+
+        let result = orchestrator.delete_patient("on-kept").await;
+
+        assert!(matches!(
+            result,
+            Err(ProcedureOrchestrationError::Task(
+                ProcedureOrchestrationTask::PatientInUse { procedure_count: 1 }
+            ))
+        ));
+        assert!(ids(&pool, "SELECT id FROM patient")
+            .await
+            .contains(&"on-kept".to_string()));
+        assert_eq!(
+            ids(&pool, "SELECT id FROM patient_duplicate_dismissal").await,
+            ["d"].map(String::from)
+        );
+        assert!(changed.try_recv().is_err());
     }
 }

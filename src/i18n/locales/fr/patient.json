@@ -54,7 +54,9 @@
     "non_anonymous_requires_name": "Un patient non anonyme doit avoir un nom",
     "invalid_ssn": "Le numéro de sécurité sociale doit contenir 13 chiffres",
     "patient_not_found": "Patient introuvable",
-    "database_error": "Une erreur de base de données est survenue"
+    "database_error": "Une erreur de base de données est survenue",
+    "in_use_one": "Ce patient a {{count}} acte, il ne peut pas être supprimé",
+    "in_use_other": "Ce patient a {{count}} actes, il ne peut pas être supprimé"
   },
   "duplicates": {
     "manager": {

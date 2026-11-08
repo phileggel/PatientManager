@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Fund, Patient, PatientError } from "@/bindings";
-import { formatPatientError, isNameMissing, PatientPresenter } from "./presenter";
+import {
+  formatPatientDeletionError,
+  formatPatientError,
+  isNameMissing,
+  PatientPresenter,
+} from "./presenter";
 
 /**
  * PatientPresenter - Gold Test Suite
@@ -217,6 +222,21 @@ describe("PatientPresenter", () => {
       const result = PatientPresenter.toRow(patient, funds);
 
       expect(result.latestFund).toBeNull();
+    });
+  });
+
+  describe("formatPatientDeletionError (PRO-296)", () => {
+    it("ticket #591: maps PatientInUse to the in_use key with the count", () => {
+      expect(formatPatientDeletionError({ code: "PatientInUse", procedure_count: 2 })).toEqual({
+        key: "patient:errors.in_use",
+        params: { count: 2 },
+      });
+    });
+
+    it("ticket #591: maps any other deletion failure to the database error key", () => {
+      expect(formatPatientDeletionError({ code: "DatabaseError" })).toEqual({
+        key: "patient:errors.database_error",
+      });
     });
   });
 

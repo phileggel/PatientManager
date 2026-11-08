@@ -17,24 +17,6 @@ export function isNameMissing(err: ProcedureError): boolean {
  * invariants, ProcedureRefund variants) still map to keys so future use-case
  * composites that surface them through this presenter remain typed.
  */
-/**
- * The procedure type deletion's refusals (R6, R24), or the generic failure:
- * `delete_procedure_type` raises no other code of the use case's union.
- */
-export function formatProcedureTypeDeletionError(err: ProcedureOrchestrationError): {
-  key: string;
-  params?: Record<string, string | number>;
-} {
-  switch (err.code) {
-    case "ProcedureTypeInUse":
-      return { key: "procedure-type:errors.in_use", params: { count: err.procedure_count } };
-    case "ReservedTypeNotMutable":
-      return { key: "procedure-type:errors.reserved_not_mutable" };
-    default:
-      return { key: "procedure-type:errors.database_error" };
-  }
-}
-
 export function formatProcedureError(err: ProcedureError): {
   key: string;
   params?: Record<string, string | number>;
@@ -65,6 +47,24 @@ export function formatProcedureError(err: ProcedureError): {
     case "InvalidRefundDateFormat":
       return { key: "procedure-type:errors.invalid_refund_date_format" };
     case "DatabaseError":
+      return { key: "procedure-type:errors.database_error" };
+  }
+}
+
+/**
+ * The procedure type deletion's refusals (R6, R24), or the generic failure:
+ * `delete_procedure_type` raises no other code of the use case's union.
+ */
+export function formatProcedureTypeDeletionError(err: ProcedureOrchestrationError): {
+  key: string;
+  params?: Record<string, string | number>;
+} {
+  switch (err.code) {
+    case "ProcedureTypeInUse":
+      return { key: "procedure-type:errors.in_use", params: { count: err.procedure_count } };
+    case "ReservedTypeNotMutable":
+      return { key: "procedure-type:errors.reserved_not_mutable" };
+    default:
       return { key: "procedure-type:errors.database_error" };
   }
 }

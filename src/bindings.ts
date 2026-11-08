@@ -42,17 +42,6 @@ async updatePatient(patient: Patient) : Promise<Result<Patient, PatientError>> {
 }
 },
 /**
- * Tauri command: Delete a patient
- */
-async deletePatient(id: string) : Promise<Result<null, PatientError>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("delete_patient", { id }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
  * Tauri command: Add a new affiliated fund
  */
 async addFund(fundIdentifier: string, fundName: string) : Promise<Result<Fund, FundError>> {
@@ -91,6 +80,18 @@ async updateFund(fund: Fund) : Promise<Result<Fund, FundError>> {
 async deleteFund(id: string) : Promise<Result<null, ProcedureOrchestrationError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_fund", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * PRO-296 — delete a patient with its duplicate dismissals; a patient procedures
+ * name is refused.
+ */
+async deletePatient(id: string) : Promise<Result<null, ProcedureOrchestrationError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_patient", { id }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -2465,6 +2466,10 @@ export type ProcedureOrchestrationTask =
  * PRO-291 — a fund procedures or fund payment groups still use is not deleted.
  */
 { code: "FundInUse"; procedure_count: number; payment_group_count: number } | 
+/**
+ * PRO-296 — a patient procedures still name is not deleted.
+ */
+{ code: "PatientInUse"; procedure_count: number } | 
 /**
  * Failure from a repository the orchestrator holds directly (patient /
  * fund / procedure-type / refund). Logged at the call site via

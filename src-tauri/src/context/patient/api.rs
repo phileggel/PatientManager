@@ -48,17 +48,3 @@ pub async fn update_patient(
         tracing::info!(target: BACKEND, patient_id = ?patient.id, "Patient updated successfully");
     })
 }
-
-/// Tauri command: Delete a patient
-#[tauri::command]
-#[specta::specta]
-pub async fn delete_patient(
-    id: String,
-    service: State<'_, Arc<PatientService>>,
-) -> Result<(), PatientError> {
-    tracing::info!(target: BACKEND, patient_id = %id, "Processing delete patient request");
-
-    service.delete_patient(&id).await.inspect(|_| {
-        tracing::info!(target: BACKEND, patient_id = %id, "Patient deleted successfully");
-    })
-}

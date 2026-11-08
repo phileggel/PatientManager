@@ -33,7 +33,7 @@ patient duplicates page. A word of the interface only; code and specs say patien
 
 ### Candidate pair (« Doublon »)
 
-Two patients, neither deleted nor anonymous, that carry the same name once spaces, case and
+Two patients, neither of them anonymous, that carry the same name once spaces, case and
 accents are ignored, and that the user has not dismissed. Proposed on the patient duplicates page.
 
 > Status: confirmed

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCacheStore } from "@/infra/cache/store";
 import { deletePatient } from "../gateway";
-import { formatPatientError, PatientPresenter } from "../shared/presenter";
+import { formatPatientDeletionError, PatientPresenter } from "../shared/presenter";
 
 /**
  * Hook for PatientList component
@@ -26,7 +26,7 @@ export function usePatientList() {
   const deletePatientHandler = async (id: string) => {
     const result = await deletePatient(id);
     if (!result.success) {
-      const { key, params } = formatPatientError(result.error);
+      const { key, params } = formatPatientDeletionError(result.error);
       throw new Error(t(key, params) || t("action.delete.failed_fallback"));
     }
   };

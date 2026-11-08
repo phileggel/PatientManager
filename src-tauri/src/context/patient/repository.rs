@@ -16,7 +16,6 @@ pub struct PatientRow {
     pub latest_fund: Option<String>,
     pub latest_date: Option<NaiveDate>,
     pub latest_procedure_amount: Option<i64>,
-    pub is_deleted: i64,
 }
 
 // Conversion function from row type to domain object
@@ -44,12 +43,11 @@ pub trait PatientRepository: Send + Sync {
     async fn read_patient(&self, id: &str) -> anyhow::Result<Option<Patient>>;
     async fn update_patient(&self, patient: Patient) -> anyhow::Result<Patient>;
     async fn find_patient_by_ssn(&self, ssn: &str) -> anyhow::Result<Option<Patient>>;
-    /// Look up a non-deleted patient whose name matches case-insensitively.
+    /// Look up a patient whose name matches case-insensitively.
     /// When multiple rows match, a row with a non-empty SSN wins over a row
     /// without one; remaining ties resolve via DB iteration order. Used by
     /// excel-import (EXI-080) to dedup rows that arrive without an SSN.
     async fn find_patient_by_name(&self, name: &str) -> anyhow::Result<Option<Patient>>;
-    async fn delete_patient(&self, id: &str) -> anyhow::Result<()>;
     /// PDU-030 — the pairs of patients the user declared different people,
     /// smaller identifier first.
     async fn read_duplicate_dismissals(&self) -> anyhow::Result<Vec<(String, String)>>;
@@ -79,8 +77,8 @@ impl SqlitePatientRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO patient (id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount, is_deleted)
-            VALUES ($1, $2, $3, $4, NULL, NULL, NULL, NULL, 0)
+            INSERT INTO patient (id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date, latest_procedure_amount)
+            VALUES ($1, $2, $3, $4, NULL, NULL, NULL, NULL)
             "#,
             patient.id,
             patient.is_anonymous,
@@ -147,17 +145,32 @@ impl SqlitePatientRepository {
         Ok(())
     }
 
-    /// Soft-delete one patient on a connection the caller owns — the write
-    /// behind `delete_patient`, also used by a unit of work (ADR-003).
-    pub async fn soft_delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<()> {
-        tracing::trace!(target: BACKEND, patient_id = %id, "Soft-deleting patient from database");
+    /// Whether the patient is stored, on a connection the caller owns (ADR-003).
+    pub async fn exists_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<bool> {
+        let found = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM patient WHERE id = ?) AS "found!: bool""#,
+            id,
+        )
+        .fetch_one(conn)
+        .await
+        .context("Failed to look the patient up")?;
+        Ok(found)
+    }
 
-        sqlx::query!(r#"UPDATE patient SET is_deleted = 1 WHERE id = ?"#, id)
+    /// Delete one patient on a connection the caller owns — the write of a unit of
+    /// work (ADR-003, PRO-297, PDU-021). False when a procedure or a duplicate
+    /// dismissal still names it (PRO-296, the foreign keys refuse), or no row matched.
+    pub async fn delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<bool> {
+        tracing::trace!(target: BACKEND, patient_id = %id, "Deleting patient from database");
+
+        match sqlx::query!("DELETE FROM patient WHERE id = ?", id)
             .execute(conn)
             .await
-            .with_context(|| format!("Failed to soft-delete patient {}", id))?;
-
-        Ok(())
+        {
+            Ok(result) => Ok(result.rows_affected() > 0),
+            Err(sqlx::Error::Database(e)) if e.is_foreign_key_violation() => Ok(false),
+            Err(e) => Err(e).with_context(|| format!("Failed to delete patient {id}")),
+        }
     }
 
     /// PRO-280 — every patient whose latest procedure type is `procedure_type_id`
@@ -223,9 +236,8 @@ impl PatientRepository for SqlitePatientRepository {
         let rows = sqlx::query_as!(
             PatientRow,
             r#"
-            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount, is_deleted
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount
             FROM patient
-            WHERE is_deleted = 0
             "#,
         )
         .fetch_all(&self.pool)
@@ -240,9 +252,9 @@ impl PatientRepository for SqlitePatientRepository {
         let row = sqlx::query_as!(
             PatientRow,
             r#"
-            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount, is_deleted
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount
             FROM patient
-            WHERE id = $1 AND is_deleted = 0
+            WHERE id = $1
             "#,
             patient_id,
         )
@@ -268,9 +280,9 @@ impl PatientRepository for SqlitePatientRepository {
         let row = sqlx::query_as!(
             PatientRow,
             r#"
-            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount, is_deleted
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount
             FROM patient
-            WHERE ssn = $1 AND is_deleted = 0
+            WHERE ssn = $1
             "#,
             ssn,
         )
@@ -291,9 +303,8 @@ impl PatientRepository for SqlitePatientRepository {
         let rows = sqlx::query_as!(
             PatientRow,
             r#"
-            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount, is_deleted
+            SELECT id, is_anonymous, name, ssn, latest_procedure_type, latest_fund, latest_date AS "latest_date?: NaiveDate", latest_procedure_amount
             FROM patient
-            WHERE is_deleted = 0
             ORDER BY (ssn IS NULL OR ssn = '') ASC
             "#,
         )
@@ -305,15 +316,6 @@ impl PatientRepository for SqlitePatientRepository {
             .find(|r| r.name.as_ref().is_some_and(|n| n.to_lowercase() == needle));
 
         Ok(row.map(Patient::from))
-    }
-
-    async fn delete_patient(&self, id: &str) -> anyhow::Result<()> {
-        let mut conn = self
-            .pool
-            .acquire()
-            .await
-            .with_context(|| "Failed to acquire a connection to delete a patient")?;
-        Self::soft_delete_in(&mut conn, id).await
     }
 
     async fn read_duplicate_dismissals(&self) -> anyhow::Result<Vec<(String, String)>> {
@@ -560,32 +562,6 @@ mod tests {
         assert!(found.is_none());
     }
 
-    /// EXI-080 — soft-deleted rows do not match name lookups.
-    #[tokio::test]
-    async fn test_find_patient_by_name_excludes_deleted() {
-        let pool = SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect("sqlite::memory:")
-            .await
-            .expect("Failed to connect to in-memory database");
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .expect("Failed to run migrations");
-        let db = SqlitePatientRepository { pool: pool.clone() };
-
-        let patient = Patient::new(false, Some("Alice Dupont".to_string()), None).unwrap();
-        let created = db.create_patient(patient).await.unwrap();
-
-        sqlx::query!("UPDATE patient SET is_deleted = 1 WHERE id = ?", created.id)
-            .execute(&pool)
-            .await
-            .unwrap();
-
-        let found = db.find_patient_by_name("Alice Dupont").await.unwrap();
-        assert!(found.is_none());
-    }
-
     /// EXI-080 — accented-character case folding must match symmetrically.
     /// SQLite's `LOWER()` folds only ASCII, so a DB row `"élodie dupont"`
     /// looked up by an Excel row `"Élodie Dupont"` must still resolve as
@@ -625,7 +601,7 @@ mod tests {
         // Two rows: one with empty-string SSN, one with a real SSN.
         let empty_id = uuid::Uuid::new_v4().to_string();
         sqlx::query!(
-            "INSERT INTO patient (id, is_anonymous, name, ssn, is_deleted) VALUES (?, 0, 'Alice Dupont', '', 0)",
+            "INSERT INTO patient (id, is_anonymous, name, ssn) VALUES (?, 0, 'Alice Dupont', '')",
             empty_id,
         )
         .execute(&pool)
@@ -652,86 +628,46 @@ mod tests {
         );
     }
 
+    /// PRO-297 — a patient nothing names is really deleted: name and SSN leave the
+    /// table; a procedure naming it makes the foreign key refuse (PRO-296).
     #[tokio::test]
-    async fn test_find_patient_by_ssn_excludes_deleted() {
-        let pool = SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect("sqlite::memory:")
+    async fn test_591_delete_in_removes_the_row_unless_a_procedure_names_it() {
+        let db = setup_test_repo().await;
+        let alone = db.create_patient(make_patient()).await.unwrap();
+        let named = db
+            .create_patient(Patient::new(false, Some("Marie Dupont".to_string()), None).unwrap())
             .await
-            .expect("Failed to connect to in-memory database");
-
-        sqlx::migrate!("./migrations")
-            .run(&pool)
+            .unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&db.pool)
             .await
-            .expect("Failed to run migrations");
+            .unwrap();
+        sqlx::query("INSERT INTO procedure (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('p', ?, 'import-pdf', '2026-01-20', 100, 'CREATED')")
+            .bind(&named.id)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        let mut conn = db.pool.acquire().await.unwrap();
 
-        let db = SqlitePatientRepository { pool: pool.clone() };
-
-        let new_patient = make_patient();
-
-        let created = db.create_patient(new_patient).await.unwrap();
-
-        sqlx::query!("UPDATE patient SET is_deleted = 1 WHERE id = ?", created.id)
-            .execute(&pool)
+        let removed = SqlitePatientRepository::delete_in(&mut conn, &alone.id)
+            .await
+            .unwrap();
+        let refused = SqlitePatientRepository::delete_in(&mut conn, &named.id)
+            .await
+            .unwrap();
+        let unknown = SqlitePatientRepository::delete_in(&mut conn, "unknown")
             .await
             .unwrap();
 
-        let found = db.find_patient_by_ssn("1234567890123").await.unwrap();
-        assert!(found.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_delete_patient() {
-        let db = setup_test_repo().await;
-        let new_patient = Patient::new(
-            false,
-            Some("Marie Dupont".to_string()),
-            Some("1234567890123".to_string()),
-        )
-        .unwrap();
-
-        let created = db.create_patient(new_patient).await.unwrap();
-        let patient_id = created.id.clone();
-
-        let found = db.read_patient(&patient_id).await.unwrap();
-        assert!(found.is_some());
-
-        db.delete_patient(&patient_id).await.unwrap();
-
-        let deleted = db.read_patient(&patient_id).await.unwrap();
-        assert!(deleted.is_none());
-
-        let all_patients = db.read_all_patients().await.unwrap();
-        assert!(!all_patients.iter().any(|p| p.id == patient_id));
-    }
-
-    #[tokio::test]
-    async fn test_delete_patient_excludes_from_queries() {
-        let db = setup_test_repo().await;
-
-        let patient1 = Patient::new(
-            false,
-            Some("Marie Dupont".to_string()),
-            Some("1234567890123".to_string()),
-        )
-        .unwrap();
-        let patient2 = Patient::new(
-            false,
-            Some("Marie Dupont".to_string()),
-            Some("9876543210987".to_string()),
-        )
-        .unwrap();
-
-        let created1 = db.create_patient(patient1).await.unwrap();
-        let created2 = db.create_patient(patient2).await.unwrap();
-
-        let all_patients = db.read_all_patients().await.unwrap();
-        assert_eq!(all_patients.len(), 2);
-
-        db.delete_patient(&created1.id).await.unwrap();
-
-        let remaining = db.read_all_patients().await.unwrap();
-        assert_eq!(remaining.len(), 1);
-        assert_eq!(remaining[0].id, created2.id);
+        assert_eq!((removed, refused, unknown), (true, false, false));
+        let ssn_rows: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM patient WHERE ssn = '1234567890123'")
+                .fetch_one(&mut *conn)
+                .await
+                .unwrap();
+        assert_eq!(ssn_rows, 0);
+        assert!(SqlitePatientRepository::exists_in(&mut conn, &named.id)
+            .await
+            .unwrap());
     }
 }

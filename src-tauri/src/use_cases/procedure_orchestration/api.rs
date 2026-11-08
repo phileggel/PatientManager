@@ -231,6 +231,18 @@ pub async fn delete_fund(
     orchestrator.delete_fund(&id).await
 }
 
+/// PRO-296 — delete a patient with its duplicate dismissals; a patient that
+/// procedures reference is refused.
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_patient(
+    id: String,
+    orchestrator: State<'_, Arc<DeletionOrchestrator>>,
+) -> Result<(), ProcedureOrchestrationError> {
+    tracing::info!(target: BACKEND, patient_id = %id, "Processing delete patient request");
+    orchestrator.delete_patient(&id).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

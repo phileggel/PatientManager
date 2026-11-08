@@ -7,7 +7,7 @@
 
 ### `list_patient_duplicates` — PDU-010, PDU-011, PDU-012, PDU-013
 
-Returns the candidate pairs, ordered: patients that are not deleted nor anonymous and carry the
+Returns the candidate pairs, ordered: patients that are not anonymous and carry the
 same name, minus the dismissed pairs.
 
 - **Args:** none
@@ -17,12 +17,12 @@ same name, minus the dismissed pairs.
 ### `merge_patients` — PDU-021, PDU-022, PDU-023, PDU-024, PDU-025, PDU-026, PDU-028
 
 Merges the other patient into the kept one, all or nothing: the procedures move, the kept patient
-takes the SSN and tracking fields the rules give it, the other patient is deleted and its
-dismissals are removed.
+takes the SSN and tracking fields the rules give it, the other patient is really deleted (its
+name and SSN leave the database, PDU-021) and its dismissals are removed.
 
 - **Args:** `kept_patient_id: String`, `other_patient_id: String`
 - **Returns:** `()`
-- **Errors:** `SamePatient`, `PatientNotFound` (either patient missing or deleted),
+- **Errors:** `SamePatient`, `PatientNotFound` (either patient missing),
   `NotACandidatePair` (anonymous, or not the same name) — PDU-025; `MergeFailed` (nothing was
   written — PDU-024); `DatabaseError`
 
@@ -63,3 +63,7 @@ struct DuplicatePair {
 
 - `PatientUpdated` and `ProcedureUpdated` after a merge (PDU-028).
 - None after a dismissal (PDU-032).
+
+## Changelog
+
+- 2026-11-08 — merge (#591, PDU-021): the other patient is really deleted; no signature change.

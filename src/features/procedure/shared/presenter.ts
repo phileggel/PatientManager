@@ -49,9 +49,10 @@ export function formatProcedureOrchestrationError(err: ProcedureOrchestrationErr
       return { key: "procedure:errors.fund_not_found", params: { id: err.fund_id } };
     case "ProcedureDeleteBlocked":
       return { key: "procedure:errors.delete_blocked" };
-    // Reached only by the procedure type and fund deletions (R24, PRO-291).
+    // Reached only by the deletions (R24, PRO-291, PRO-296).
     case "ProcedureTypeInUse":
     case "FundInUse":
+    case "PatientInUse":
       return { key: "procedure:errors.database_error" };
     // --- ProcedureError (BC) ---
     case "ProcedureInvalid":

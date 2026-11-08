@@ -1,8 +1,8 @@
 # Contract — Patient
 
 > Domain: patient
-> Backend module: context/patient
-> Last updated by: retroactive (no dedicated spec — commands derived from specta_builder.rs)
+> Backend module: context/patient; `delete_patient` in use_cases/procedure_orchestration
+> Last updated by: `procedure-orchestration` spec, PRO-296 to PRO-298 (#591), 2026-11-08
 
 ## Commands
 
@@ -36,13 +36,13 @@ Saves a user's edit of a patient's name and SSN onto the stored patient. The nam
 
 ---
 
-### `delete_patient`
+### `delete_patient` — PRO-296 to PRO-298
 
-Soft-deletes a patient: the record is marked deleted and leaves every read. An unknown id is not an error.
+Deletes a patient with its duplicate dismissals; its name and SSN leave the database. Refuses a patient procedures name, with their count. An unknown id is not an error: the command succeeds and changes nothing. Handled by the `procedure_orchestration` use case.
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `DatabaseError`
+- **Errors:** `PatientInUse { procedure_count }` (PRO-296), `DatabaseError`
 
 ---
 
@@ -66,3 +66,7 @@ struct Patient {
 ## Events
 
 `PatientUpdated` — published after `add_patient`, `update_patient` and `delete_patient` succeed; the frontend reloads its patients on it.
+
+## Changelog
+
+- 2026-11-08 — `delete_patient` (#591, PRO-296 to PRO-298): a patient is really deleted with its dismissals; a patient with procedures is refused with `PatientInUse`; the command moves to the `procedure_orchestration` use case.

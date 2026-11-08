@@ -1,4 +1,9 @@
-import { commands, type Patient, type PatientError } from "@/bindings";
+import {
+  commands,
+  type Patient,
+  type PatientError,
+  type ProcedureOrchestrationError,
+} from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
@@ -36,7 +41,9 @@ export async function updatePatient(
   return { success: false, error: result.error };
 }
 
-export async function deletePatient(id: string): Promise<ServiceResult<void, PatientError>> {
+export async function deletePatient(
+  id: string,
+): Promise<ServiceResult<void, ProcedureOrchestrationError>> {
   logger.info("Deleting patient", { patientId: id });
   const result = await commands.deletePatient(id);
   if (result.status === "ok") {
