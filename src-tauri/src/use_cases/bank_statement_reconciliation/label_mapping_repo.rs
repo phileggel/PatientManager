@@ -311,6 +311,41 @@ mod tests {
         assert_eq!(all, ["l-ignored", "l-live"]);
     }
 
+    /// BAS-041D — a label whose fund is gone is reassigned and deleted by its id as any
+    /// label.
+    #[tokio::test]
+    async fn test_590_a_label_whose_fund_is_gone_is_reassigned_and_deleted_by_id() {
+        let (repo, pool) = setup_test_repo().await;
+        let account = create_test_bank_account(&pool).await;
+        let fund = create_test_fund(&pool).await;
+        for id in ["l-reassigned", "l-deleted"] {
+            sqlx::query("INSERT INTO bank_fund_label_mapping (id, bank_account_id, bank_label, fund_id) VALUES (?, ?, ?, 'gone-fund')")
+                .bind(id)
+                .bind(&account)
+                .bind(id)
+                .execute(&pool)
+                .await
+                .expect("seed");
+        }
+
+        let reassigned = repo
+            .reassign_mapping("l-reassigned", Some(fund.clone()))
+            .await
+            .unwrap();
+        let deleted = repo.delete_mapping("l-deleted").await.unwrap();
+
+        assert!(deleted);
+        assert_eq!(reassigned.map(|m| m.fund_id), Some(Some(fund)));
+        let ids: Vec<String> = repo
+            .find_all_mappings()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+        assert_eq!(ids, ["l-reassigned"]);
+    }
+
     #[tokio::test]
     async fn test_save_and_find_mapping() {
         let (repo, pool) = setup_test_repo().await;

@@ -205,7 +205,10 @@ mod tests {
     }
 
     fn orchestrator(deletion: RecordingDeletion) -> DeletionOrchestrator {
-        let bus = Arc::new(EventBus::new());
+        orchestrator_on(deletion, Arc::new(EventBus::new()))
+    }
+
+    fn orchestrator_on(deletion: RecordingDeletion, bus: Arc<EventBus>) -> DeletionOrchestrator {
         DeletionOrchestrator::new(
             Arc::new(ProcedureTypeService::new(
                 Arc::new(MockProcedureTypeRepository::new()),
@@ -399,5 +402,42 @@ mod tests {
 
         assert!(matches!(type_result, Err(ProcedureError::DatabaseError)));
         assert!(matches!(fund_result, Err(FundError::DatabaseError)));
+    }
+
+    /// PRO-292, PRO-293 — a deletion and an unknown fund are both signaled through
+    /// `FundUpdated`; a refusal is not.
+    #[tokio::test]
+    async fn test_590_a_fund_deletion_is_signaled_and_a_refusal_is_not() {
+        use crate::shared::event_bus::FundUpdated;
+        let cases = [
+            (RecordingDeletion::default(), 1),
+            (
+                RecordingDeletion {
+                    not_deleted: true,
+                    ..Default::default()
+                },
+                1,
+            ),
+            (
+                RecordingDeletion {
+                    not_deleted: true,
+                    fund_uses: (1, 0),
+                    ..Default::default()
+                },
+                0,
+            ),
+        ];
+        for (deletion, events) in cases {
+            let bus = Arc::new(EventBus::new());
+            let mut changed = bus.subscribe::<FundUpdated>().expect("subscribe");
+
+            let _ = orchestrator_on(deletion, bus).delete_fund("fund-1").await;
+
+            let mut received = 0;
+            while changed.try_recv().is_ok() {
+                received += 1;
+            }
+            assert_eq!(received, events);
+        }
     }
 }
