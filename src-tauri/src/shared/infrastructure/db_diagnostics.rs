@@ -125,13 +125,11 @@ mod tests {
             .execute(&pool)
             .await
             .expect("seed patient");
-        sqlx::query(
-            "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('f1', 'F1', ?, 0)",
-        )
-        .bind(FUND_NAME)
-        .execute(&pool)
-        .await
-        .expect("seed fund");
+        sqlx::query("INSERT INTO fund (id, fund_identifier, name) VALUES ('f1', 'F1', ?)")
+            .bind(FUND_NAME)
+            .execute(&pool)
+            .await
+            .expect("seed fund");
         SqliteDatabaseDiagnostics::new(pool)
     }
 

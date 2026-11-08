@@ -85,9 +85,9 @@ Superseded by the draft-UX rework (BAS-060–102): broadening moved server-side 
 
 ---
 
-### `compute_bank_statement_reconciliation` — BAS-060–069, BAS-090–092, BAS-094, BAS-111–113
+### `compute_bank_statement_reconciliation` — BAS-041D, BAS-060–069, BAS-090–092, BAS-094, BAS-111–113
 
-The reconciliation engine. Computes the full bank-statement reconciliation as a pure function of the parsed statement plus an ordered list of correction commands. Reads live unsettled `FundPaymentGroup`s, saved label mappings, and — for linked lines — the fund's **open procedures with patient display names** (BAS-112 predicate: line's fund, `payment_status == Created`, in no active fund-payment-group line, positive billed amount; ordered oldest procedure date first, id tiebreak). Applies heuristic suggestions, runs the auto-match (BAS-050–054), then **replays every correction in order** — link-fund cascade incl. procedure-assignment drop on re-link (BAS-066), group assignment with consumption (BAS-067, BAS-090), procedure assignment with consumption and per-line group/procedure mutual exclusion resolved by correction-list removal (BAS-113 — the exclusion is a cascade, never an error), remainder acknowledgment (BAS-092; applying either assignment kind resets a previously acknowledged remainder — its implied size changed, BAS-113; a zero-item acknowledgment resolves the line as left aside, BAS-123B) — re-deriving each line's status, candidate groups, and candidate procedures. Read-only: no DB writes; the reconciliation is never persisted (ephemeral, BAS-064). The frontend re-calls this on every correction and every revert (BAS-065 = drop a command and recompute).
+The reconciliation engine. Computes the full bank-statement reconciliation as a pure function of the parsed statement plus an ordered list of correction commands. A saved label whose fund is gone is not a known label, so it is asked again (BAS-041D). Reads live unsettled `FundPaymentGroup`s, saved label mappings, and — for linked lines — the fund's **open procedures with patient display names** (BAS-112 predicate: line's fund, `payment_status == Created`, in no active fund-payment-group line, positive billed amount; ordered oldest procedure date first, id tiebreak). Applies heuristic suggestions, runs the auto-match (BAS-050–054), then **replays every correction in order** — link-fund cascade incl. procedure-assignment drop on re-link (BAS-066), group assignment with consumption (BAS-067, BAS-090), procedure assignment with consumption and per-line group/procedure mutual exclusion resolved by correction-list removal (BAS-113 — the exclusion is a cascade, never an error), remainder acknowledgment (BAS-092; applying either assignment kind resets a previously acknowledged remainder — its implied size changed, BAS-113; a zero-item acknowledgment resolves the line as left aside, BAS-123B) — re-deriving each line's status, candidate groups, and candidate procedures. Read-only: no DB writes; the reconciliation is never persisted (ephemeral, BAS-064). The frontend re-calls this on every correction and every revert (BAS-065 = drop a command and recompute).
 
 - **Args:** `bank_account_id: String, parse_result: BankStatementParseResult, corrections: Vec<BankStatementCorrection>`
 - **Returns:** `BankStatementReconciliation`
@@ -105,9 +105,9 @@ Commits the reconciliation. An unknown account, a deleted one included, is refus
 
 ---
 
-### `list_bank_label_mappings` — BAS-041
+### `list_bank_label_mappings` — BAS-041, BAS-041D
 
-Every saved label → fund mapping of every bank account, ordered by account then label. Read-only; feeds the management screen's « Libellés bancaires » section.
+Every saved label → fund mapping of every bank account, ordered by account then label; a mapping whose fund is gone is left out (BAS-041D). Read-only; feeds the management screen's « Libellés bancaires » section.
 
 - **Args:** none
 - **Returns:** `Vec<BankFundLabelMapping>`
@@ -309,4 +309,5 @@ struct BankStatementProcedureCandidate {
 - 2026-07-31 — Bank-born groups (BAS-110–117): added `AssignProcedures` correction variant, `assigned_procedure_ids` + `candidate_procedures` on `BankStatementLine`, and `BankStatementProcedureCandidate`; new error codes `ProcedureNotEligible` (subsumes not-found) / `ProcedureAlreadyConsumed` on both live commands. `compute_bank_statement_reconciliation` additionally reads open procedures (BAS-112 predicate) + patient names for linked lines; `validate_bank_statement_reconciliation` births the `FundPaymentGroup` from assigned procedures (BAS-115 field mapping, stale-draft recheck) before settling it through the standard BAS-070–073 path. Group/procedure mutual exclusion per line resolved as a correction-list cascade (never an error); procedure consumption mirrors BAS-067. BAS-114 auto-select NOT RETAINED. `FundPaymentGroupUpdated` also fires for born groups (new record, not a status flip).
 - 2026-09-29 — Label-mapping review (BAS-041–044): added `list_bank_label_mappings`, `reassign_bank_label_mapping`, `delete_bank_label_mapping`, the `BankFundLabelMapping` shared type, and the `LabelMappingNotFound` error code. No event: the review screen reloads after each change. BAS-046 (a deleted bank account deletes its labels) is a database trigger, not a command.
 - 2026-11-02 — `delete_bank_label_mapping` really deletes the bank statement label; no signature change (#583).
+- 2026-11-08 — `list_bank_label_mappings` and `compute_bank_statement_reconciliation` leave out a mapping whose fund is gone (#590, BAS-041D); no signature change.
 - 2026-11-07 — `validate_bank_statement_reconciliation`: an unknown or deleted account is refused with `BankAccountNotFound` before anything is written (BAS-063A, #584); no signature change.

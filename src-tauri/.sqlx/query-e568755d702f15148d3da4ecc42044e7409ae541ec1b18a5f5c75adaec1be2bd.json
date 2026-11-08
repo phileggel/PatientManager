@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, fund_identifier, name, is_deleted\n            FROM fund\n            WHERE is_deleted = 0\n            ",
+  "query": "\n            SELECT id, fund_identifier, name\n            FROM fund\n            WHERE fund_identifier = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -35,28 +35,16 @@
             "name": "name"
           }
         }
-      },
-      {
-        "name": "is_deleted",
-        "ordinal": 3,
-        "type_info": "Integer",
-        "origin": {
-          "Table": {
-            "table": "fund",
-            "name": "is_deleted"
-          }
-        }
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
-      false,
       false,
       false,
       false
     ]
   },
-  "hash": "9fdef9f1bea3a641ab5832a81fed89a0790f7e9663359057fed08a8a3a81a9d3"
+  "hash": "e568755d702f15148d3da4ecc42044e7409ae541ec1b18a5f5c75adaec1be2bd"
 }

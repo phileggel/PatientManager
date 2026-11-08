@@ -2,7 +2,7 @@
 
 > Domain: fund
 > Backend module: context/fund; `delete_fund` in use_cases/procedure_orchestration
-> Last updated by: `fund-payment-manual-match` spec, FPM-400 (#586), 2026-11-07
+> Last updated by: `procedure-orchestration` spec, PRO-291 (#590), 2026-11-08
 
 ## Commands
 
@@ -14,7 +14,7 @@ Creates a new fund with an identifier and a name. Both are trimmed: the screen s
 
 - **Args:** `fund_identifier: String, fund_name: String`
 - **Returns:** `Fund`
-- **Errors:** `FundInvalid { reasons }` (every empty field at once: `IdentifierEmpty`, `NameEmpty`), `IdentifierAlreadyUsed` (another fund in use holds the identifier; a deleted fund's identifier can be taken again), `DatabaseError`
+- **Errors:** `FundInvalid { reasons }` (every empty field at once: `IdentifierEmpty`, `NameEmpty`), `IdentifierAlreadyUsed` (another fund holds the identifier), `DatabaseError`
 
 ---
 
@@ -38,13 +38,13 @@ A user's edit of a fund: the identifier and the name, trimmed and validated, are
 
 ---
 
-### `delete_fund` — PRO-290
+### `delete_fund` — PRO-290 to PRO-293
 
-Soft-deletes a fund: it is marked deleted and leaves every read. An unknown id is not an error: the command succeeds and changes nothing. In the same transaction, every patient whose latest fund is this one has it cleared (PRO-290); a failure leaves both unchanged. Handled by the `procedure_orchestration` use case.
+Deletes a fund (PRO-292); its identifier can be used again. Refuses a fund procedures or fund payment groups use, with both counts. An unknown id is not an error: the command succeeds and changes nothing. In the same transaction, every patient whose latest fund is this one has it cleared (PRO-290); a failure leaves both unchanged. Handled by the `procedure_orchestration` use case.
 
 - **Args:** `id: String`
 - **Returns:** `()`
-- **Errors:** `DatabaseError`
+- **Errors:** `FundInUse { procedure_count, payment_group_count }` (PRO-291), `DatabaseError`
 
 ---
 
@@ -144,3 +144,4 @@ enum FundPaymentGroupStatus {
 - 2026-11-02 — Modified by `fund-payment-manual-match` spec (FPM-400, #585): `delete_fund_payment_group` really deletes the group's lines; no signature change.
 - 2026-10-18 — Modified by `overpayment` spec (REF-240, ticket #355): `FundPaymentGroup` carries `origin` (`GroupOrigin`); `delete_fund_payment_group` answers `RefundGroupProtected` from the use case, its errors listed as the code sends them
 - 2026-10-14 — Modified by `procedure-orchestration` spec (DEBT-042): delete_fund
+- 2026-11-08 — `delete_fund` (#590, PRO-291): a fund is really deleted; a fund in use is refused with `FundInUse`.

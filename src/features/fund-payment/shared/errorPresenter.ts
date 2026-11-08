@@ -39,6 +39,7 @@ export function formatManualManagementError(err: FundPaymentManualManagementErro
     case "FundInvalid":
     case "FundNotFound":
     case "IdentifierAlreadyUsed":
+    case "FundInUse":
     case "FundIdEmpty":
     case "TotalAmountNotPositive":
     case "FundPaymentGroupIdEmpty":

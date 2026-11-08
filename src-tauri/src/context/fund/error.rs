@@ -48,15 +48,22 @@ pub enum FundError {
     #[error("Fund not found")]
     FundNotFound,
 
-    /// `FundService::create_fund` / `update_fund`: another fund still in use
-    /// holds the identifier (a deleted fund's identifier can be taken again,
-    /// as the unique index only covers active rows — DEBT-039).
+    /// `FundService::create_fund` / `update_fund`: another fund holds the
+    /// identifier (a deleted fund's identifier can be taken again: the row is gone).
     #[error("Fund identifier already used by another fund")]
     IdentifierAlreadyUsed,
 
     /// `FundPaymentGroupService` update-by-id lookup returned no row.
     #[error("Fund payment group not found: {fund_payment_group_id}")]
     PaymentGroupNotFound { fund_payment_group_id: String },
+
+    /// PRO-291 — the deletion use case refused a fund procedures or fund payment
+    /// groups still use.
+    #[error("The fund is used by {procedure_count} procedure(s) and {payment_group_count} fund payment(s)")]
+    FundInUse {
+        procedure_count: usize,
+        payment_group_count: usize,
+    },
 
     // --- Infra catch-all ---
     /// Repository / sqlx-level failure. Underlying error is logged at the

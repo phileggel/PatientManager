@@ -1727,15 +1727,19 @@ export type FundError =
  */
 { code: "FundNotFound" } | 
 /**
- * `FundService::create_fund` / `update_fund`: another fund still in use
- * holds the identifier (a deleted fund's identifier can be taken again,
- * as the unique index only covers active rows — DEBT-039).
+ * `FundService::create_fund` / `update_fund`: another fund holds the
+ * identifier (a deleted fund's identifier can be taken again: the row is gone).
  */
 { code: "IdentifierAlreadyUsed" } | 
 /**
  * `FundPaymentGroupService` update-by-id lookup returned no row.
  */
 { code: "PaymentGroupNotFound"; fund_payment_group_id: string } | 
+/**
+ * PRO-291 — the deletion use case refused a fund procedures or fund payment
+ * groups still use.
+ */
+{ code: "FundInUse"; procedure_count: number; payment_group_count: number } | 
 /**
  * Repository / sqlx-level failure. Underlying error is logged at the
  * call site via `tracing::error!`; the wire surface carries no detail.

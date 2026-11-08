@@ -3,7 +3,7 @@
 
 use anyhow::Context;
 
-use crate::context::fund::SqliteFundRepository;
+use crate::context::fund::{SqliteFundPaymentRepository, SqliteFundRepository};
 use crate::context::patient::SqlitePatientRepository;
 use crate::context::procedure::{SqliteProcedureRepository, SqliteProcedureTypeRepository};
 use crate::shared::uow::SqlxTransactionManager;
@@ -32,12 +32,28 @@ impl DeletionUnitOfWork for SqlxDeletionUnitOfWork {
             .await
     }
 
-    async fn delete_fund(&mut self, fund_id: &str) -> anyhow::Result<()> {
-        SqliteFundRepository::soft_delete_in(&mut self.tx, fund_id).await
+    async fn delete_fund(&mut self, fund_id: &str) -> anyhow::Result<bool> {
+        SqliteFundRepository::delete_in(&mut self.tx, fund_id).await
+    }
+
+    async fn count_fund_uses(&mut self, fund_id: &str) -> anyhow::Result<(usize, usize)> {
+        let procedures =
+            SqliteProcedureRepository::count_with_fund_in(&mut self.tx, fund_id).await?;
+        let groups =
+            SqliteFundPaymentRepository::count_groups_of_fund_in(&mut self.tx, fund_id).await?;
+        Ok((procedures, groups))
     }
 
     async fn clear_fund_defaults(&mut self, fund_id: &str) -> anyhow::Result<()> {
         SqlitePatientRepository::clear_fund_defaults_in(&mut self.tx, fund_id).await
+    }
+
+    async fn procedure_type_exists(&mut self, procedure_type_id: &str) -> anyhow::Result<bool> {
+        SqliteProcedureTypeRepository::exists_in(&mut self.tx, procedure_type_id).await
+    }
+
+    async fn fund_exists(&mut self, fund_id: &str) -> anyhow::Result<bool> {
+        SqliteFundRepository::exists_in(&mut self.tx, fund_id).await
     }
 }
 
@@ -77,8 +93,8 @@ mod tests {
         for statement in [
             "INSERT INTO procedure_type (id, name, default_amount) VALUES ('gone-type', 'Gone', 100000)",
             "INSERT INTO procedure_type (id, name, default_amount) VALUES ('kept-type', 'Kept', 100000)",
-            "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('gone-fund', '75', 'Fund 75', 0)",
-            "INSERT INTO fund (id, fund_identifier, name, is_deleted) VALUES ('kept-fund', '93', 'Fund 93', 0)",
+            "INSERT INTO fund (id, fund_identifier, name) VALUES ('gone-fund', '75', 'Fund 75')",
+            "INSERT INTO fund (id, fund_identifier, name) VALUES ('kept-fund', '93', 'Fund 93')",
             "INSERT INTO patient (id, name, is_anonymous, is_deleted, latest_procedure_type, latest_fund, latest_date) VALUES ('on-gone', 'Patient A', 0, 0, 'gone-type', 'gone-fund', '2026-03-10')",
             "INSERT INTO patient (id, name, is_anonymous, is_deleted, latest_procedure_type, latest_fund, latest_date) VALUES ('on-kept', 'Patient B', 0, 0, 'kept-type', 'kept-fund', '2026-03-11')",
         ] {
@@ -104,19 +120,9 @@ mod tests {
         .expect("patient")
     }
 
-    async fn is_deleted(pool: &SqlitePool, sql: &'static str, id: &str) -> bool {
-        let (deleted,): (bool,) = sqlx::query_as(sql)
-            .bind(id)
-            .fetch_one(pool)
-            .await
-            .expect("row");
-        deleted
-    }
-
     async fn ids(pool: &SqlitePool, sql: &'static str) -> Vec<String> {
         sqlx::query_scalar(sql).fetch_all(pool).await.expect("ids")
     }
-    const FUND_DELETED: &str = "SELECT is_deleted FROM fund WHERE id = ?";
 
     #[tokio::test]
     async fn pro_280_a_deleted_procedure_type_leaves_no_patient_default() {
@@ -157,14 +163,17 @@ mod tests {
         SqlxTransactionManager::new(pool.clone())
             .run(Box::new(|uow| {
                 Box::pin(async move {
-                    uow.delete_fund("gone-fund").await?;
+                    assert!(uow.delete_fund("gone-fund").await?);
                     uow.clear_fund_defaults("gone-fund").await
                 })
             }))
             .await
             .unwrap();
 
-        assert!(is_deleted(&pool, FUND_DELETED, "gone-fund").await);
+        assert_eq!(
+            ids(&pool, "SELECT id FROM fund").await,
+            ["kept-fund"].map(String::from)
+        );
         assert_eq!(
             defaults(&pool, "on-gone").await,
             (Some("gone-type".into()), None, Some("2026-03-10".into()))
@@ -187,7 +196,9 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        assert!(!is_deleted(&pool, FUND_DELETED, "gone-fund").await);
+        assert!(ids(&pool, "SELECT id FROM fund")
+            .await
+            .contains(&"gone-fund".to_string()));
         assert_eq!(defaults(&pool, "on-gone").await.1, Some("gone-fund".into()));
     }
 
@@ -218,5 +229,38 @@ mod tests {
         assert!(ids(&pool, "SELECT id FROM procedure_type")
             .await
             .contains(&"kept-type".to_string()));
+    }
+
+    /// PRO-291 — the foreign keys refuse a fund a procedure or a payment group uses;
+    /// the counts name them.
+    #[tokio::test]
+    async fn test_590_a_fund_in_use_is_refused_and_counted() {
+        let pool = seeded_pool().await;
+        for statement in [
+            "INSERT INTO procedure (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_status) VALUES ('p', 'on-kept', 'kept-fund', 'kept-type', '2026-03-11', 100000, 'CREATED')",
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount) VALUES ('g1', 'kept-fund', '2026-03-11', 100000)",
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount) VALUES ('g2', 'kept-fund', '2026-03-12', 100000)",
+        ] {
+            sqlx::query(statement).execute(&pool).await.expect("seed");
+        }
+        let answers = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let seen = answers.clone();
+
+        SqlxTransactionManager::new(pool.clone())
+            .run(Box::new(move |uow| {
+                Box::pin(async move {
+                    let deleted = uow.delete_fund("kept-fund").await?;
+                    let uses = uow.count_fund_uses("kept-fund").await?;
+                    *seen.lock().unwrap() = Some((deleted, uses));
+                    Ok(())
+                })
+            }))
+            .await
+            .unwrap();
+
+        assert_eq!(*answers.lock().unwrap(), Some((false, (1, 2))));
+        assert!(ids(&pool, "SELECT id FROM fund")
+            .await
+            .contains(&"kept-fund".to_string()));
     }
 }

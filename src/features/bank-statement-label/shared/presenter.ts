@@ -5,11 +5,8 @@ import type {
   Fund,
 } from "@/bindings";
 
-/** What a bank statement label is assigned to (BAS-030, BAS-041D). */
-export type LabelAssignment =
-  | { kind: "fund"; fundName: string }
-  | { kind: "ignored" }
-  | { kind: "deletedFund" };
+/** What a bank statement label is assigned to (BAS-030). */
+export type LabelAssignment = { kind: "fund"; fundName: string } | { kind: "ignored" };
 
 export interface BankStatementLabelRow {
   id: string;
@@ -25,10 +22,9 @@ export interface SortConfig {
   direction: "asc" | "desc";
 }
 
-/** Translated texts for the two assignments that carry no fund name. */
+/** Translated text for the assignment that carries no fund name. */
 export interface AssignmentTexts {
   ignored: string;
-  deletedFund: string;
 }
 
 /** BAS-041 / BAS-041D — one row per saved label, with its account and fund names. */
@@ -39,12 +35,9 @@ export function toRows(
 ): BankStatementLabelRow[] {
   return labels.map((l) => {
     const fund = l.fund_id === null ? undefined : funds.find((f) => f.id === l.fund_id);
+    // BAS-041D — the backend leaves out a label whose fund is gone.
     const assignment: LabelAssignment =
-      l.fund_id === null
-        ? { kind: "ignored" }
-        : fund
-          ? { kind: "fund", fundName: fund.name }
-          : { kind: "deletedFund" };
+      l.fund_id === null ? { kind: "ignored" } : { kind: "fund", fundName: fund?.name ?? "" };
     return {
       id: l.id,
       accountName: accounts.find((a) => a.id === l.bank_account_id)?.name ?? "",
@@ -61,8 +54,6 @@ export function assignmentText(assignment: LabelAssignment, texts: AssignmentTex
       return assignment.fundName;
     case "ignored":
       return texts.ignored;
-    case "deletedFund":
-      return texts.deletedFund;
   }
 }
 

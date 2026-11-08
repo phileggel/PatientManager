@@ -231,6 +231,12 @@ describe("formatFundError - F27 Layer 3 (pure code → key mapping)", () => {
     });
   });
 
+  it("ticket #590: maps FundInUse to the in_use key with both counts (PRO-291)", () => {
+    expect(
+      formatFundError({ code: "FundInUse", procedure_count: 2, payment_group_count: 1 }),
+    ).toEqual({ key: "fund:errors.in_use", params: { procedures: 2, groups: 1 } });
+  });
+
   it("maps FundIdEmpty to its key", () => {
     const err: FundError = { code: "FundIdEmpty" };
     expect(formatFundError(err)).toEqual({ key: "fund:errors.fund_id_empty" });

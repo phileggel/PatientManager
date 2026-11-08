@@ -46,6 +46,9 @@ impl DeletionOrchestrator {
                         if procedure_count > 0 {
                             return Err(ProcedureError::ProcedureTypeInUse { procedure_count }.into());
                         }
+                        if uow.procedure_type_exists(&id).await? {
+                            anyhow::bail!("procedure type refused by a reference nothing counts");
+                        }
                         // An unknown id changes nothing.
                         return Ok(());
                     }
@@ -66,21 +69,39 @@ impl DeletionOrchestrator {
         Ok(())
     }
 
-    /// PRO-290 — soft-delete a fund; the patients whose latest fund it is lose
-    /// that default.
+    /// PRO-290, PRO-291 — delete a fund; the patients whose latest fund it is lose
+    /// that default. A fund procedures or fund payment groups use is refused.
     pub async fn delete_fund(&self, id: &str) -> Result<(), FundError> {
         let id = id.to_string();
         self.deletion
             .run(Box::new(move |uow| {
                 Box::pin(async move {
-                    uow.delete_fund(&id).await?;
+                    if !uow.delete_fund(&id).await? {
+                        let (procedure_count, payment_group_count) =
+                            uow.count_fund_uses(&id).await?;
+                        if procedure_count + payment_group_count > 0 {
+                            return Err(FundError::FundInUse {
+                                procedure_count,
+                                payment_group_count,
+                            }
+                            .into());
+                        }
+                        if uow.fund_exists(&id).await? {
+                            anyhow::bail!("fund refused by a reference nothing counts");
+                        }
+                        // An unknown id changes nothing.
+                        return Ok(());
+                    }
                     uow.clear_fund_defaults(&id).await
                 })
             }))
             .await
-            .map_err(|e| {
-                tracing::error!(target: BACKEND, err = ?e, "delete_fund: unit of work failed");
-                FundError::DatabaseError
+            .map_err(|e| match e.downcast::<FundError>() {
+                Ok(refusal) => refusal,
+                Err(e) => {
+                    tracing::error!(target: BACKEND, err = ?e, "delete_fund: unit of work failed");
+                    FundError::DatabaseError
+                }
             })?;
 
         self.fund_service.notify_funds_updated();
@@ -111,12 +132,18 @@ mod tests {
         not_deleted: bool,
         /// How many procedures use the type.
         procedures_using: usize,
+        /// (procedures, fund payment groups) that use the fund.
+        fund_uses: (usize, usize),
+        /// The refused row is still stored (a reference nothing counts).
+        still_stored: bool,
     }
 
     struct RecordingUnitOfWork {
         writes: Arc<Mutex<Vec<String>>>,
         not_deleted: bool,
         procedures_using: usize,
+        fund_uses: (usize, usize),
+        still_stored: bool,
     }
 
     impl RecordingUnitOfWork {
@@ -139,8 +166,21 @@ mod tests {
         async fn clear_procedure_type_defaults(&mut self, id: &str) -> anyhow::Result<()> {
             self.record(format!("clear_procedure_type_defaults {id}"))
         }
-        async fn delete_fund(&mut self, id: &str) -> anyhow::Result<()> {
-            self.record(format!("delete_fund {id}"))
+        async fn delete_fund(&mut self, id: &str) -> anyhow::Result<bool> {
+            self.record(format!("delete_fund {id}"))?;
+            Ok(!self.not_deleted)
+        }
+        async fn count_fund_uses(&mut self, id: &str) -> anyhow::Result<(usize, usize)> {
+            self.record(format!("count_fund_uses {id}"))?;
+            Ok(self.fund_uses)
+        }
+        async fn procedure_type_exists(&mut self, id: &str) -> anyhow::Result<bool> {
+            self.record(format!("procedure_type_exists {id}"))?;
+            Ok(self.still_stored)
+        }
+        async fn fund_exists(&mut self, id: &str) -> anyhow::Result<bool> {
+            self.record(format!("fund_exists {id}"))?;
+            Ok(self.still_stored)
         }
         async fn clear_fund_defaults(&mut self, id: &str) -> anyhow::Result<()> {
             self.record(format!("clear_fund_defaults {id}"))
@@ -157,6 +197,8 @@ mod tests {
                 writes: self.writes.clone(),
                 not_deleted: self.not_deleted,
                 procedures_using: self.procedures_using,
+                fund_uses: self.fund_uses,
+                still_stored: self.still_stored,
             };
             operation(&mut uow).await
         }
@@ -242,7 +284,8 @@ mod tests {
             *writes.lock().unwrap(),
             vec![
                 "delete_procedure_type type-1",
-                "count_procedures_of_type type-1"
+                "count_procedures_of_type type-1",
+                "procedure_type_exists type-1"
             ]
         );
     }
@@ -258,6 +301,72 @@ mod tests {
             *writes.lock().unwrap(),
             vec!["delete_fund fund-1", "clear_fund_defaults fund-1"]
         );
+    }
+
+    /// PRO-291 — a fund procedures or payment groups use is refused with both counts,
+    /// and nothing else is written.
+    #[tokio::test]
+    async fn test_590_a_fund_in_use_is_refused_with_the_counts() {
+        let deletion = RecordingDeletion {
+            not_deleted: true,
+            fund_uses: (2, 1),
+            ..Default::default()
+        };
+        let writes = deletion.writes.clone();
+
+        let result = orchestrator(deletion).delete_fund("fund-1").await;
+
+        assert!(matches!(
+            result,
+            Err(FundError::FundInUse {
+                procedure_count: 2,
+                payment_group_count: 1
+            })
+        ));
+        assert_eq!(
+            *writes.lock().unwrap(),
+            vec!["delete_fund fund-1", "count_fund_uses fund-1"]
+        );
+    }
+
+    /// An unknown fund is not an error, and nothing else is written.
+    #[tokio::test]
+    async fn test_590_an_unknown_fund_changes_nothing() {
+        let deletion = RecordingDeletion {
+            not_deleted: true,
+            ..Default::default()
+        };
+        let writes = deletion.writes.clone();
+
+        let result = orchestrator(deletion).delete_fund("fund-1").await;
+
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(
+            *writes.lock().unwrap(),
+            vec![
+                "delete_fund fund-1",
+                "count_fund_uses fund-1",
+                "fund_exists fund-1"
+            ]
+        );
+    }
+
+    /// A refusal nothing counts is a fault, never a silent success.
+    #[tokio::test]
+    async fn test_590_a_refusal_nothing_counts_is_a_database_error() {
+        let refused = || RecordingDeletion {
+            not_deleted: true,
+            still_stored: true,
+            ..Default::default()
+        };
+
+        let fund = orchestrator(refused()).delete_fund("fund-1").await;
+        let procedure_type = orchestrator(refused())
+            .delete_procedure_type("type-1")
+            .await;
+
+        assert!(matches!(fund, Err(FundError::DatabaseError)));
+        assert!(matches!(procedure_type, Err(ProcedureError::DatabaseError)));
     }
 
     #[tokio::test]

@@ -121,6 +121,7 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     case "FundInvalid":
     case "FundNotFound":
     case "IdentifierAlreadyUsed":
+    case "FundInUse":
     case "FundIdEmpty":
     case "InvalidPaymentDateFormat":
     case "RefundGroupProtected":

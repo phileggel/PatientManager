@@ -58,6 +58,7 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "LineNotFound":
     case "FundNotFound":
     case "IdentifierAlreadyUsed":
+    case "FundInUse":
       return { key: "bank:statement.modal.unknown_error" };
   }
 }

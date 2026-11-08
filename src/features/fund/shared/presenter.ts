@@ -37,6 +37,11 @@ export function formatFundError(err: FundError): {
       return { key: "fund:errors.fund_not_found" };
     case "IdentifierAlreadyUsed":
       return { key: "fund:errors.identifier_already_used" };
+    case "FundInUse":
+      return {
+        key: "fund:errors.in_use",
+        params: { procedures: err.procedure_count, groups: err.payment_group_count },
+      };
     case "FundIdEmpty":
       return { key: "fund:errors.fund_id_empty" };
     case "TotalAmountNotPositive":

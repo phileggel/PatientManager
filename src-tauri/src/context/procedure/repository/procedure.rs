@@ -243,6 +243,22 @@ impl SqliteProcedureRepository {
         usize::try_from(count).context("A procedure count out of range")
     }
 
+    /// PRO-291 — how many procedures use `fund_id`, on a connection the caller owns
+    /// (ADR-003).
+    pub async fn count_with_fund_in(
+        conn: &mut sqlx::SqliteConnection,
+        fund_id: &str,
+    ) -> anyhow::Result<usize> {
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "count!: i64" FROM "procedure" WHERE fund_id = ?"#,
+            fund_id,
+        )
+        .fetch_one(conn)
+        .await
+        .context("Failed to count the procedures of a fund")?;
+        usize::try_from(count).context("A procedure count out of range")
+    }
+
     /// PDU-021 — attach every procedure of one patient to another, on a connection the caller owns (a unit of work, ADR-003).
     /// Returns how many moved.
     pub async fn reassign_patient_in(
