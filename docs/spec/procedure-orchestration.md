@@ -166,7 +166,7 @@ any patient whose `latest_procedure_type` references this type has
 
 **PRO-293 — An unknown fund (backend)**: Deleting a fund that does not exist changes no data and is not an error; the `FundUpdated` event is still raised.
 
-**PRO-294 — Deleted funds removed on upgrade (backend)**: Funds deleted before deletion was real, hidden but kept, are removed when the application is upgraded, once the deleted procedures are removed (PRO-031); the patients' defaults naming them are cleared as PRO-290 says, and their bank statement labels are treated as unknown (BAS-041D). A fund a procedure or a fund payment group still uses is kept (PRO-295) (owner, 2026-11-01, #579).
+**PRO-294 — Deleted funds removed on upgrade (backend)**: Funds deleted before deletion was real, hidden but kept, are removed when the application is upgraded, once the deleted procedures (PRO-031) and fund payment groups (FPM-401) are removed; the patients' defaults naming them are cleared as PRO-290 says, and their bank statement labels are treated as unknown (BAS-041D). A fund a procedure or a fund payment group still uses is kept (PRO-295) (owner, 2026-11-01, #579).
 
 **PRO-295 — A deleted fund still used comes back (backend)**: A fund PRO-294 keeps is listed again as it was stored, except that an identifier another fund holds becomes `{identifier} (restauré {first 8 characters of its id})`, stored as data, never translated, so identifiers stay unique (owner, 2026-11-01, #579: the real database held none).
 
