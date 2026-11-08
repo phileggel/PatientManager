@@ -2,7 +2,7 @@
 
 > Domain: fund-payment-reconciliation
 > Backend module: use_cases/fund_payment_reconciliation
-> Last updated by: fund-payment-auto-match spec
+> Last updated by: fund-payment-report spec (FPR-050, FPR-051, #595), 2026-11-08
 
 ## Commands
 
@@ -96,14 +96,14 @@ Returns both the procedures currently in the group (`Reconciliated` / `Partially
 
 ---
 
-### `generate_fund_reconciliation_report_pdf` — FPR-011, FPR-013, FPR-020, FPR-021, FPR-022, FPR-030 to FPR-042
+### `generate_fund_reconciliation_report_pdf` — FPR-011, FPR-013, FPR-020, FPR-021, FPR-022, FPR-030 to FPR-042, FPR-050, FPR-051
 
 Renders the post-reconciliation report as a PDF document. The request payload carries every pre-resolved string the renderer will place — translated labels, formatted dates, formatted currency values, and per-correction joined row strings. The backend performs no translation, no formatting, and no database lookup (FPR-013, FPR-021).
 
 - **Args:** `request: ReportGenerationRequest`
 - **Returns:** `Vec<u8>` — PDF byte stream
 - **Errors:**
-  - `InvalidRequest` — payload is structurally invalid: a required string is empty, exceeds the length cap, contains control characters, or a collection (header lines, unreconciled rows, correction groups, correction rows) exceeds its DoS-guard cap
+  - `InvalidRequest` — payload is structurally invalid: a required string is empty, exceeds the length cap, contains control characters, or a collection (header lines, unreconciled rows, correction groups, correction rows) exceeds its DoS-guard cap, or Section 3 holds no row or more than 1,000 (FPR-050, FPR-051)
   - `PdfGenerationFailed` — rendering failed downstream of validation (e.g. font load, internal renderer error)
 
 ---
@@ -251,7 +251,16 @@ struct ReportGenerationRequest {
     unreconciled: UnreconciledSection,        // FPR-030 to FPR-033
     correction_section_heading: String,       // FPR-040 — only used if groups non-empty
     correction_groups: Vec<CorrectionGroup>,  // FPR-040 to FPR-042 — empty list omits the section
+    left_out_section: Option<LeftOutSection>, // FPR-050, FPR-051 — None omits Section 3
     page_label: String,                       // FPR-022 — e.g. "Page"
+}
+
+// FPR-050 — Section 3: the groups the import left out (FPA-070), in the order
+// of the PDF; each row is "fund | payment date | stated total", pre-formatted.
+struct LeftOutSection {
+    heading: String,
+    note: String,       // their amounts are to be noted by hand
+    rows: Vec<String>,  // at least one
 }
 
 // FPR-030 to FPR-033 — Section 1 content branches. The frontend chooses
@@ -337,3 +346,4 @@ enum FundPaymentValidationStatus {
 - 2026-10-18 — Modified by `fund-payment-auto-match` spec (FPA-211, ticket #392): `create_fund_payment_with_auto_corrections` answers `DisputedAmountCorrected`
 - 2026-10-25 — Modified by `fund-payment-auto-match` spec (FPA-212, ticket #424): `create_fund_payment_with_auto_corrections` answers `DisputedAmountOutOfRange`; it and `create_fund_payment_from_candidates` list `DatabaseError` (FPA-076), which they already returned
 - 2026-10-25 — Ticket #423: the correction variant `AutoCorrection::ContestAmount` is renamed `DisputeAmount` (the glossary's word); same fields, the frontend sends the new tag.
+- 2026-11-08 — Modified by `fund-payment-report` spec: `ReportGenerationRequest` gains `left_out_section: Option<LeftOutSection>` (FPR-050, FPR-051, #595): the groups left out for a total that is not positive, listed as Section 3.

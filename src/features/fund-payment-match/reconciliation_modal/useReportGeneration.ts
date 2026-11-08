@@ -12,7 +12,11 @@ import { toastService } from "@/ui/components/snackbar";
 import { exportAndOpenReportPdf } from "../gateway";
 import { formatReportPdfError } from "../shared/errorPresenter";
 import { formatLongDateTime, formatShortDate } from "../shared/formatters";
-import { buildCorrectionGroups, buildUnreconciledSection } from "../shared/reportPresenter";
+import {
+  buildCorrectionGroups,
+  buildLeftOutSection,
+  buildUnreconciledSection,
+} from "../shared/reportPresenter";
 
 interface UseReportGenerationArgs {
   filePath: string;
@@ -86,6 +90,11 @@ export function useReportGeneration({
       unreconciled: buildUnreconciledSection(unreconciledReport, locale, tStr),
       correction_section_heading: tStr("print.section2.heading"),
       correction_groups: correctionGroups,
+      left_out_section: buildLeftOutSection(
+        reconciliationData?.left_out_groups ?? [],
+        locale,
+        tStr,
+      ),
       page_label: tStr("print.page"),
     };
 

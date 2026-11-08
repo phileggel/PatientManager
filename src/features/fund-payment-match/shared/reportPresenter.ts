@@ -2,6 +2,8 @@ import type {
   AutoCorrection,
   CorrectionGroup,
   Fund,
+  LeftOutPdfGroup,
+  LeftOutSection,
   ReconciliationMatch,
   UnreconciledProcedure,
   UnreconciledRow,
@@ -275,5 +277,25 @@ export function buildUnreconciledSection(
       total_label: t("print.section1.total"),
       total_value: formatCurrency(totalThousandths, locale),
     },
+  };
+}
+
+/**
+ * FPR-050, FPR-051 — Section 3: one line per group the import left out
+ * (FPA-070), in the order of the PDF; `null` when none was, which omits it.
+ */
+export function buildLeftOutSection(
+  groups: readonly LeftOutPdfGroup[],
+  locale: string,
+  t: (k: string) => string,
+): LeftOutSection | null {
+  if (groups.length === 0) return null;
+  return {
+    heading: t("print.section3.heading"),
+    note: t("print.section3.note"),
+    rows: groups.map(
+      (g) =>
+        `${g.fund_label} | ${formatShortDate(g.payment_date, locale)} | ${formatCurrency(g.total_amount, locale)}`,
+    ),
   };
 }

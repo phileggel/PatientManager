@@ -2,7 +2,7 @@
 
 ## Context
 
-After validating a fund-payment reconciliation (FPA workflow), the practitioner may produce a summary report of the session. This feature defines the structure, content, and generation mechanism of that report. The report covers two concerns: procedures that remain unreconciled in the reconciliation period, and a log of all corrections that were applied during the session.
+After validating a fund-payment reconciliation (FPA workflow), the practitioner may produce a summary report of the session. This feature defines the structure, content, and generation mechanism of that report. The report covers three concerns: procedures that remain unreconciled in the reconciliation period, a log of all corrections that were applied during the session, and the groups of the statement the import left out (FPA-070).
 
 The report is rendered as a PDF document by the backend from the session data, written to the user's Downloads directory under a locale-aware filename, then opened in the system default PDF viewer for inspection. The user retains the saved PDF for archival, sharing, or — if needed — printing through their preferred PDF viewer outside the application. In-app preview and in-app printing are intentionally out of scope.
 
@@ -26,6 +26,7 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 | `unreconciled`               | Section 1 content. Either the empty-state branch (heading + reassurance message) or the populated branch (heading + column headers + rows + total).                                              |
 | `correction_section_heading` | Pre-translated heading for Section 2 (FPR-040). Rendered only when `correction_groups` is non-empty.                                                                                             |
 | `correction_groups`          | Section 2 — list of correction groups in priority order (FPR-041). Each group has a pre-translated title and a list of pre-joined row strings. An empty list omits Section 2 entirely (FPR-040). |
+| `left_out_section`           | Section 3 (FPR-050): heading, note and one pre-formatted line per group left out; absent when none was (FPR-051).                                                                                |
 | `page_label`                 | Pre-translated footer label, e.g. "Page" — rendered as `"{label} {n} / {total}"` on each page (FPR-022).                                                                                         |
 
 > Field names use Rust `snake_case`. The frontend resolves every translation through its existing i18next pipeline and every date / currency value through the platform `Intl.*` formatters before assembling this payload — the backend has no language tables and no formatters (FPR-021).
@@ -44,7 +45,7 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 
 **FPR-013 — Session-only data flow (frontend + backend)**:
 
-- _(frontend)_: The `ReportGenerationRequest` payload is built exclusively from data already held in the active reconciliation session — the unreconciled-procedures list fetched after validation and the corrections applied during the session. The frontend resolves every label through its i18next pipeline and every numeric/date value through `Intl.*` formatters before sending; no additional fetch is performed.
+- _(frontend)_: The `ReportGenerationRequest` payload is built exclusively from data already held in the active reconciliation session — the unreconciled-procedures list fetched after validation, the corrections applied during the session, and the groups left out that the reconciliation named (FPA-070). The frontend resolves every label through its i18next pipeline and every numeric/date value through `Intl.*` formatters before sending; no additional fetch is performed.
 - _(backend)_: PDF generation reads the pre-resolved strings from the request and places them on the page. No translation, no formatting, no database lookup, and no external call is performed during rendering.
 
 **FPR-014 — Export failure (frontend)**: If the backend returns an error for the export command — rendering, write, or launcher failure — an error toast is displayed, the Report button returns to its idle state, and no further state changes occur. The user may click Report again to retry.
@@ -96,6 +97,12 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 | AmountMismatch  | Patient, procedure date, original billed amount, corrected billed amount |
 | FundMismatch    | Patient, procedure date, original fund, corrected fund                   |
 | DateMismatch    | Patient, original date, corrected date                                   |
+
+### Section 3 — Groups Left Out (050–059)
+
+**FPR-050 — The groups left out are listed (backend)**: After the corrections — or after Section 1 when Section 2 is omitted (FPR-040) — the report lists each group the reconciliation left out (FPA-070), in the order it named them, with its fund label, payment date and stated total, with a note that their amounts are to be noted by hand, since the import does not record them (owner, 2026-11-01, #595).
+
+**FPR-051 — Section 3 omission (backend)**: When no group was left out, Section 3 is omitted entirely: no heading, no note.
 
 ---
 

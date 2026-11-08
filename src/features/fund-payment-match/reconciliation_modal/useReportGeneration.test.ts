@@ -195,6 +195,34 @@ describe("useReportGeneration", () => {
     expect(request.correction_groups).toEqual([]);
   });
 
+  it("ticket #595: the groups left out reach the request as Section 3 (FPR-050, FPR-051)", async () => {
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/file.pdf" });
+    const withLeftOut = {
+      ...baseArgs,
+      reconciliationData: {
+        ...mockReconciliationData,
+        left_out_groups: [
+          { fund_label: "CPAM 75", payment_date: "2026-03-12", total_amount: -76800 },
+        ],
+      },
+    };
+
+    const { result } = renderHook(() => useReportGeneration(withLeftOut));
+    await act(async () => {
+      await result.current.handleReport();
+    });
+    const { result: none } = renderHook(() => useReportGeneration(baseArgs));
+    await act(async () => {
+      await none.current.handleReport();
+    });
+
+    const [request] = mockExportAndOpen.mock.calls[0]!;
+    expect(request.left_out_section?.rows).toHaveLength(1);
+    expect(request.left_out_section?.rows[0]).toContain("CPAM 75");
+    const [requestWithout] = mockExportAndOpen.mock.calls[1]!;
+    expect(requestWithout.left_out_section).toBeNull();
+  });
+
   // ── Locale-aware filename construction ───────────────────────────────────
 
   it("French locale → filename uses rapport_rapprochement_caisse stem and end-month tag", async () => {

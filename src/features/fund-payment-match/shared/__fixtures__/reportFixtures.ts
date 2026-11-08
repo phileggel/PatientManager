@@ -188,5 +188,6 @@ export const sampleReportRequest: ReportGenerationRequest = {
   },
   correction_section_heading: "Corrections applied",
   correction_groups: [],
+  left_out_section: null,
   page_label: "Page",
 };

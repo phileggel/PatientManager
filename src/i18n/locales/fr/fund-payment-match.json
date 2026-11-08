@@ -22,6 +22,10 @@
         "DateMismatch": "Corrections de date"
       }
     },
+    "section3": {
+      "heading": "Groupes non importés",
+      "note": "Leur total est négatif ou nul : la caisse reprend ou compense une somme. L'import n'enregistre pas ces montants ; notez-les."
+    },
     "columns": {
       "date": "Date acte",
       "patient": "Patient",

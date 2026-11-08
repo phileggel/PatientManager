@@ -17,7 +17,8 @@
       "sql": ["docs/backend-rules.md"],
       "e2e": ["docs/e2e-rules.md", "docs/test-rules.md"],
       "security": ["docs/backend-rules.md"],
-      "infra": ["docs/workflow.md"]
+      "infra": ["docs/workflow.md"],
+      "spec": ["docs/spec/README.md"]
     },
     "lanes": {
       "infra": ["^guide-ceilings\\.json$", "^\\.claude/rules/[^/]*\\.md$", "^\\.claude/hooks/.*\\.sh$"],

@@ -1975,6 +1975,15 @@ fund_label: string; payment_date: string;
  */
 total_amount: number }
 /**
+ * Section 3 — the groups left out for a stated total that is not positive (FPR-050,
+ * FPA-070), in the order of the PDF. Each row is pre-joined by the frontend.
+ */
+export type LeftOutSection = { heading: string; 
+/**
+ * Their amounts are to be noted by hand: the import does not record them.
+ */
+note: string; rows: string[] }
+/**
  * A normalized PDF procedure line — the ONE domain object for reconciliation.
  * 
  * All dates are NaiveDate (serialized as ISO YYYY-MM-DD via serde/specta).
@@ -2628,6 +2637,10 @@ correction_section_heading: string;
  * An empty list omits the entire section (FPR-040).
  */
 correction_groups: CorrectionGroup[]; 
+/**
+ * Section 3 — the groups the import left out (FPR-050); `None` omits it (FPR-051).
+ */
+left_out_section: LeftOutSection | null; 
 /**
  * Footer page-number label, e.g. "Page" — rendered as `"{label} {n} / {total}"` (FPR-022).
  */
