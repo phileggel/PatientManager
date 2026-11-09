@@ -6,6 +6,8 @@
  * The useSnackbar hook subscribes at mount and drives rendering.
  */
 
+import { snackbarsHiddenForE2e } from "@/lib/e2e";
+
 export type SnackbarType = "success" | "error" | "info" | "warning";
 
 type Listener = (type: SnackbarType, message: string) => void;
@@ -14,6 +16,7 @@ const listeners = new Set<Listener>();
 
 export const toastService = {
   show(type: SnackbarType, message: string) {
+    if (snackbarsHiddenForE2e()) return;
     for (const fn of listeners) {
       fn(type, message);
     }

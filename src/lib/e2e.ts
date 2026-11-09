@@ -1,5 +1,6 @@
 /**
- * E2E native-dialog override (ADR-007).
+ * E2E native-dialog override (ADR-007), and the E2E build's UI toggles
+ * (`snackbarsHiddenForE2e`).
  *
  * Tauri WebDriver tests cannot drive native OS dialogs. Every gateway
  * method that wraps `@tauri-apps/plugin-dialog`'s `open()` or `save()`
@@ -46,6 +47,12 @@ declare global {
       pickImportPath?: string | null;
       /** Stub return value for `db-backup/gateway.ts::pickDiagnosticReportPath`. */
       pickDiagnosticReportPath?: string | null;
+      /**
+       * `true` shows the snackbars in the E2E build, which hides them by default:
+       * a seed's success snackbar can cover the button a test clicks next
+       * (`toastService.show`).
+       */
+      toasts?: boolean;
     };
   }
 }
@@ -98,4 +105,13 @@ export async function e2eOverride<K extends keyof E2eOverrides>(
     return window.__e2e[key] as OverrideValue<K>;
   }
   return real();
+}
+
+/**
+ * Whether the snackbars stay hidden: in the E2E build only, unless a test sets
+ * `window.__e2e.toasts`: a seed's success snackbar can cover the button a test
+ * clicks next (Windows, v0.28.0). Folds to `false` elsewhere.
+ */
+export function snackbarsHiddenForE2e(): boolean {
+  return import.meta.env.MODE === "e2e" && window.__e2e?.toasts !== true;
 }
