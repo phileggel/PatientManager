@@ -8,11 +8,7 @@ What makes a component reliably driveable from the Tauri WebDriver E2E suite.
 
 ## E1 — Forms MUST have a stable `id` attribute
 
-```tsx
-<form id="price-modal-form" ...>
-```
-
-E2E tests locate forms by `id` — the most stable selector.
+`<form id="price-modal-form" ...>`: E2E tests locate forms by `id` — the most stable selector.
 Naming convention: `{feature}-{action}-form` (e.g. `price-modal-form`, `edit-price-form`).
 
 ## E2 — Form fields MUST have a stable `id` attribute
@@ -55,13 +51,7 @@ value and changes with its i18n key, so it is never the selector. It still flows
 
 ## E5 — Error messages MUST have `role="alert"`
 
-```tsx
-<p role="alert" className="...">
-  {t(error)}
-</p>
-```
-
-E2E selector: `[role="alert"]` scoped to the form.
+`<p role="alert" className="...">{t(error)}</p>` — E2E selector: `[role="alert"]` scoped to the form.
 This is already required by accessibility rules — it is also what E2E tests assert.
 
 ## E6 — React controlled inputs require `setReactInputValue` in E2E tests
@@ -124,3 +114,8 @@ await modal.waitForExist({ timeout: 8000, reverse: true });
 ```
 
 Never rely on the WebdriverIO default timeout — always be explicit.
+
+## E11 — The E2E build hides the snackbars
+
+A seed's success snackbar can cover the next button a test clicks. A test that checks a
+snackbar first runs `browser.execute(() => { window.__e2eSnackbars = true; })`.
