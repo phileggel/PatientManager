@@ -2,11 +2,13 @@ name: Release
 
 # A version tag runs the Windows E2E, then builds Windows, then Linux, into one
 # draft release; the app plugin's release.py then sets its notes from the
-# changelog, and the human publishes it.
+# changelog, and the human publishes it. Run by hand on a branch, it runs the
+# Windows E2E alone: nothing is built or released.
 on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref_name }}
@@ -22,7 +24,7 @@ jobs:
     # bundled or published. Linux E2E runs on every pull request (e2e.yml);
     # this is the only place the Windows webview is exercised.
     name: Windows E2E
-    # Pinned, not windows-latest: Windows runs only on a tag, so a new image would
+    # Pinned, not windows-latest: Windows runs only on a tag or by hand, so a new image would
     # first show up in the middle of a release.
     runs-on: windows-2025-vs2026
     timeout-minutes: 60
@@ -42,7 +44,9 @@ jobs:
           fetch-depth: 0
 
       - name: Verify tag is on main
-        # Before any code of the tag runs, as in the build jobs.
+        # Before any code of the tag runs, as in the build jobs. A run by hand
+        # tests a branch: it has no tag.
+        if: github.event_name == 'push'
         shell: bash
         env:
           COMMIT_SHA: ${{ github.sha }}
@@ -201,6 +205,8 @@ jobs:
 
   windows:
     needs: windows-e2e
+    # A tag alone builds and releases; a run by hand stops after the E2E.
+    if: github.event_name == 'push'
     # The image the E2E gate above passed on.
     runs-on: windows-2025-vs2026
     timeout-minutes: 60
