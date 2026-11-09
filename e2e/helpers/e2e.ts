@@ -37,8 +37,6 @@ export interface E2eOverrides {
   pickExportPath?: string | null;
   pickImportPath?: string | null;
   pickDiagnosticReportPath?: string | null;
-  /** `true` shows the snackbars, hidden by default in the E2E build; `setE2eOverrides` replaces the whole object, so repeat it with any later override. */
-  toasts?: boolean;
 }
 
 /**

@@ -6,7 +6,17 @@
  * The useSnackbar hook subscribes at mount and drives rendering.
  */
 
-import { snackbarsHiddenForE2e } from "@/lib/e2e";
+declare global {
+  interface Window {
+    /** `true` shows the snackbars in the E2E build, which hides them (docs/e2e-rules.md E11). */
+    __e2eSnackbars?: boolean;
+  }
+}
+
+/** The E2E build hides the snackbars unless a test asks; folds to `false` elsewhere. */
+function snackbarsHiddenForE2e(): boolean {
+  return import.meta.env.MODE === "e2e" && window.__e2eSnackbars !== true;
+}
 
 export type SnackbarType = "success" | "error" | "info" | "warning";
 

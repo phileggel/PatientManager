@@ -117,5 +117,5 @@ Never rely on the WebdriverIO default timeout — always be explicit.
 
 ## E11 — The E2E build hides the snackbars
 
-A seed's success snackbar can cover the next button a test clicks (Windows, v0.28.0). A test
-that checks a snackbar first sets `setE2eOverrides({ toasts: true })`.
+A seed's success snackbar can cover the next button a test clicks. A test that checks a
+snackbar first runs `browser.execute(() => { window.__e2eSnackbars = true; })`.

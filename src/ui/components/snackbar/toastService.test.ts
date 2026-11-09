@@ -4,7 +4,7 @@ import { toastService } from "./toastService";
 describe("toastService", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
-    delete window.__e2e;
+    delete window.__e2eSnackbars;
   });
 
   it("tells its listeners outside the E2E build", () => {
@@ -23,7 +23,7 @@ describe("toastService", () => {
     const unsubscribe = toastService.subscribe(listener);
 
     toastService.show("success", "hidden");
-    window.__e2e = { toasts: true };
+    window.__e2eSnackbars = true;
     toastService.show("info", "shown");
     unsubscribe();
 
