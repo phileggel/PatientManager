@@ -1,2 +1,6 @@
+# Pinned: a new stable release changes the measured coverage (1.100 drops it three points
+# on the same code, #674). /app:dep-audit reports the drift at every batch end; a move to
+# a newer version is a pull request of its own.
 [toolchain]
-channel = "stable"
+channel = "1.99.1"
+components = ["rustfmt", "clippy", "llvm-tools-preview"]
