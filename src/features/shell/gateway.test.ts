@@ -84,7 +84,7 @@ describe("shell/gateway — pickPdfFilePath", () => {
   });
 });
 
-// ADR-007: every native-API gateway must route through `e2eOverride`. These
+// E12: every native-API gateway must route through `e2eOverride`. These
 // tests assert the override branch fires (and the real `open()` is bypassed)
 // when `window.__e2e[<key>]` is set, and falls through otherwise.
 describe("shell/gateway — e2e override", () => {

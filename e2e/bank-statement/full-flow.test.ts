@@ -2,7 +2,7 @@
  * E2E — bank statement reconciliation, the real flow end to end.
  *
  * Import card → statement PDF → label step → settlement → validate → a bank
- * transfer exists. The native file dialog is bypassed with ADR-007's
+ * transfer exists. The native file dialog is bypassed with E12's
  * `pickPdfFilePath` override; everything after it is the real app: the PDF is
  * read and parsed by the backend, the labels are decided in the UI, and the
  * validation writes through the real commands.

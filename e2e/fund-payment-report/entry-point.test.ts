@@ -4,7 +4,7 @@
  * Verifies the reconciliation import entry point is reachable and that the
  * fund-reconciliation card is present in the import modal.
  *
- * Limitation (known, per ADR-007 pattern):
+ * Limitation (known, per the E12 pattern):
  *   The full flow from card click → file dialog → ReconciliationModal →
  *   report step cannot be automated in WebDriver because step 2 (native OS
  *   file-picker dialog) is outside WebDriver's reach. The IPC contract is
@@ -16,7 +16,7 @@
  *     confirming FPR-010 wiring (Report button only visible at report step)
  *     is not broken at the page-navigation level.
  *
- * Selectors target stable `id` attributes — locale-invariant per ADR-007.
+ * Selectors target stable `id` attributes — locale-invariant (E4).
  */
 
 import { $ } from "@wdio/globals";

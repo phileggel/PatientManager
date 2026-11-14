@@ -10,9 +10,10 @@ significant rework across the codebase. The owner confirms before one is written
 
 **Writing one** — `docs/adr/{NNN}-{slug}.md`, the next number (never reused), one decision,
 what was chosen and why, never how it is implemented; then its row below. An ADR is never
-deleted: a new one supersedes it, and only the old one's `Status` line and index row
+deleted: a new one supersedes it or the owner retires it, and only the old one's `Status` line and index row
 change; an ADR already superseded is not superseded again (the newer one is). The `Status`
-is `Accepted`, `Accepted — supersedes ADR-{NNN}` or `Superseded by ADR-{NNN}`; a tentative
+is `Accepted`, `Accepted — supersedes ADR-{NNN}`, `Superseded by ADR-{NNN}` or, when the owner
+retires one with no successor, `Retired — {where its rules live now}`; a tentative
 decision stays an open question in its spec.
 
 ```markdown
@@ -45,6 +46,6 @@ decision stays an open question in its spec.
 | [ADR-004](004-e2e-rtl-test-boundary-combobox.md)      | E2E / RTL test boundary for HeadlessUI ComboboxField                               | Accepted                      |
 | [ADR-005](005-combobox-feasibility-investigation.md)  | ComboboxField replacement feasibility investigation                                | Accepted                      |
 | [ADR-006](006-frontend-resolves-pdf-translations.md)  | Frontend pre-resolves all translations and formatting for the backend PDF renderer | Accepted                      |
-| [ADR-007](007-e2e-native-dialog-override.md)          | E2E native-dialog override pattern (`window.__e2e` + `e2eOverride()`)              | Accepted                      |
+| [ADR-007](007-e2e-native-dialog-override.md)          | E2E native-dialog override pattern (`window.__e2e` + `e2eOverride()`)              | Retired — E2E rules, E12      |
 | [ADR-008](008-native-dialog-modal-system.md)          | Native `<dialog>` top layer for the modal system                                   | Accepted                      |
 | [ADR-009](009-soft-delete-leaves-table-by-table.md)   | Soft delete leaves the project table by table, bank statement labels first         | Accepted — supersedes ADR-001 |

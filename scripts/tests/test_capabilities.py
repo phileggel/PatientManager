@@ -1,7 +1,7 @@
 """The capability grants exactly the native calls the frontend makes — run with `just test-scripts`.
 
 A permission the capability lacks fails silently in the installed application: the E2E
-suite overrides the native dialogs (ADR-007) and never relaunches. So the link between
+suite overrides the native dialogs (E12) and never relaunches. So the link between
 what `src/` imports from the dialog and process plugins and what
 `src-tauri/capabilities/default.json` grants is checked here (DEBT-027).
 """

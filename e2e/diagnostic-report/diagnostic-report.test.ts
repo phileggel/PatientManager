@@ -3,7 +3,7 @@
  *
  * Maintenance entry → database backup dialog → « Générer le rapport » → the
  * section shows the saved file and its support code, and the file on disk
- * carries that code. The native save dialog is bypassed with ADR-007's
+ * carries that code. The native save dialog is bypassed with E12's
  * `pickDiagnosticReportPath` override; the report is written by the real
  * command, under the home directory where the backend accepts a destination.
  */

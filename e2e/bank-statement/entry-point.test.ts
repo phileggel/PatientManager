@@ -13,7 +13,7 @@
  *     unknown label recomputes to a NeedsLink line (BAS-060/061) — no mocking
  *     at any layer.
  *
- * Selectors target stable `id` attributes — locale-invariant per ADR-007.
+ * Selectors target stable `id` attributes — locale-invariant (E4).
  */
 
 import { $, browser } from "@wdio/globals";

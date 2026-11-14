@@ -119,3 +119,15 @@ Never rely on the WebdriverIO default timeout — always be explicit.
 
 A seed's success snackbar can cover the next button a test clicks. A test that checks a
 snackbar first runs `browser.execute(() => { window.__e2eSnackbars = true; })`.
+
+## E12 — What the E2E build changes goes through `window.__e2e`
+
+A test cannot drive a native dialog, so a gateway answers in its place.
+
+- A gateway method that wraps a native API and is reachable from the screen routes through
+  `e2eOverride("<method name>", real)` (`src/lib/e2e.ts`).
+- One typed key per method in `Window["__e2e"]`, named after it, never `as any`, mirrored by
+  hand in `e2e/helpers/e2e.ts`. A test sets its overrides and clears them itself.
+- The override lives only in the modes `e2eOverride` lists (`development`, `test`, `e2e`): an
+  allowlist, never "not production". A new mode is added there by name.
+- E11's switch stays a separate global: the helpers replace `window.__e2e` whole.
