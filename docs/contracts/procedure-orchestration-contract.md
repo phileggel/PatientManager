@@ -2,13 +2,13 @@
 
 > Domain: procedure-orchestration
 > Backend module: use_cases/procedure_orchestration
-> Last updated by: procedure-orchestration spec
+> Last updated by: procedure-orchestration spec, business rules only (#646)
 
 ## Commands
 
-### `read_all_procedures` — PRO-010 (implicit listing)
+### `read_all_procedures` — PRO-170
 
-Returns all procedures. Period (PRO-010) and status (PRO-180) filters are applied client-side by the frontend.
+Returns all procedures, by procedure date ascending (PRO-170; today unordered, the screen sorts them — #427). PRO-060's statistics and PRO-310's overdue are owed by #427, which sets their shape (owner, 2026-11-14). The screen filters them by period and status.
 
 - **Args:** —
 - **Returns:** `Vec<Procedure>`
@@ -26,19 +26,19 @@ Creates a new procedure. Validates mandatory fields, every missing or malformed 
 
 ---
 
-### `update_procedure` — PRO-125, PRO-250, PRO-251, PRO-252, PRO-255, PRO-256, REF-170
+### `update_procedure` — PRO-125, PRO-190, PRO-250, PRO-251, PRO-252, PRO-255, PRO-256, REF-170, REF-200
 
-Accepts all procedure fields without re-inference (PRO-250). Refuses a missing patient, type or date, or a malformed date, all at once (PRO-125). Values all equal to the stored procedure are answered `Unchanged` and nothing is written (PRO-255). Refusals in order (PRO-256): missing fields (PRO-125), an unknown procedure (PRO-252), a changed `patient_id`, `procedure_type_id` or `fund_id` that does not exist; a kept one stays valid (PRO-251). For procedures in `Overpaid` status, propagates any `procedure_type_id` change to the linked refund procedure atomically (REF-170).
+Accepts all procedure fields without re-inference (PRO-250); PRO-190's and REF-200's refusals are not raised yet (#379): `ProcedureEditBlocked` names them. Refuses a missing patient, type or date, or a malformed date, all at once (PRO-125). Values all equal to the stored procedure are answered `Unchanged` and nothing is written (PRO-255). Refusals in order (PRO-256): missing fields (PRO-125), an unknown procedure (PRO-252), a changed `patient_id`, `procedure_type_id` or `fund_id` that does not exist; a kept one stays valid (PRO-251). For procedures in `Overpaid` status, propagates any `procedure_type_id` change to the linked refund procedure atomically (REF-170).
 
 - **Args:** `raw: RawProcedure`
 - **Returns:** `ProcedureEdit`
-- **Errors:** `ProcedureInvalid { reasons: Vec<ProcedureInvalidReason> }` (nothing written), `PatientNotFound`, `ProcedureTypeNotFound`, `FundNotFound`, `ProcedureNotFound`
+- **Errors:** `ProcedureInvalid { reasons: Vec<ProcedureInvalidReason> }` (nothing written), `PatientNotFound`, `ProcedureTypeNotFound`, `FundNotFound`, `ProcedureNotFound`, `ProcedureEditBlocked` (PRO-190, REF-200; not raised until #379)
 
 ---
 
-### `delete_procedure` — PRO-030, PRO-270
+### `delete_procedure` — PRO-030, PRO-030A–C, PRO-270
 
-Really deletes a procedure after checking it is not in a blocking status (PRO-030 — `Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `Overpaid`, `OverpaymentRefund`) and that no fund payment line, bank entry or refund record refers to it. Updates patient tracking fields after deletion (PRO-270).
+Really deletes a procedure after checking it is not in a blocking status (PRO-030A — `Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `Overpaid`, `OverpaymentRefund`) and that no fund payment line, bank entry or refund record refers to it (PRO-030B); an unknown one is refused (PRO-030C). Updates patient tracking fields after deletion (PRO-270).
 
 - **Args:** `id: String`
 - **Returns:** `()`
@@ -101,7 +101,7 @@ struct RawProcedure {
     billed_amount: i64,
     payment_method: Option<String>,      // raw string
     // Typed dates (YYYY-MM-DD): a malformed value is refused when the
-    // command's arguments are read, before it runs; the form never edits them (PRO-050).
+    // command's arguments are read, before it runs; an edit sends them back as read (PRO-250).
     fund_reconciliation_date: Option<String>,
     confirmed_payment_date: Option<String>,
     paid_amount: Option<i64>,
@@ -161,3 +161,4 @@ enum PaymentMethod {
 - 2026-10-18 — Modified by `procedure-orchestration` spec (TODO-030): `update_procedure` — `RawProcedure.payment_status` typed `ProcedureStatus` (PRO-250)
 - 2026-11-07 — `delete_procedure` (#588, PRO-030): a procedure is really deleted; one a payment record still refers to is refused with `ProcedureDeleteBlocked`. The error was misnamed `DeletionBlocked` here.
 - 2026-11-08 — `delete_procedure`: `DatabaseError` listed again (release sweep).
+- 2026-11-14 — #646: the spec holds business rules only; references follow (PRO-170, PRO-190, PRO-030A–C). No signature, type or error change.

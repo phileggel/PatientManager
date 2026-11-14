@@ -26,7 +26,7 @@ Once assigned, a rule number never changes; a removed rule leaves its number vac
 | **FPA**   | Fund Payment Auto-Match     | Automatic matching of fund payments to procedures                                     |
 | **BAS**   | Bank Statement Auto-Match   | Automatic reconciliation of bank statements with transfers                            |
 | **BSM**   | Bank Statement Manual Match | Manual matching and exception handling for bank statements                            |
-| **POC**   | Procedure Orchestration     | Cross-context procedure workflow coordination                                         |
+| **PRO**   | Procedure Orchestration     | Cross-context procedure workflow coordination                                         |
 | **PTY**   | Procedure Type Management   | Procedure type definitions and configurations                                         |
 | **DBB**   | Database Backup & Import    | Database backup creation and restoration                                              |
 | **EXI**   | Excel Import                | Bulk procedure import from Excel files                                                |

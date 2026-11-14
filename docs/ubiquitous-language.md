@@ -194,7 +194,7 @@ Lifecycle/reconciliation status of a `Procedure`.
 
 ### Overdue (derived)
 
-A **derived**, frontend-only display attribute on a `Procedure` — **not** a `ProcedureStatus` value and never persisted. A `Created` procedure is _overdue_ when its `procedure_date` is strictly earlier than the **reconciliation high-water mark**: the most recent `procedure_date` among all fund-reconciled procedures (`Reconciled` / `PartiallyReconciled` / `FundPaid` / `PartiallyFundPaid` / `ImportFundPaid`). Global (no patient/fund scope), recomputed live, and surfaced only as a warning row background in the procedure list (PRO-310 / PRO-320). An overdue procedure behaves exactly like `Created` for every backend purpose.
+A **derived** attribute on a `Procedure` (PRO-310; the screen computes it until #427) — **not** a `ProcedureStatus` value and never persisted. A `Created` procedure is _overdue_ when its `procedure_date` is strictly earlier than the **reconciliation high-water mark**: the most recent `procedure_date` among all fund-reconciled procedures (`Reconciled` / `PartiallyReconciled` / `FundPaid` / `PartiallyFundPaid` / `ImportFundPaid`). Global (no patient/fund scope), recomputed live, and surfaced only as a warning row background in the procedure list (PRO-310). An overdue procedure behaves exactly like `Created` for every backend purpose.
 
 > Status: confirmed
 > Derived display concept, deliberately not a status — see the pending `ProcedureStatus` de-conflation note in `docs/todo.md`.

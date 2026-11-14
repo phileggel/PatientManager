@@ -34,9 +34,9 @@ Atomic transaction (not yet: ADR-002 until #390). Reversal cascade in order: rev
 
 ---
 
-### `get_source_bank_account` — REF-070
+### `get_source_bank_account` — REF-075
 
-Returns the id of the bank account of the source procedure's original bank entry, when it resolves as REF-070 defines. Used by the refund form to pre-fill the selector when several accounts exist.
+Returns the id of the bank account of the source procedure's original bank entry, as REF-075 defines it. Used by the refund form to pre-fill the selector when several accounts exist.
 
 - **Args:** `source_procedure_id: String`
 - **Returns:** `String` (optional — `null` if not resolvable, an unknown source included)
@@ -44,9 +44,9 @@ Returns the id of the bank account of the source procedure's original bank entry
 
 ---
 
-### `get_procedure_refund_by_source` — REF-190, REF-210
+### `get_procedure_refund_by_source` — no rule (dead)
 
-Returns the `ProcedureRefundInfo` for a given source procedure ID. Used by the `Overpaid` modal to display the refund details and by the "Cancel Refund" action to resolve IDs before cancellation.
+Returns the `ProcedureRefundInfo` for a given source procedure ID. No rule backs it and nothing calls it: a cancellation names the source itself (REF-210). Its removal is owed (#646).
 
 - **Args:** `source_procedure_id: String`
 - **Returns:** `ProcedureRefundInfo` (optional — `null` if not found)
@@ -54,7 +54,7 @@ Returns the `ProcedureRefundInfo` for a given source procedure ID. Used by the `
 
 ---
 
-### `get_procedure_refund_by_refund_procedure` — REF-200, REF-210
+### `get_procedure_refund_by_refund_procedure` — REF-210
 
 Returns the `ProcedureRefundInfo` for a given refund procedure ID. Used by the `OverpaymentRefund` modal to resolve the `source_procedure_id` before initiating cancellation (REF-210).
 
@@ -101,6 +101,7 @@ struct ProcedureRefundInfo {
 
 ## Changelog
 
+- 2026-11-14 — #646: REF-200 is the edit rule of a refund procedure (REF-190 vacant); `get_procedure_refund_by_refund_procedure` cites REF-210, `get_source_bank_account` REF-075; `get_procedure_refund_by_source` has no rule and no caller, its removal owed. No signature, type or error change.
 - 2026-11-01 — The cascades' atomicity marked as not yet shipped (ADR-002 until #390).
 - 2026-11-01 — `get_source_bank_account`: says bank entry, the glossary term.
 - 2026-11-01 — Added `get_source_bank_account` (REF-070, #458).
