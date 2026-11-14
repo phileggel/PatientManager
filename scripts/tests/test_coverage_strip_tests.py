@@ -85,5 +85,60 @@ class StripInlineTests(unittest.TestCase):
         self.assertEqual(report.read_text(encoding="utf-8"), before)
 
 
+LOGGING = """\
+pub fn save(id: &str) -> Result<(), Error> {
+    tracing::info!(
+        target: BACKEND,
+        id = %id,
+        "saving (1 of 2)"
+    );
+    write(id)
+        .inspect_err(|e| tracing::warn!(target: BACKEND, error = %e, "kept"))
+        .map_err(|e| { tracing::error!(
+            target: BACKEND,
+            err = ?e,
+            "write failed"
+        ); Error::DatabaseError })?;
+    Ok(())
+}
+"""
+
+
+class StripLogCalls(unittest.TestCase):
+    """#674 — the lines of a log call are no logic and leave the measure."""
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.source = Path(folder.name) / "lib.rs"
+        self.source.write_text(LOGGING, encoding="utf-8")
+
+    def test_674_a_log_call_alone_on_its_lines_is_a_range(self):
+        self.assertIn((2, 6), strip_tests.log_call_ranges(self.source))
+
+    def test_674_a_parenthesis_in_a_string_does_not_end_the_call(self):
+        self.assertNotIn((2, 5), strip_tests.log_call_ranges(self.source))
+
+    def test_674_a_line_shared_with_logic_stays(self):
+        # Line 8 holds the call and `.inspect_err`; lines 9 and 13 open and close a closure.
+        self.assertEqual(strip_tests.log_call_ranges(self.source), [(2, 6), (10, 12)])
+
+    def test_674_a_commented_log_call_is_no_range(self):
+        self.source.write_text("pub fn f() {\n    // tracing::info!(\n    g();\n}\n", encoding="utf-8")
+        self.assertEqual(strip_tests.log_call_ranges(self.source), [])
+
+    def test_674_log_lines_are_dropped_from_the_report(self):
+        path = self.source.parent / "lcov.info"
+        records = "".join(f"DA:{n},1\n" for n in range(1, 16))
+        path.write_text(f"SF:{self.source}\n{records}LF:15\nLH:15\nend_of_record\n", encoding="utf-8")
+        strip_tests.strip(path)
+        text = path.read_text(encoding="utf-8")
+        for gone in (2, 3, 4, 5, 6, 10, 11, 12):
+            self.assertNotIn(f"DA:{gone},", text)
+        for kept in (1, 7, 8, 9, 13, 14, 15):
+            self.assertIn(f"DA:{kept},1", text)
+        self.assertIn("LF:7", text)
+
+
 if __name__ == "__main__":
     unittest.main()
