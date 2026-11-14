@@ -1,8 +1,9 @@
 name: Review
 
 # The reviewers of `app@daneel`, checked out at the pinned tag (DANEEL_REF), run on
-# every pull request, one job per lane the diff touches (the plugin's
-# review-lanes.sh, with the base branch's .claude/daneel.json). Each posts its report
+# every pull request, one job per code lane the diff touches (the plugin's
+# review-lanes.sh, with the base branch's .claude/daneel.json); the document lanes
+# run locally (docs/workflow.md § Reviewers). Each posts its report
 # as a lane comment and fails the check on any 🔴 critical. Runs on the owner's Claude
 # subscription through the CLAUDE_CODE_OAUTH_TOKEN repository secret (minted
 # with `claude setup-token`); the check fails closed without it rather than
@@ -147,10 +148,6 @@ jobs:
           - { reviewer: infra, agent: reviewer-infra }
           - { reviewer: security, agent: reviewer-security }
           - { reviewer: e2e, agent: reviewer-e2e }
-          - { reviewer: guides, agent: reviewer-guides }
-          - { reviewer: spec, agent: spec-reviewer }
-          - { reviewer: contract, agent: contract-reviewer }
-          - { reviewer: adr, agent: adr-reviewer }
     steps:
       - name: Skip lanes the diff does not touch
         id: gate
