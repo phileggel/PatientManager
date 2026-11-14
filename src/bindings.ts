@@ -1067,7 +1067,7 @@ export type BankEntryInvalidReason =
 /**
  * Payment type for bank transfers
  * 
- * Note: `OutgoingWire` is exclusively created via the overpayment refund flow (REF-080).
+ * Note: `FundOutgoingWire` is exclusively created via the overpayment refund flow (REF-080).
  * It must NOT be accepted in the bank statement manual-match UI.
  */
 export type BankEntryType = "FUND_WIRE" | "PATIENT_CHECK" | "PATIENT_CREDIT_CARD" | "PATIENT_CASH" | 
@@ -1133,7 +1133,7 @@ export type BankError =
  */
 { code: "BankAccountHoldsBankEntries" } | 
 /**
- * `BankEntryService::update_transfer` lookup returned no row.
+ * `BankEntryService::delete_transfer` found no row.
  */
 { code: "TransferNotFound"; bank_transfer_id: string } | 
 /**
@@ -1434,8 +1434,8 @@ export type BankStatementReconciliationTask =
 { code: "GroupAlreadyConsumed" } | 
 /**
  * BAS-113 — a procedure referenced by an `AssignProcedures` correction is
- * not an open candidate for the line: unknown, soft-deleted, not
- * `Created`, already in a group line, or not of the line's fund.
+ * not an open candidate for the line: unknown, not `Created`, already in
+ * a group line, or not of the line's fund.
  * The correction is rejected.
  */
 { code: "ProcedureNotEligible" } | 
@@ -1690,6 +1690,11 @@ export type FundError =
  * shows each one under its field in a single answer.
  */
 { code: "FundInvalid"; reasons: FundInvalidReason[] } | 
+/**
+ * `FundPaymentGroup::confirm_bank_payment`: a bank entry already settled
+ * the group, or it is locked (BSM-037).
+ */
+{ code: "BankPaymentAlreadyConfirmed"; fund_payment_group_id: string } | 
 /**
  * `FundPaymentGroup::validate` rejected an empty fund_id.
  */
@@ -2252,7 +2257,7 @@ lines: NormalizedPdfLine[] }
  * Healthcare Procedure aggregate root
  * 
  * Represents a healthcare procedure (service/procedure) record with foreign key references
- * to Patient, Fund, and Procedure Type. Uses soft-delete pattern.
+ * to Patient, Fund, and Procedure Type.
  * 
  * Payment tracking:
  * - billed_amount: Total amount charged/invoiced for the procedure (thousandths of a euro)
@@ -2360,6 +2365,10 @@ export type ProcedureEdit =
  * `Procedure::read_form` / `ProcedureRefund::new`, called from those use cases.
  */
 export type ProcedureError = 
+/**
+ * `Procedure::pay_directly`: the procedure is not `Created` (BSM-039).
+ */
+{ code: "ProcedureStatusNotCreated"; procedure_id: string } | 
 /**
  * `Procedure::validate` or `Procedure::read_form` refused the procedure:
  * every reason at once, one per field (PRO-125).

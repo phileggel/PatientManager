@@ -45,6 +45,10 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-026 — A direct payment is on its technical account (backend)**: A patient's direct payment — a `CASH`, `CHECK` or `CREDIT_CARD` bank entry created here — is recorded as BAC-056 says (owner, 2026-11-07, #518).
 
+**BSM-027 — A fund's wire pays no procedure directly (backend)**: Recording a `FUND` entry that would pay procedures directly is refused with a specific error, after the field refusals (BSM-021) and before any selected procedure is judged (BSM-036, BSM-039); nothing is written (owner, 2026-11-07, #634).
+
+**BSM-028 — A selection is a set (backend)**: A group or procedure repeated in the selection of a bank entry, created or edited, counts once: in its amount, its links and the changes to statuses, as BSM-031 already compares a selection as a set.
+
 **BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9, R17).
 
 **BSM-031 — An unchanged edit (backend)**: An edit nothing refuses whose date and selection (as a set, order aside) equal the stored bank entry's is answered unchanged: nothing is written and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
@@ -75,6 +79,12 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **R12 — Broadened search (frontend)**: When the desired group is not in the initial selection (outside the 7-day window), a "Broaden search" button opens a modal showing all groups not yet reconciled at the bank level, with no date constraint. Filterable by fund (identifier or name). Sorted by descending payment date. Available at creation and edit.
 
+**BSM-037 — A group is settled by one bank entry (backend)**: Creating a `FUND` bank entry, or editing one, whose selection holds a group already settled at the bank level or locked is refused with a specific error naming the first such group in the selection's order, and nothing is written (BSM-034). A group the edited entry already holds is kept, settled on the new date (BSM-035). An unknown group is refused first (owner, 2026-11-07, #634).
+
+**BSM-038 — One bank entry per group (backend)**: A fund-payment group is linked to at most one bank entry, whatever records it: this flow (BSM-037), the bank statement import (`bank-statement-auto-match` BAS-053) or a refund (`overpayment` REF-120).
+
+**BSM-038A — An upgrade over a double link stops (backend)**: A database that already holds a group linked to two bank entries is not upgraded: the upgrade stops, its error names the group, and the application does not start until the double link is repaired by hand (owner, 2026-11-14, #640). An imported backup holding one is upgraded at the next start (`db-backup` R10), so it stops the same way.
+
 **Affected fields — on transfer creation**
 
 | Entity    | Field                    | Value                                                                        |
@@ -104,6 +114,8 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 **R14 — Creation: procedure selection (frontend + backend)**: The user selects one or more procedures in `Created` status whose execution date (`procedure_date`) is within the 7 days preceding the payment date. The selection UI is similar to the procedure-management UI in fund-payment groups. The payment amount is the sum of the amounts of the selected procedures.
 
 **BSM-036 — Every selected procedure exists (backend)**: Creating or editing a direct bank entry whose selection holds a procedure that does not exist is refused, naming the first in the order the selection holds them, even beside procedures that exist. A procedure the entry already holds cannot be deleted (PRO-030B), so a kept one always exists. The field refusals of BSM-021 come first; an edit answered unchanged (BSM-031) is not judged.
+
+**BSM-039 — A direct payment takes `Created` procedures (backend)**: Creating or editing a direct bank entry whose selection holds a procedure not in `Created` status is refused with a specific error naming the first such procedure in the selection's order, and nothing is written (BSM-034). A procedure the edited entry already holds is kept, paid on the new date (BSM-035). BSM-036's refusal of an unknown procedure comes first (owner, 2026-11-07, #634).
 
 **R15 — Creation: status effects (backend)**: On validation, each procedure receives the corresponding payment method, its date and actual paid amount are set, and its status moves to `DirectlyPayed`. See the "Affected fields — on payment creation" table.
 

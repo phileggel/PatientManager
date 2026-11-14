@@ -227,7 +227,7 @@ impl BankStatementOrchestrator {
             // transfer exists would be re-matched by the next statement import
             // and get a duplicate transfer. ProcedureUpdated is published once
             // at the end; the group event goes out per group, as before.
-            group.confirm_bank_payment();
+            group.confirm_bank_payment()?;
             settle_group(
                 self.group_settlement.as_ref(),
                 updated_procedures,
@@ -2375,7 +2375,7 @@ mod tests {
                     date,
                     total_amount,
                     lines,
-                    FundPaymentGroupStatus::BankPaid,
+                    FundPaymentGroupStatus::Active,
                     crate::context::fund::GroupOrigin::Payment,
                 ))
             },
@@ -2393,7 +2393,7 @@ mod tests {
                     NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                     100_000,
                     vec![line],
-                    FundPaymentGroupStatus::BankPaid,
+                    FundPaymentGroupStatus::Active,
                     crate::context::fund::GroupOrigin::Payment,
                 )))
             } else {

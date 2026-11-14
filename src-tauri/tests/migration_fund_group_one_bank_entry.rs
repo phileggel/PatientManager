@@ -1,0 +1,107 @@
+//! Upgrade test for migration 20261114_fund_group_one_bank_entry.sql (#640, BSM-038, BSM-038A).
+
+use sqlx::migrate::Migration;
+use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::SqlitePool;
+
+const VERSION: i64 = 20261114;
+
+fn migrations() -> Vec<Migration> {
+    sqlx::migrate!("./migrations").iter().cloned().collect()
+}
+
+async fn pool_before_the_migration() -> SqlitePool {
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect(":memory:")
+        .await
+        .expect("in-memory SQLite pool");
+    sqlx::query("PRAGMA foreign_keys = OFF")
+        .execute(&pool)
+        .await
+        .expect("foreign keys off");
+    for migration in migrations().iter().filter(|m| m.version < VERSION) {
+        sqlx::raw_sql(migration.sql.clone())
+            .execute(&pool)
+            .await
+            .unwrap_or_else(|e| panic!("migration {}: {e}", migration.version));
+    }
+    pool
+}
+
+async fn run_the_migration(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    let migration = migrations()
+        .into_iter()
+        .find(|m| m.version == VERSION)
+        .expect("the migration exists");
+    sqlx::raw_sql(migration.sql.clone())
+        .execute(pool)
+        .await
+        .map(|_| ())
+}
+
+async fn link(pool: &SqlitePool, id: &str, entry: &str, group: &str) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO bank_transfer_fund_group_link (id, bank_transfer_id, fund_payment_group_id)
+         VALUES (?, ?, ?)",
+    )
+    .bind(id)
+    .bind(entry)
+    .bind(group)
+    .execute(pool)
+    .await
+    .map(|_| ())
+}
+
+/// BSM-038 — after the upgrade the database refuses a second link to a group, and
+/// still takes several groups on one bank entry.
+#[tokio::test]
+async fn test_640_bsm_038_a_group_takes_one_bank_entry_after_the_upgrade() {
+    let pool = pool_before_the_migration().await;
+    link(&pool, "link-1", "entry-1", "group-1")
+        .await
+        .expect("seed");
+
+    run_the_migration(&pool)
+        .await
+        .expect("no double link: it runs");
+
+    link(&pool, "link-2", "entry-1", "group-2")
+        .await
+        .expect("another group on the same entry");
+    let err = link(&pool, "link-3", "entry-2", "group-1")
+        .await
+        .expect_err("a second entry for group-1");
+    assert!(
+        err.to_string().contains("UNIQUE constraint failed"),
+        "{err}"
+    );
+}
+
+/// BSM-038A — a group already linked twice stops the upgrade, its error names the
+/// group, and the links stay as they were.
+#[tokio::test]
+async fn test_640_bsm_038a_a_group_linked_twice_stops_the_upgrade_and_is_named() {
+    let pool = pool_before_the_migration().await;
+    link(&pool, "link-1", "entry-1", "group-twice")
+        .await
+        .expect("seed");
+    link(&pool, "link-2", "entry-2", "group-twice")
+        .await
+        .expect("seed");
+
+    let err = run_the_migration(&pool)
+        .await
+        .expect_err("the upgrade stops");
+
+    assert!(
+        err.to_string()
+            .contains("fund payment group linked to two bank entries: group-twice"),
+        "{err}"
+    );
+    let links: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bank_transfer_fund_group_link")
+        .fetch_one(&pool)
+        .await
+        .expect("count");
+    assert_eq!(links, 2);
+}

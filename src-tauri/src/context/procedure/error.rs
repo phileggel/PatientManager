@@ -18,6 +18,10 @@ use thiserror::Error;
 #[serde(tag = "code")]
 pub enum ProcedureError {
     // --- Procedure aggregate domain invariants ---
+    /// `Procedure::pay_directly`: the procedure is not `Created` (BSM-039).
+    #[error("Procedure is not in Created status: {procedure_id}")]
+    ProcedureStatusNotCreated { procedure_id: String },
+
     /// `Procedure::validate` or `Procedure::read_form` refused the procedure:
     /// every reason at once, one per field (PRO-125).
     #[error("Procedure is invalid: {reasons:?}")]

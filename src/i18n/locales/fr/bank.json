@@ -305,6 +305,8 @@
     "transfer_not_found": "Virement bancaire introuvable (id : {{id}})",
     "wrong_transfer_type": "Le type de ce virement ne correspond pas à l'opération demandée",
     "payment_group_not_found": "Groupe de paiement de caisse introuvable (id : {{id}})",
+    "payment_group_already_settled": "Ce groupe de paiement de caisse est déjà rapproché d'un virement (id : {{id}})",
+    "procedure_not_created": "Cet acte n'est plus à l'état créé (id : {{id}})",
     "unexpected": "Une erreur inattendue est survenue",
     "database_error": "Une erreur de base de données est survenue"
   },

@@ -54,6 +54,8 @@ export function formatFundError(err: FundError): {
         key: "fund:errors.payment_group_not_found",
         params: { id: err.fund_payment_group_id },
       };
+    // Raised by a bank entry's settlement only (BSM-037), never by the fund flows.
+    case "BankPaymentAlreadyConfirmed":
     case "DatabaseError":
       return { key: "fund:errors.database_error" };
   }

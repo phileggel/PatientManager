@@ -37,6 +37,18 @@ describe("formatBankManualMatchError", () => {
     });
   });
 
+  it("#640 BSM-037, BSM-039: a settled group and a procedure not created are named", () => {
+    expect(
+      formatBankManualMatchError({
+        code: "BankPaymentAlreadyConfirmed",
+        fund_payment_group_id: "fpg-1",
+      }),
+    ).toEqual({ key: "bank:errors.payment_group_already_settled", params: { id: "fpg-1" } });
+    expect(
+      formatBankManualMatchError({ code: "ProcedureStatusNotCreated", procedure_id: "p-1" }),
+    ).toEqual({ key: "bank:errors.procedure_not_created", params: { id: "p-1" } });
+  });
+
   it("maps the shared infra catch-all to database_error", () => {
     expect(formatBankManualMatchError({ code: "DatabaseError" }).key).toBe(
       "bank:errors.database_error",

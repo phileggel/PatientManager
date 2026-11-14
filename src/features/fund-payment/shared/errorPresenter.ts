@@ -43,9 +43,11 @@ export function formatManualManagementError(err: FundPaymentManualManagementErro
     case "TotalAmountNotPositive":
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
+    case "BankPaymentAlreadyConfirmed":
     // --- ProcedureError domain invariants (not expected in this flow) ---
     case "ProcedureInvalid":
     case "ProcedureNotFound":
+    case "ProcedureStatusNotCreated":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":
     case "ProcedureTypeNotFound":

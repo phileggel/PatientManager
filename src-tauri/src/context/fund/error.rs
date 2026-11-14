@@ -16,6 +16,11 @@ pub enum FundError {
     FundInvalid { reasons: Vec<FundInvalidReason> },
 
     // --- FundPaymentGroup aggregate domain invariants ---
+    /// `FundPaymentGroup::confirm_bank_payment`: a bank entry already settled
+    /// the group, or it is locked (BSM-037).
+    #[error("Bank payment already confirmed for fund payment group: {fund_payment_group_id}")]
+    BankPaymentAlreadyConfirmed { fund_payment_group_id: String },
+
     /// `FundPaymentGroup::validate` rejected an empty fund_id.
     #[error("Fund ID cannot be empty")]
     FundIdEmpty,

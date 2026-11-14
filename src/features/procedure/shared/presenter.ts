@@ -76,7 +76,8 @@ export function formatProcedureOrchestrationError(err: ProcedureOrchestrationErr
       return { key: "procedure:errors.refund_reason_too_long" };
     case "InvalidRefundDateFormat":
       return { key: "procedure:errors.invalid_refund_date_format" };
-    // --- shared infra ---
+    // --- shared infra; a direct payment's refusal (BSM-039) is not raised here ---
+    case "ProcedureStatusNotCreated":
     case "DatabaseError":
       return { key: "procedure:errors.database_error" };
   }

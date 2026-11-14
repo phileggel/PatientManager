@@ -44,6 +44,7 @@ export function formatOverpaymentError(err: OverpaymentError): {
     // --- shared infra + ProcedureError domain invariants (not reachable from overpayment) ---
     case "DatabaseError":
     case "ProcedureInvalid":
+    case "ProcedureStatusNotCreated":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":
     case "ProcedureTypeNotFound":

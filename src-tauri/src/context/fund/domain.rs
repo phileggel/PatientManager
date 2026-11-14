@@ -254,10 +254,17 @@ impl FundPaymentGroup {
     }
 
     /// Bank transfer matched: the group is settled and locked against edits
-    /// and deletion.
-    pub fn confirm_bank_payment(&mut self) {
+    /// and deletion. A group already settled or locked is not settled again
+    /// (BSM-037): one group, one bank entry.
+    pub fn confirm_bank_payment(&mut self) -> Result<(), FundError> {
+        if self.is_locked || self.status == FundPaymentGroupStatus::BankPaid {
+            return Err(FundError::BankPaymentAlreadyConfirmed {
+                fund_payment_group_id: self.id.clone(),
+            });
+        }
         self.status = FundPaymentGroupStatus::BankPaid;
         self.is_locked = true;
+        Ok(())
     }
 
     /// Bank transfer removed: the group is active again.
@@ -636,16 +643,32 @@ mod tests {
     fn todo_019_confirm_bank_payment_settles_and_locks_the_group() {
         let mut g = active_group();
 
-        g.confirm_bank_payment();
+        g.confirm_bank_payment().expect("an active group");
 
         assert_eq!(g.status, FundPaymentGroupStatus::BankPaid);
         assert!(g.is_locked);
     }
 
     #[test]
+    fn test_640_bsm_037_confirm_bank_payment_refuses_a_settled_or_locked_group() {
+        let mut settled = active_group();
+        settled.confirm_bank_payment().expect("an active group");
+        let mut locked = active_group();
+        locked.is_locked = true;
+
+        for group in [&mut settled, &mut locked] {
+            let id = group.id.clone();
+            assert!(matches!(
+                group.confirm_bank_payment(),
+                Err(FundError::BankPaymentAlreadyConfirmed { fund_payment_group_id }) if fund_payment_group_id == id
+            ));
+        }
+    }
+
+    #[test]
     fn todo_019_revert_bank_payment_makes_the_group_active_again() {
         let mut g = active_group();
-        g.confirm_bank_payment();
+        g.confirm_bank_payment().expect("an active group");
 
         g.revert_bank_payment();
 
