@@ -8,17 +8,6 @@ Recording an overpayment creates a "mirror" negative record across the entire ch
 
 ---
 
-## Prerequisites
-
-The following domain changes are required before this feature can be implemented:
-
-1. **`PaymentStatus` enum extension**: Add `Overpaid` and `OverpaymentRefund` to the `Procedure` payment status enum and the corresponding SQLite migration. The procedure lifecycle table in `procedure-orchestration.md` must also be updated to include these statuses (already done as part of this spec).
-2. **`TransferType` enum extension**: Add an `OutgoingWire` variant to the `BankTransfer.transfer_type` enum and the corresponding migration. This variant represents an outgoing refund payment (distinct from `Fund`, which is an incoming insurance payment). It is only creatable via the overpayment flow and must not be exposed in the bank statement manual-match UI.
-3. **POC R5 update**: The procedure deletion guard in `procedure-orchestration.md` (POC R5) must be extended to include `Overpaid` and `OverpaymentRefund`. REF-220 and REF-230 are the authoritative definitions; POC R5 must cross-reference them.
-4. **`ProcedureRefund` repository**: Although the entity spans multiple contexts, its persistence (repository trait, migration, SQLite implementation) is owned by the `context/procedure/` bounded context, as the `ProcedureRefund` record is a direct extension of the procedure domain.
-
----
-
 ## Entity Definition
 
 ### ProcedureRefund
@@ -27,13 +16,15 @@ Represents the link between the original paid procedure and the refund procedure
 
 **Context placement**: `use_cases/overpayment/` orchestrator; repository owned by `context/procedure/`.
 
-| Field                     | Business meaning                                                                                                                                                        |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `source_procedure_id`     | The original procedure that was overpaid.                                                                                                                               |
-| `refund_procedure_id`     | The new procedure created with a negative amount to represent the refund.                                                                                               |
-| `refund_date`             | The date the refund was recorded/paid.                                                                                                                                  |
-| `reason`                  | Optional text explaining why the refund was requested (max 255 chars).                                                                                                  |
-| `previous_payment_status` | The source procedure's payment status before it became `Overpaid` (`FundPayed` or `PartiallyFundPayed`). Used by REF-210 to revert the source to its exact prior state. |
+| Field                          | Business meaning                                                                                                                                                      |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source_procedure_id`          | The original procedure that was overpaid.                                                                                                                             |
+| `refund_procedure_id`          | The new procedure created with a negative amount to represent the refund.                                                                                             |
+| `refund_date`                  | The date the refund was recorded/paid.                                                                                                                                |
+| `reason`                       | Optional text explaining why the refund was requested (max 255 chars).                                                                                                |
+| `refund_fund_payment_group_id` | The refund fund payment group (REF-100).                                                                                                                              |
+| `refund_bank_transfer_id`      | The refund bank entry (REF-110).                                                                                                                                      |
+| `previous_payment_status`      | The source procedure's payment status before it became `Overpaid` (`FundPaid` or `PartiallyFundPaid`). Used by REF-210 to revert the source to its exact prior state. |
 
 ---
 
@@ -41,35 +32,25 @@ Represents the link between the original paid procedure and the refund procedure
 
 ### Eligibility and Initiation
 
-**REF-010 — Refund Eligibility (frontend + backend)**: Only procedures with a final payment status (`FundPayed`, `PartiallyFundPayed`) are eligible for a refund. Procedures in any other status cannot be selected as a source for an overpayment.
+**REF-010 — Refund Eligibility (backend)**: Only procedures with a final payment status (`FundPaid`, `PartiallyFundPaid`) are eligible for a refund. A source in any other status, or an unknown one, is refused with a specific error.
+
+**REF-011 — The source has a fund (backend)**: A source procedure with no fund is refused with a specific error (today checked after the refund procedure is written: ADR-002 until #390).
 
 **REF-020 — Full Refund Only (backend)**: An overpayment always covers the full amount of the original procedure. Partial refunds are not supported in V1. The backend rejects any request where the submitted amount differs from `source.procedure_amount`, returning a validation error.
 
-**REF-030 — Refund Date Validation (frontend + backend)**: The `refund_date` must be a valid date, not in the future, and cannot be earlier than the `confirmed_payment_date` of the source procedure. "The future" is judged against today's local date.
+**REF-030 — Refund Date Validation (backend)**: The `refund_date` must be a valid date, not in the future, and cannot be earlier than the `confirmed_payment_date` of the source procedure. "The future" is judged against today's local date. Any other date is refused with a specific error.
 
-**REF-031 — Refund Date Default (frontend)**: The "Record Overpayment" modal proposes today's local date as the refund date.
-
-**REF-040 — Reason Field Validation (frontend + backend)**: The `reason` field is optional, but if provided, it must not exceed 255 characters, counted the same way on both sides: one Unicode code point is one character, so a precomposed accented letter is one and a composed emoji or a decomposed letter is several.
+**REF-040 — Reason Field Validation (backend)**: The `reason` field is optional, but if provided, it must not exceed 255 characters, counted in Unicode code points: one code point is one character, so a precomposed accented letter is one and a composed emoji or a decomposed letter is several. A longer reason is refused with a specific error.
 
 ### Creation of Refund Records
 
 **REF-050 — Atomic Refund Creation (backend)**: Creating an overpayment is a single database transaction. If any step fails, the entire operation rolls back and no record is persisted. Not so yet: the code follows ADR-002 until #390 ships (owner, 2026-10-24).
 
-**REF-060 — Refund Payment Method Validation (frontend + backend)**: The user must select a payment method for the refund. Accepted values are `CreditCard`, `Check`, and `OutgoingWire` (domain enum names). `Cash` and `Fund` are not accepted for refunds: `Fund` is an incoming payment type and `Cash` cannot be remitted to an insurance body. The backend rejects any other value with a validation error.
+**REF-060 — Refund Payment Method Validation (backend)**: A refund names its payment method. Accepted values are `CreditCard`, `Check`, and `OutgoingWire`. `Cash` and `Fund` are not accepted for refunds: `Fund` is an incoming payment type and `Cash` cannot be remitted to an insurance body. The backend rejects any other value with a validation error.
 
-**REF-070 — Bank Account Selection (frontend + backend)**: The refund bank transfer must be linked to a `bank` account; a technical one is refused as unknown (BAC-055A). Resolution logic:
+**REF-070 — Bank Account (backend)**: The refund bank transfer must be linked to a `bank` account; a technical one is refused as unknown (BAC-055A), and a refund that names no account is refused. With no `bank` account in the system, no refund can be recorded.
 
-- If **no `bank` account exists** in the system: the "Refund" button is disabled and a message is shown — "A bank account must be created before recording a refund."
-- If **exactly one `bank` account** exists: the selector is pre-filled with it automatically.
-- If **multiple `bank` accounts** exist: the selector is pre-filled with the bank account from the source procedure's original bank entry. "Resolvable" means the source has a linked bank entry whose `bank_account_id` is a `bank` account (BAC-055): a direct payment's technical account never resolves. If not resolvable, the selector is shown empty and the user must pick one.
-
-The backend rejects the request if no `bank_account_id` is provided.
-
-**REF-071 — Failed Source Account Lookup (frontend)**: With multiple bank accounts, if looking up the bank account of the source procedure's original bank entry fails, an error snackbar is shown and the selector is not pre-filled; an account already picked stays (REF-073).
-
-**REF-072 — Selector Usable During Pre-fill (frontend)**: While the source's account is still being looked up, the user can pick an account in the selector.
-
-**REF-073 — A Picked Account Stays (frontend)**: An account the user has picked before the pre-fill arrives is never replaced by it.
+**REF-075 — The source's bank account (backend)**: The source's bank account is the account of its original bank entry when that is a `bank` account (BAC-055); a direct payment's technical account, an unknown source or a source with no bank entry has none.
 
 **REF-080 — OutgoingWire Transfer Type Exclusivity (backend)**: The `OutgoingWire` variant of `TransferType` is only creatable through the overpayment flow. The bank statement manual-match command rejects any attempt to create a bank transfer with `transfer_type = OutgoingWire`.
 
@@ -88,7 +69,7 @@ The backend rejects the request if no `bank_account_id` is provided.
 - `fund_id` from the source procedure.
 - `total_amount` = `-source.procedure_amount`.
 - `payment_date` = `refund_date`.
-- `status` = `BankPayed` (direct assignment, bypasses normal reconciliation flow intentionally).
+- `status` = `BankPaid` (direct assignment, bypasses normal reconciliation flow intentionally).
 - `is_locked` = `true`.
 - One `FundPaymentLine` entry linking the refund procedure (REF-090) to this group, consistent with the invariant that all `FundPaymentGroup` records contain at least one line.
 
@@ -99,7 +80,7 @@ The backend rejects the request if no `bank_account_id` is provided.
 - `transfer_type` = the payment method selected by the user (REF-060).
 - `bank_account_id` = the bank account selected by the user (REF-070).
 
-**REF-120 — Bank Transfer Link Creation (backend)**: A `BankTransferLink` record is created linking the refund bank transfer (REF-110) to the refund fund payment group (REF-100), maintaining the junction table invariant that all `BankPayed` groups have a corresponding link entry.
+**REF-120 — Bank Transfer Link Creation (backend)**: A `BankTransferLink` record is created linking the refund bank transfer (REF-110) to the refund fund payment group (REF-100), maintaining the junction table invariant that all `BankPaid` groups have a corresponding link entry.
 
 **REF-130 — Refund Link (backend)**: Every overpayment must be recorded in the `ProcedureRefund` table, linking the source procedure to the refund procedure, storing the provided reason, and storing the source procedure's current `payment_status` as `previous_payment_status` at the moment of creation.
 
@@ -113,26 +94,13 @@ The backend rejects the request if no `bank_account_id` is provided.
 
 **REF-170 — Refund Procedure Type Propagation (backend)**: If the `procedure_type_id` of an `Overpaid` source procedure is updated, the linked `OverpaymentRefund` procedure's `procedure_type_id` is updated to match in the same operation. This logic is implemented by augmenting the existing `update_procedure` Tauri command in `use_cases/procedure_orchestration/`: the orchestrator checks whether the updated procedure has `Overpaid` status; if so, it queries `ProcedureRefund` by `source_procedure_id` to locate the linked refund procedure and applies the same `procedure_type_id` update atomically. For all other statuses, the orchestrator skips this step.
 
-### Display
+### Edit
 
-**REF-180 — Status Badge Colors (frontend)**: The `Overpaid` and `OverpaymentRefund` statuses use `bg-m3-error-container / text-m3-on-error-container` badge tokens, distinct from all other payment status badges.
-
-**REF-190 — Overpaid Procedure Modal Mode (frontend)**: A procedure with `Overpaid` status opens in a dedicated partial-edit mode in `EditProcedureModal`:
-
-- `procedure_type_id` is editable and required; changing it and clicking "Save" fires the existing `update_procedure` command (augmented per REF-170). An empty type is refused by the backend and shown under the field (PRO-125, PRO-122); an unchanged type closes the modal silently (PRO-121).
-- All other fields are read-only.
-- The "Cancel Refund" button is present (triggers REF-210).
-- The "Delete" button is absent.
-
-**REF-200 — OverpaymentRefund Procedure Modal Mode (frontend)**: A procedure with `OverpaymentRefund` status opens in full read-only mode in `EditProcedureModal`:
-
-- All fields are read-only.
-- The "Cancel Refund" button is present (triggers REF-210).
-- The "Delete" button is absent.
+**REF-200 — A refund procedure is not edited (backend)**: An edit of a procedure in `OverpaymentRefund` status is refused with a specific error, and nothing is saved; REF-170's propagation from its source aside.
 
 ### Deletion
 
-**REF-210 — Cancellation of Overpayment (backend)**: Cancelling a refund is a single database transaction, executed in reverse creation order (not yet a transaction: ADR-002 until #390, owner, 2026-10-24). The cancellation command always receives the `source_procedure_id` as its identifier. When triggered from the `OverpaymentRefund` modal (REF-200), the frontend resolves the `source_procedure_id` from the `ProcedureRefund` record loaded with the modal. The backend looks up the `ProcedureRefund` record by `source_procedure_id` to obtain all related IDs before proceeding:
+**REF-210 — Cancellation of Overpayment (backend)**: Cancelling a refund is a single database transaction, executed in reverse creation order (not yet a transaction: ADR-002 until #390, owner, 2026-10-24). A cancellation names the overpaid source procedure; from the refund procedure, its refund record (REF-130) gives the source. With no overpayment for the source, it is refused with a specific error. The refund record gives every related record:
 
 1. Revert the source procedure's `payment_status` to the value stored in `ProcedureRefund.previous_payment_status`.
 2. Delete the `ProcedureRefund` link entry.
@@ -143,11 +111,9 @@ The backend rejects the request if no `bank_account_id` is provided.
 
 If any step fails, the entire operation rolls back.
 
-**REF-215 — Cancel confirmation outcome (frontend)**: While the cancellation runs, the confirmation dialog's buttons are disabled. When it succeeds, a success snackbar is shown, the dialog and the procedure modal close and the list reloads; when it fails, the dialog stays open and an error snackbar names the cause.
-
 **REF-220 — Deletion of Overpaid Source Procedure (backend)**: A source procedure with `Overpaid` status cannot be deleted directly. Its linked overpayment must be cancelled first (REF-210).
 
-**REF-230 — Deletion of Refund Procedure (backend)**: A refund procedure with `OverpaymentRefund` status cannot be deleted directly. Cancellation must be initiated via the procedure detail modal as described in REF-210.
+**REF-230 — Deletion of Refund Procedure (backend)**: A refund procedure with `OverpaymentRefund` status cannot be deleted directly. Only the refund's cancellation (REF-210) removes it.
 
 **REF-240 — Refund Fund Payment Group Deletion Guard (backend)**: The refund `FundPaymentGroup` (created by REF-100) cannot be deleted directly via `delete_fund_payment_group`. It can only be removed as part of the REF-210 cancellation cascade. The backend rejects any direct deletion attempt with an explicit error.
 
@@ -158,13 +124,12 @@ If any step fails, the entire operation rolls back.
 ```text
 [User selects a paid procedure]
   → Checks eligibility (REF-010)
-  → Checks bank account availability (REF-070)
           │
           ▼
 [User enters refund details]
-  → Refund date (REF-030, REF-031)
+  → Refund date (REF-030)
   → Payment method (REF-060)
-  → Bank account, pre-filled or empty (REF-070 to REF-073)
+  → Bank account (REF-070)
   → Optional reason (REF-040)
           │
           ▼
@@ -177,7 +142,7 @@ If any step fails, the entire operation rolls back.
   → Update source procedure status → Overpaid (REF-160)
 
 [Cancellation — single transaction (REF-210)]
-  → User clicks "Cancel Refund" on Overpaid or OverpaymentRefund procedure
+  → Names the source procedure (REF-210)
   → Revert source status (from ProcedureRefund.previous_payment_status)
   → Delete ProcedureRefund link
   → Delete BankTransferLink
@@ -185,61 +150,6 @@ If any step fails, the entire operation rolls back.
   → Delete refund fund payment group and its lines
   → Delete refund procedure
 ```
-
----
-
-## UX Draft
-
-### Entry Point — Create Refund
-
-A "Refund" button is available in the `EditProcedureModal` when the procedure status is `FundPayed` or `PartiallyFundPayed`.
-
-- If no bank account exists in the system, the button is disabled with a tooltip message (REF-070).
-- The button is hidden when the status is `Overpaid` or `OverpaymentRefund`.
-
-### Entry Point — Cancel Refund
-
-A "Cancel Refund" button is available in the `EditProcedureModal` for:
-
-- The **source procedure** when its status is `Overpaid` (REF-190).
-- The **refund procedure** when its status is `OverpaymentRefund` (REF-200).
-
-### States
-
-- **Refund button disabled**: When no bank account exists in the system, the "Refund" button is disabled and shows a tooltip — "A bank account must be created before recording a refund." (REF-070). The modal does not open.
-- **Loading (create)**: The modal displays a loading spinner while processing the refund.
-- **Loading (cancel)**: The confirmation dialog displays a loading spinner while the cancellation cascade runs.
-- **Loading (procedure type save)**: The save button is disabled and shows a spinner while the `procedure_type_id` update and REF-170 propagation are in progress.
-- **Error (create)**: Validation errors (REF-030, REF-040) are displayed inline; backend errors show a snackbar. The modal remains open.
-- **Error (cancel)**: If the cancellation fails, the confirmation dialog stays open and a snackbar error is shown (REF-215). No partial state is persisted (full rollback per REF-210).
-- **Error (procedure type save)**: A snackbar error is shown; the modal remains open with the previously entered value.
-- **Success (create)**: A success toast is shown and the modal closes.
-- **Success (cancel)**: A success toast is shown and the modal closes. The source procedure's status badge reverts.
-- **Success (procedure type save)**: A success toast is shown and the modal closes.
-
-### User Flow — Create Refund
-
-1. User opens the `EditProcedureModal` for an eligible procedure and clicks "Refund".
-2. The "Record Overpayment" modal opens, pre-filled with source details.
-3. User fills in:
-   - **Repayment Date** (REF-030, REF-031)
-   - **Payment Method** — Credit Card, Check, or Outgoing Wire Transfer (REF-060)
-   - **Bank Account** — pre-filled or empty per REF-070 to REF-073
-   - **Reason** — optional (REF-040)
-4. User clicks "Confirm Refund".
-5. A Confirmation Dialog appears, summarizing the financial impact:
-   - **Source**: [Patient Name] ([Original Amount]) → Status: `Overpaid`.
-   - **Refund**: New record of -[Original Amount] on [Repayment Date].
-   - **Accounting**: "This will create a negative bank transfer and fund payment group."
-6. Upon user confirmation, the refund process is initiated.
-7. After success, the source procedure's status badge updates to `Overpaid`.
-
-### User Flow — Cancel Refund
-
-1. User opens the `EditProcedureModal` for an `Overpaid` or `OverpaymentRefund` procedure and clicks "Cancel Refund".
-2. A Confirmation Dialog appears: "This will permanently cancel the refund and revert the source procedure to its previous status."
-3. Upon user confirmation, the cancellation cascade is initiated (REF-210).
-4. After success, the source procedure's status badge reverts to `FundPayed` or `PartiallyFundPayed`.
 
 ---
 

@@ -1,135 +1,72 @@
-# Business Rules — Procedure Entry (Procedure Orchestration)
+# Business Rules — Procedure Orchestration (PRO)
 
 ## Context
 
-The procedure-entry page is the main data-entry screen. It lets practitioners record
-medical procedures month by month, via a read-only list. Procedures are created through
-a modal form and edited through that same modal. Inline editing was removed in favor of
-the modal workflow.
-
-On the backend, the feature is built on `use_cases/procedure_orchestration/`, which
-orchestrates the `patient`, `fund`, and `procedure` contexts: FK validation, payment
-status inference, and patient tracking-field updates as side effects.
+Practitioners record medical procedures, one per service rendered to a patient, and edit or
+delete them while no payment ties them. The use case orchestrates the `patient`, `fund` and
+`procedure` contexts: reference checks, payment status inference, and the patients' tracking
+fields as side effects. The screens are described by their validated mocks
+(`docs/workflow.md` § Design).
 
 ---
 
-## Frontend rules
+## Entity Definition
 
-**PRO-010 (R1) — Period filter**: Procedures are filtered by month and year. By default, the period matches the current month and year. The selected period persists across navigations via `sessionStorage` (`procedureSelectedMonth`, `procedureSelectedYear`).
+### Procedure
 
-> _R2 and R3 have been removed._
+A healthcare procedure rendered to one patient, with its billing and payment state.
 
-**PRO-020 (R4) — Pre-fill on patient selection**: In creation mode, when a patient is selected in the modal, the fund, procedure type, and amount are pre-filled from the patient's most recent procedure (`latest_fund`, `latest_procedure_type`, `latest_procedure_amount`) only when the corresponding form field is in its not-initialized state. Today's date is also pre-filled if no date has been entered yet.
-
-**PRO-025 — Pre-fill on procedure type selection**: In creation mode, when a procedure type is selected or changed, the amount field (`billed_amount`) is pre-filled from that type's `default_amount` only when the amount field is in its not-initialized state. Once the user has entered a value, subsequent procedure-type changes do not overwrite it. Clearing the amount field returns it to its not-initialized state, re-enabling propagation.
-
-**PRO-030 (R5) — Deletion (backend)**: Deleting a procedure removes it and is signaled through the `ProcedureUpdated` event. The deletion is refused with a specific error, and nothing changes, while the procedure is tied to a payment: in `Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `Overpaid` (see REF-220) or `OverpaymentRefund` (see REF-230) status, or, whatever its status, while a fund payment line, a bank entry or a refund record still refers to it. To delete it, its payment is removed first. Deleting a procedure that does not exist, an already deleted one included, is refused with a specific error, and nothing changes.
-
-**PRO-031 — Deleted procedures removed on upgrade (backend)**: Procedures deleted before deletion was real, hidden but kept, are removed when the application is upgraded, unless a fund payment line, a bank entry or a refund record still refers to one (PRO-032). Patient tracking is not recomputed, PRO-270's limitation applying (owner, 2026-11-01, #579).
-
-**PRO-032 — A deleted procedure still referred to comes back (backend)**: A procedure PRO-031 keeps, because a payment record still refers to it, is listed again as it was stored: its status, its patient, its type and its fund (owner, 2026-11-01, #579).
-
-**PRO-040 (R6) — Modal routing by status (frontend)**: A double-click on a row, or a click on the Edit button, opens the modal in the mode matching the procedure's status. Procedures whose status is non-blocking (`None`, `Created`, `ImportDirectlyPaid`, `ImportFundPaid`) open in edit mode (see PRO-050). Procedures whose deletion is blocked (`Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `OverpaymentRefund`) open in partial-view mode (see PRO-190). Procedures in `Overpaid` status open in a dedicated partial-edit mode (see REF-190): the `procedure_type_id` field is editable, with propagation to the linked refund (see REF-170); all other fields are read-only; the "Cancel refund" button is present.
-
-**PRO-050 (R30) — Modal contents in edit mode (frontend)**: In edit mode, the modal pre-fills all fields from the existing procedure. Editable fields: `patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`. Patient selection happens through a ComboboxField (see PRO-150, PRO-160). Payment information (`payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `payment_status`, `actual_payment_amount`) is not displayed — those fields are edited exclusively through the management of bank transfers and transactions. The procedure's technical id is not displayed. While saving, the button is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed (an unchanged edit: PRO-121); on backend or network error, the modal stays open and an error snackbar is displayed (a refused field: PRO-122).
-
-**PRO-060 (R7) — Aggregate statistics**: The header bar displays aggregate statistics for the filtered rows (period + search): unique patient count, procedure count, billed total (`procedureAmount`), received total (`actualPaymentAmount`), and awaited total (`max(0, procedureAmount − actualPaymentAmount)` per row). Draft rows (procedures with `isDraft` true, i.e. procedures being entered for the active period) are excluded from all statistics.
-
-**PRO-070 (R8) — Refresh on event**: When the backend emits a `procedure_updated` event (relayed by
-`useCacheSync`), the procedure list is refreshed automatically. Reload failures must be
-logged and surfaced to the user via a toast.
-
-**PRO-080 (R9) — Inline patient creation (frontend)**: From the patient field **in creation mode only**, the practitioner can create a new patient without closing the modal. The creation form appears in a nested modal; on validation, the new patient is automatically selected. This feature is not available in edit mode.
-
-**PRO-081 — Refusals of the inline patient creation (frontend)**: The new-patient form's create button is enabled whenever nothing is being saved. An empty name is refused by the backend and shown under the name, cleared once the name changes; any other refusal keeps the form open, its reason shown in the form.
-
-**PRO-090 (R10) — Status badge (frontend)**: Each procedure's payment status is displayed as a badge styled by its status (`Overpaid` and `OverpaymentRefund`: REF-180).
-M3 token mapping:
-
-- `NONE` → `bg-m3-surface-container-high` / `text-m3-on-surface-variant`
-- `CREATED` → `bg-m3-secondary-container` / `text-m3-on-secondary-container`
-- `RECONCILIATED` → `bg-m3-tertiary-container` / `text-m3-on-tertiary-container`
-- `PARTIALLY_RECONCILED` → outlined, no fill: `border border-m3-tertiary` / `text-m3-tertiary`
-- `DIRECTLY_PAYED`, `FUND_PAYED`, `IMPORT_DIRECTLY_PAYED`, `IMPORT_FUND_PAYED` →
-  `bg-m3-primary-container` / `text-m3-on-primary-container`
-- `PARTIALLY_FUND_PAYED` → outlined, no fill: `border border-m3-primary` / `text-m3-primary`
-
-> **Note on `NONE`**: this status is the default initial value of the Rust domain model. It is never assigned by this feature at creation (see PRO-230 — the minimum assigned is `Created`). It can appear on legacy data predating the formalization of the status lifecycle. A `NONE` procedure is treated as eligible for deletion and editing.
-
-**PRO-100 (R11) — Search filter**: A free-text search filters the period's rows by patient name, procedure name, fund name, or social-security number (SSN). This filter and the status filter (PRO-180) are applied cumulatively.
-
-**PRO-110 (R12) — FAB to create**: A Floating Action Button (FAB, bottom-right, 56×56 px,
-`rounded-full`) opens `ProcedureFormModal` in creation mode. The table occupies the full
-content width.
-
-**PRO-120 (R27) — Form validation (frontend)**: Three fields are required: the patient (`patient_id`), the procedure type (`procedure_type_id`), and the execution date (`procedure_date`); the backend judges them (PRO-125), the form marks none of them as required (no marker, no native `required` attribute), and it shows the refusals as PRO-122 says. The fund (`fund_id`) is optional. The amount (`billed_amount`) is a mandatory domain field stored as a non-null integer in thousandths of a euro; the form displays an empty input box when the field has not been initialized by the user nor by propagation (PRO-020, PRO-025), in which case the submitted value is `0`.
-
-**PRO-121 — An unchanged edit closes silently (frontend)**: When an edit is reported as unchanged (PRO-255), the modal closes with no snackbar and the list is not refreshed.
-
-**PRO-122 — Refusals shown at the field (frontend)**: When the backend refuses the form under PRO-125, each refused field shows its own message under it (an empty date and a malformed date have different messages; the texts are the `procedure:form_errors` keys of the locale files). A new submit first clears every message. Any other refusal shows no message at a field.
-
-**PRO-123 — A field's message clears when it is edited (frontend)**: A field's message clears once its value changes; for the patient field, once a patient is selected.
-
-**PRO-124 — The snackbar of a refusal (frontend)**: Every refusal, under PRO-125 or not, also shows the mode's error snackbar.
-
-**PRO-126 — Save always enabled (frontend)**: In every mode with an editable field (creation, edit, partial view, Overpaid), Save is enabled whenever nothing is being saved; the form never checks its fields itself (owner, 2026-10-18).
-
-**PRO-130 (R28) — SSN display format (frontend)**: When the patient's social-security number (SSN — `ssn` field) is set, it is displayed in parentheses immediately after the patient's name. Example: `DUPOND Floriane (1234567890123)`. If the patient has no SSN, the parentheses and their content are omitted.
-
-**PRO-140 (R31) — Contexts where the SSN format applies (frontend)**: The format defined in PRO-130 applies in three contexts: the dropdown items of the patient ComboboxField (see PRO-150), the displayed value in the ComboboxField after selection, and the read-only patient display in the partial-view modal (see PRO-190).
-
-**PRO-150 (R29) — Patient search via ComboboxField (frontend)**: The patient field in creation mode and edit mode is a text-search ComboboxField. Typing filters the patient list in real time by name or by SSN. Each entry displays the patient using the PRO-130 format. When the search returns no result, a neutral message is displayed.
-
-**PRO-160 (R32) — ComboboxField behavior by mode (frontend)**: In creation mode, the inline patient-creation button (see PRO-080) remains visible even when the search returns no result. In edit mode, the ComboboxField is pre-positioned on the patient of the existing procedure, displayed using the PRO-130 format; when the search returns no result, only the neutral message is shown (see PRO-150) — no creation button is present.
-
-**PRO-170 (R24) — Opening sort (frontend)**: The procedure list opens sorted by procedure date, ascending, and the procedure date column header shows it.
-
-**PRO-170A — Sortable columns (frontend)**: A click on a column header sorts by that column, for these columns: patient name, procedure date, billed amount, status.
-
-**PRO-170B — Sort cycle (frontend)**: A column goes ascending → descending → the opening sort. The procedure date column, ascending when the list opens, goes to descending and back.
-
-**PRO-170C — Equal values (frontend)**: Rows with an equal value in the sorted column keep the order the period's rows were loaded in; there is no second sort key.
-
-**PRO-170D — Empty values (frontend)**: A row with no value in the sorted column comes last, ascending and descending.
-
-**PRO-170E — How long a sort lasts (frontend)**: A chosen sort lasts while the list stays on screen: changing the period or the filters, or a refresh of the rows, keeps it. Coming back to the page opens the list as PRO-170 says.
-
-**PRO-170F — One sort at a time (frontend)**: One sort is active at a time, and only the sorted column's header shows its direction.
-
-**PRO-170G — Text order (frontend)**: Text sorts alphabetically, ignoring case and accents. Status sorts the same way on its `payment_status` code, not its label.
-
-**PRO-180 (R25) — Status filter**: A dedicated selector restricts the display to a specific payment status. This filter is independent of the text search (PRO-100); both filters are applied cumulatively to the rows of the period.
-
-**PRO-190 (R26) — Partial view (blocking-status procedures)**: Procedures whose deletion is blocked (see PRO-030 — statuses `Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `OverpaymentRefund`) open in a partial-view modal (mode="view"). The `procedure_type_id` field stays editable; all other fields are displayed read-only. Read-only fields displayed: the patient's name (with SSN in parentheses if set, see PRO-130), the procedure date, the billed amount, and the fund. Payment information is not displayed. The procedure's technical id is not displayed. A save button is present so that the procedure type can be edited; while saving, it is disabled and shows a loading indicator; after a successful save, the modal closes and a success snackbar is displayed (an unchanged edit: PRO-121); on backend or network error, the modal stays open and an error snackbar is displayed (a refused field: PRO-122). The delete button is absent or disabled.
+| Field                      | Business meaning                                                   |
+| -------------------------- | ------------------------------------------------------------------ |
+| `patient_id`               | The patient the procedure was rendered to                          |
+| `fund_id`                  | The fund that pays it, if any; none for a patient's direct payment |
+| `procedure_type_id`        | What kind of procedure it is                                       |
+| `procedure_date`           | When it was rendered                                               |
+| `billed_amount`            | What was invoiced to the fund or patient                           |
+| `paid_amount`              | What was actually received; may differ from `billed_amount`        |
+| `payment_method`           | How it was paid                                                    |
+| `fund_reconciliation_date` | When a fund's payment statement matched it (stage 1)               |
+| `confirmed_payment_date`   | When its payment reached the bank (stage 2)                        |
+| `payment_status`           | Where it stands in its payment lifecycle (§ Status lifecycle)      |
 
 ---
 
-## Backend rules
+## Business Rules
 
-**PRO-200 (R13) — Mandatory-field validation**: A procedure requires a non-empty `patient_id`,
+### Creation and validation
+
+**PRO-200 (R13) — Mandatory-field validation (backend)**: A procedure requires a non-empty `patient_id`,
 `procedure_type_id`, and `procedure_date`. Both date fields (`procedure_date`,
-`confirmed_payment_date`) must be in ISO 8601 format (YYYY-MM-DD); an invalid format is
-rejected when the domain object is constructed. `fund_id` is optional.
+`confirmed_payment_date`) must be in ISO 8601 format (YYYY-MM-DD); a malformed one is
+refused with a specific error. `fund_id` is optional.
 
 **PRO-125 — Required fields refused at once (backend)**: Creating a single procedure, or editing one, whose patient, procedure type or date is empty (a blank value counts as empty), or whose date is not a valid YYYY-MM-DD date, is refused naming every such field at once, one reason per field (an empty date and a malformed date are two different reasons); nothing is saved. Batch creation (PRO-300) is not covered.
 
-**PRO-210 (R14) — FK existence validation at creation**: Before persistence, the orchestration
-checks that `patient_id` and `procedure_type_id` reference existing entities. If
-`fund_id` is provided, the fund must also exist. Any missing reference aborts creation
-with an error.
+**PRO-210 (R14) — Reference existence at creation (backend)**: Before anything is saved, the
+creation checks that `patient_id` and `procedure_type_id` reference existing entities. If
+`fund_id` is provided, the fund must also exist. Any missing reference refuses the creation
+with a specific error.
 
-**PRO-220 (R15) — Payment-method inference at creation**: At creation or import only, `payment_method` is determined from the raw data. When created via the frontend form, the `add_procedure` command exposes neither the `payment_method` nor the `confirmed_payment_date` parameter — the method is therefore always `None` and the initial status is always `Created` (see PRO-230). At Excel import, the codes from column `T` are translated: code `"ES"` → `Cash`; code `"CH"` → `Check`; date present + any other code or absent → `BankTransfer`. After creation, `payment_method` is updated atomically by the reconciliation use cases (see dedicated specs) via the `update_procedure` command (PRO-250) — it is not exposed in the edit form (see PRO-040).
+**PRO-220 (R15) — Payment-method inference at creation (backend)**: At creation or import only, `payment_method` is determined from the raw data. A single creation carries neither a payment method nor a confirmed payment date — the method is therefore always `None` and the initial status always `Created` (see PRO-230). At Excel import, the codes from column `T` are translated: code `"ES"` → `Cash`; code `"CH"` → `Check`; date present + any other code or absent → `BankTransfer`. After creation, `payment_method` is changed by the reconciliation use cases (see their specs).
 
-**PRO-230 (R16) — Initial status determination**: The status is computed by the orchestration,
-never accepted as-is from the caller. A procedure is "paid" if (`confirmed_payment_date`
-is present AND `actual_payment_amount > 0`) OR (`actual_payment_amount >= procedure_amount`).
+**PRO-230 (R16) — Initial status determination (backend)**: The status is computed at creation,
+never taken as sent. A procedure is "paid" if (`confirmed_payment_date`
+is present AND `paid_amount > 0`) OR (`paid_amount >= billed_amount`).
 Unpaid → `Created`. Paid + (ES/CH method OR no fund) → `ImportDirectlyPaid`. Paid +
-non-ES/CH method + fund present → `ImportFundPaid`. `None` is never assigned at creation.
+non-ES/CH method + fund present → `ImportFundPaid`. `None` is never assigned at creation. A single creation publishes `ProcedureUpdated`; a batch follows PRO-300.
 
-**PRO-240 (R17) — `awaited_amount` ignored**: The `awaited_amount` value sent by the caller is
-always ignored and never persisted.
+**PRO-240 (R17) — Awaited amount ignored (backend)**: An imported row's awaited amount is ignored and
+never stored.
 
-**PRO-250 (R18) — Free updates from the frontend (backend)**: The `update_procedure` command accepts every procedure field (`patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `procedure_amount`, `payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `actual_payment_amount`, `payment_status`) without re-inference. References are checked as PRO-251 says. The backend imposes no restriction on which fields are editable based on the procedure's status (including blocking statuses) — the restriction to `procedure_type_id` only for blocking-status procedures is guaranteed exclusively by the frontend (see PRO-190).
+**PRO-300 (R23) — Batch creation: single transaction and at most one event (backend)**: A
+batch of procedures (the Excel import, EXI-175) is persisted in a single transaction and
+raises at most one `ProcedureUpdated` event, regardless of batch size (EXI-177).
+
+### Edit
+
+**PRO-250 (R18) — Updates without re-inference (backend)**: An edit takes every procedure field (`patient_id`, `fund_id`, `procedure_type_id`, `procedure_date`, `billed_amount`, `payment_method`, `fund_reconciliation_date`, `confirmed_payment_date`, `paid_amount`, `payment_status`) as sent, without re-inference, within PRO-190's restriction. References are checked as PRO-251 says.
+
+**PRO-190 (R26) — A paid procedure changes its type only (backend)**: An edit of a procedure whose stored status is blocking (PRO-030A) that changes anything but its procedure type is refused with a specific error, and nothing is saved; an `Overpaid` procedure's type change reaches its refund (REF-170). A procedure in `OverpaymentRefund` status follows REF-200 (owner, 2026-11-14, #646).
 
 **PRO-251 — References checked on edit (backend)**: An edit that changes the patient, the procedure type or the fund to one that does not exist is refused, naming the first one found in the order patient, procedure type, fund; nothing is saved. A reference the edit keeps stays valid (owner, 2026-10-18: the backend judges what it receives, whoever sends it); a procedure type, a fund or a patient in use cannot be deleted (R24 of the procedure-type spec, PRO-291, PRO-296).
 
@@ -139,26 +76,39 @@ always ignored and never persisted.
 
 **PRO-256 — Order of refusals (backend)**: On an edit, PRO-125 is checked first, then PRO-252, then PRO-251; PRO-255 applies only to an edit none of them refuses. On a creation, PRO-125 is checked before PRO-210.
 
-**PRO-260 (R19) — Patient tracking on creation**: After a successful creation (single or batch), if
-`procedure_date > patient.latest_date` (or `latest_date` is null), the orchestration
-updates the patient's tracking fields: `latest_date`, `latest_procedure_type`,
-`latest_fund`, `latest_procedure_amount`. In batch mode, the most recent procedure of the
-batch is identified per patient and a single update is applied per patient. If the new
-procedure has no fund (`fund_id` absent — direct-payment procedure), `latest_fund` must be
-cleared to reflect that the latest known procedure is no longer linked to a fund.
+### Deletion
 
-> **Known limitation**: the current implementation only updates `latest_fund` when
-> `fund_id` is present — it does not clear it when the most recent procedure has no fund.
-> This behavior is to be fixed (see `docs/todo.md`).
+**PRO-030 (R5) — Deletion (backend)**: Deleting a procedure nothing ties removes it and is signaled through the `ProcedureUpdated` event.
 
-**PRO-270 (R20) — Patient tracking on deletion**: After a procedure is deleted, if the patient has no remaining procedures and `latest_date` is set, the four tracking fields are cleared. Known limitation: if the deleted procedure was the most recent but the patient has other procedures, the tracking fields are not recomputed — they keep their old values until a more recent procedure is created.
+**PRO-030A — A paid procedure is kept (backend)**: Deleting a procedure in a blocking status — `Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `DirectlyPaid`, `Overpaid` (see REF-220) or `OverpaymentRefund` (see REF-230) — is refused with a specific error, and nothing changes. To delete it, its payment is removed first.
 
-**PRO-280 (R21) — Cascading clear on procedure-type deletion**: When a procedure type is deleted,
+**PRO-030B — A procedure a payment record names is kept (backend)**: Whatever its status, deleting a procedure that a fund payment line, a bank entry or a refund record still refers to is refused with a specific error, and nothing changes.
+
+**PRO-030C — An unknown procedure (backend)**: Deleting a procedure that does not exist, an already deleted one included, is refused with a specific error, and nothing changes.
+
+**PRO-031 — Deleted procedures removed on upgrade (backend)**: Procedures deleted before deletion was real, hidden but kept, are removed when the application is upgraded, unless a fund payment line, a bank entry or a refund record still refers to one (PRO-032). The upgrade does not recompute the patients' tracking fields (owner, 2026-11-01, #579).
+
+**PRO-032 — A deleted procedure still referred to comes back (backend)**: A procedure PRO-031 keeps, because a payment record still refers to it, is listed again as it was stored: its status, its patient, its type and its fund (owner, 2026-11-01, #579).
+
+### Patient tracking
+
+**PRO-260 (R19) — Patient tracking on creation (backend)**: After a successful creation (single or batch), if
+`procedure_date > patient.latest_date` (or `latest_date` is null), the patient's tracking
+fields are updated: `latest_date`, `latest_procedure_type`, `latest_fund`,
+`latest_procedure_amount`. In batch mode, the most recent procedure of the batch is
+identified per patient and a single update is applied per patient. If the new procedure has
+no fund (a direct-payment procedure), `latest_fund` is cleared.
+
+**PRO-270 (R20) — Patient tracking on deletion (backend)**: After a procedure is deleted, the patient's four tracking fields follow their most recent remaining procedure; with none left, they are cleared.
+
+**PRO-280 (R21) — Cascading clear on procedure-type deletion (backend)**: When a procedure type is deleted,
 any patient whose `latest_procedure_type` references this type has
 `latest_procedure_type` and `latest_date` cleared.
 
-**PRO-290 (R22) — Cascading clear on fund deletion**: When a fund is deleted, any patient whose
+**PRO-290 (R22) — Cascading clear on fund deletion (backend)**: When a fund is deleted, any patient whose
 `latest_fund` references this fund has `latest_fund` cleared.
+
+### Funds and patients in use
 
 **PRO-291 — A fund in use is kept (backend)**: Deleting a fund that procedures or fund payment groups still use is refused with a specific error carrying the number of each; nothing changes (owner, 2026-11-01, #579). A procedure or a fund payment recorded at the same moment as the deletion still keeps the fund, with the same refusal.
 
@@ -178,39 +128,31 @@ any patient whose `latest_procedure_type` references this type has
 
 **PRO-299 — Deleted patients removed on upgrade (backend)**: Patients deleted before deletion was real, hidden but kept, are removed with their duplicate dismissals when the application is upgraded, once the deleted procedures are removed (PRO-031). A patient a procedure still names comes back as it was stored (owner, 2026-11-01, #579: the real database held none).
 
-**PRO-300 (R23) — Batch creation: single transaction and at most one event (backend)**: A
-batch of procedures (the Excel import, EXI-175) is persisted in a single transaction and
-raises at most one `ProcedureUpdated` event, regardless of batch size (EXI-177).
+### Listing, statistics and overdue
 
----
+**PRO-170 (R24) — Default order (backend)**: The procedures are listed by procedure date, ascending.
 
-## Overdue highlighting
+**PRO-060 (R7) — Statistics (backend)**: The statistics of a set of procedures are: the number of distinct patients, the number of procedures, the billed total (Σ `billed_amount`), the received total (Σ `paid_amount`) and the awaited total (Σ `max(0, billed_amount − paid_amount)` per procedure).
 
-> An **`Overdue`** _derived_ display attribute layered on `Created` procedures — **not** a `ProcedureStatus` value (see the note in **Status lifecycle**). It exists purely to emphasise procedures that should normally have been paid by now.
-
-**PRO-310 (frontend) — Overdue derived state**: A procedure is **overdue** when its `payment_status` is `Created` **and** its `procedure_date` is strictly earlier than the **reconciliation high-water mark** — the most recent `procedure_date` among all fund-reconciled procedures (`Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `ImportFundPaid`) across the **full loaded procedure set** (the complete list returned by `read_all_procedures`, before the PRO-010 period filter is applied). The high-water mark is **global**: it is never scoped by patient or fund, and direct payments (`DirectlyPaid`, `ImportDirectlyPaid`) never contribute to it. Overdue is **derived in the frontend** — recomputed from the loaded procedures on each render; it is never persisted, needs no backend or contract change, and is not a `ProcedureStatus`. The procedure stays `Created` for every other purpose (reconciliation eligibility, deletion, editing). When no fund-reconciled procedure exists the high-water mark is undefined and nothing is overdue. Because it is recomputed live, a later-reverted reconciliation lowers the high-water mark and the overdue set follows automatically — there is no stored flag to reconcile. `Overpaid` and `OverpaymentRefund` are deliberately excluded from the contributor set — the former is a rare terminal overpayment end-state, the latter a synthetic mirror procedure, so neither defines the normal fund-payment frontier; this edge is left to the pending status-model review (see `docs/todo.md`).
-
-**PRO-320 (frontend) — Overdue warning row**: In the procedure list, a row whose procedure is overdue (see PRO-310) is rendered with a **warning background** — a subtle **low-opacity** amber/gold row tint (amber in light mode, gold in dark mode), deliberately distinct from the full-strength `m3-tertiary-container` used by the PRO-090 reconciled **badge** so the two never read as the same signal; the exact token is finalised at `/app:visual-proof` time. Only overdue rows are tinted; every other row (including the partially-paid statuses) keeps its default background. The status badge (PRO-090) is unaffected — it still shows `Created`, since overdue is a derived emphasis, not a status.
-
-- **Scope of emphasis**: overdue highlighting only affects rows already visible under the current period (PRO-010). An overdue procedure whose date falls outside the selected period receives **no** signal (no count, no period hint) — it surfaces only when its own period is selected.
-- **Filtering**: `Overdue` is **not** a selectable value in the PRO-180 status filter (it is a derived attribute, not a `ProcedureStatus`); overdue rows therefore appear only when `Created` is included by that filter.
-- **Sorting**: overdue introduces **no** sort key (PRO-170A) — overdue rows sort exactly as their `Created` peers. The search (PRO-100) is likewise unaffected.
+**PRO-310 — Overdue (backend)**: A procedure is **overdue** when its `payment_status` is `Created` **and** its `procedure_date` is strictly earlier than the **reconciliation high-water mark** — the most recent `procedure_date` among all fund-reconciled procedures (`Reconciled`, `PartiallyReconciled`, `FundPaid`, `PartiallyFundPaid`, `ImportFundPaid`). The high-water mark is **global**: it is never scoped by patient or fund, and direct payments (`DirectlyPaid`, `ImportDirectlyPaid`) never contribute to it. Overdue is derived, never stored, and is not a `ProcedureStatus`: the procedure stays `Created` for every other purpose (reconciliation eligibility, deletion, editing). When no fund-reconciled procedure exists, nothing is overdue. A reverted reconciliation lowers the mark and the overdue set follows. `Overpaid` and `OverpaymentRefund` are deliberately excluded from the contributors — the former is a rare terminal overpayment end-state, the latter a synthetic mirror procedure, so neither defines the normal fund-payment frontier.
 
 ---
 
 ## Status lifecycle
 
-This feature is responsible for procedure **creation** only. Subsequent status transitions are managed by other features.
+This feature sets a procedure's **initial** status; the transitions after it are managed by other features.
 
-> **`Overdue` is not part of this lifecycle.** It is a derived display attribute over `Created` (see **Overdue highlighting** / PRO-310), not a persisted status — so it appears in no transition below and inherits `Created`'s row in _Allowed actions per status_.
+> **`Overdue` is not part of this lifecycle.** It is derived over `Created` (PRO-310), not a persisted status.
+>
+> **`None`** is the default initial value of the domain model. It is never assigned at creation (PRO-230 — the minimum assigned is `Created`). It can appear on legacy data predating the status lifecycle; a `None` procedure can be deleted and edited.
 
 ### Statuses created by this feature
 
-| Initial status       | Condition                                       | Trigger                       |
-| -------------------- | ----------------------------------------------- | ----------------------------- |
-| `Created`            | Procedure with no confirmed payment             | Frontend form or Excel import |
-| `ImportDirectlyPaid` | Confirmed payment + ES/CH method or no fund     | Excel import only             |
-| `ImportFundPaid`     | Confirmed payment + other method + fund present | Excel import only             |
+| Initial status       | Condition                                       | Trigger                         |
+| -------------------- | ----------------------------------------------- | ------------------------------- |
+| `Created`            | Procedure with no confirmed payment             | Single creation or Excel import |
+| `ImportDirectlyPaid` | Confirmed payment + ES/CH method or no fund     | Excel import only               |
+| `ImportFundPaid`     | Confirmed payment + other method + fund present | Excel import only               |
 
 ### Transitions handled by other features
 
@@ -228,51 +170,32 @@ This feature is responsible for procedure **creation** only. Subsequent status t
 
 ### Allowed actions per status (this feature)
 
-| Status                | Deletion                | Edit                                                                            |
-| --------------------- | ----------------------- | ------------------------------------------------------------------------------- |
-| `None`                | yes (with confirmation) | yes                                                                             |
-| `Created`             | yes (with confirmation) | yes                                                                             |
-| `ImportDirectlyPaid`  | yes (with confirmation) | yes                                                                             |
-| `ImportFundPaid`      | yes (with confirmation) | yes                                                                             |
-| `DirectlyPaid`        | no — blocked            | partial — procedure type only (PRO-190)                                         |
-| `Reconciled`          | no — blocked            | partial — procedure type only (PRO-190)                                         |
-| `PartiallyReconciled` | no — blocked            | partial — procedure type only (PRO-190)                                         |
-| `FundPaid`            | no — blocked            | partial — procedure type only (PRO-190)                                         |
-| `PartiallyFundPaid`   | no — blocked            | partial — procedure type only (PRO-190)                                         |
-| `Overpaid`            | no — blocked (REF-220)  | partial — procedure type only with propagation to the refund (REF-190, REF-170) |
-| `OverpaymentRefund`   | no — blocked (REF-230)  | no — read-only (REF-200)                                                        |
+| Status                | Deletion               | Edit                                               |
+| --------------------- | ---------------------- | -------------------------------------------------- |
+| `None`                | yes                    | yes                                                |
+| `Created`             | yes                    | yes                                                |
+| `ImportDirectlyPaid`  | yes                    | yes                                                |
+| `ImportFundPaid`      | yes                    | yes                                                |
+| `DirectlyPaid`        | no — blocked           | procedure type only (PRO-190)                      |
+| `Reconciled`          | no — blocked           | procedure type only (PRO-190)                      |
+| `PartiallyReconciled` | no — blocked           | procedure type only (PRO-190)                      |
+| `FundPaid`            | no — blocked           | procedure type only (PRO-190)                      |
+| `PartiallyFundPaid`   | no — blocked           | procedure type only (PRO-190)                      |
+| `Overpaid`            | no — blocked (REF-220) | procedure type only, reaching the refund (REF-170) |
+| `OverpaymentRefund`   | no — blocked (REF-230) | no (REF-200)                                       |
 
-Whatever the status, a deletion is refused while a fund payment line, a bank entry or a refund record still refers to the procedure (PRO-030).
+Whatever the status, a deletion is refused while a fund payment line, a bank entry or a refund record still refers to the procedure (PRO-030B).
 
 ---
 
-## Component structure
+## Open Questions
 
-```
-procedure/
-  api/
-    gateway.ts                        — all Tauri calls for the feature
-    procedureService.ts               — high-level service (multi-step operations)
-  hooks/
-    useProcedureData.ts               — loads patients/funds/types; exposes deleteRow
-    useProcedurePeriod.ts             — filters by selected month/year; derives yearRange
-    useCreateEntityForm.ts            — generic hook for create-patient / create-fund forms
-  model/
-    procedure-row.types.ts            — ProcedureRow interface (UI representation)
-    procedure-row.mapper.ts           — Procedure → ProcedureRow (amounts: thousandths → euros)
-    date.logic.ts                     — getMonthName, formatDateDisplay, period helpers
-    index.ts                          — re-exports
-  ui/
-    ProcedurePage.tsx                 — main page (period selector, search, stats, list, FAB, modal)
-    PeriodSelector.tsx                — CompactSelectField month/year dropdowns + navigation arrows
-    SummaryStats.tsx                  — aggregated stats bar (patients, procedures, billed, received, awaited)
-    ui.styles.ts                      — shared TABLE_STYLES / COL_WIDTHS constants
-    procedure_list/
-      ProcedureList.tsx               — read-only table (all rows of the filtered period)
-      StatusBadge.tsx                 — colored payment-status badge
-    procedure_form_modal/
-      ProcedureFormModal.tsx          — unified create/edit modal (mode prop)
-      useProcedureFormModal.ts        — form state, validation, pre-fill (PRO-020), gateway calls
-    form/
-      CreatePatientForm.tsx           — nested modal for inline patient creation (PRO-080)
-```
+- [ ] PRO-060: the code counts a procedure with a paid status but no `paid_amount` as received in full — #379, with the owner.
+- [ ] PRO-230: the code has a positive-billed-amount guard the rule does not state — #379, with the owner.
+- [ ] PRO-250: an edit takes `payment_status` and the payment fields as sent, so it can move a procedure that is not blocked to any status, past the transitions other features own — #379, with the owner.
+- [ ] `billed_amount`: whether zero or a negative amount is refused, at creation and on edit (the code checks neither).
+- [ ] Patient tracking on edit: an edit that changes the date, patient, type, fund or amount moves no tracking field today (PRO-260, PRO-270 cover creation and deletion).
+- [ ] PRO-256: where PRO-190's refusal sits in the order — #379.
+- [ ] PRO-170: the order of procedures of the same date — #427.
+- [ ] PRO-260, PRO-270: whether a refund procedure's creation (REF-090) and cancellation (REF-210) move the patient's tracking fields; today neither does.
+- [ ] PRO-060: which set of procedures the statistics take — decided with #427's API shape (owner, 2026-11-14).

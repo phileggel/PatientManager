@@ -2,13 +2,13 @@
 
 > Domain: patient
 > Backend module: context/patient; `delete_patient` in use_cases/procedure_orchestration
-> Last updated by: `procedure-orchestration` spec, PRO-296 to PRO-298 (#591), 2026-11-08
+> Last updated by: `procedure-orchestration` spec, business rules only (#646), 2026-11-14
 
 ## Commands
 
 ### `add_patient`
 
-Creates a new patient. Used from the add-patient panel and from the inline-creation form inside the procedure modal (POC R9); the Excel import creates its patients in a batch, not through this command. SSN is optional; if provided it must be valid (13 ASCII digits). A patient created here is never anonymous, so a name is required. The name is trimmed and a blank SSN is read as none, as for `update_patient`: the screen sends what was typed.
+Creates a new patient. Used from the add-patient panel and from the inline-creation form inside the procedure form; the Excel import creates its patients in a batch, not through this command. SSN is optional; if provided it must be valid (13 ASCII digits). A patient created here is never anonymous, so a name is required. The name is trimmed and a blank SSN is read as none, as for `update_patient`: the screen sends what was typed.
 
 - **Args:** `name: Option<String>, ssn: Option<String>`
 - **Returns:** `Patient`
@@ -18,7 +18,7 @@ Creates a new patient. Used from the add-patient panel and from the inline-creat
 
 ### `read_all_patients`
 
-Returns all patients. Used to populate the patient ComboboxField in the procedure form (POC R29).
+Returns all patients. Used to populate the patient ComboboxField in the procedure form.
 
 - **Args:** —
 - **Returns:** `Vec<Patient>`
@@ -69,4 +69,5 @@ struct Patient {
 
 ## Changelog
 
+- 2026-11-14 — #646: the pointers to the removed screen rules PRO-080 and PRO-150 are gone. No signature, type or error change.
 - 2026-11-08 — `delete_patient` (#591, PRO-296 to PRO-298): a patient is really deleted with its dismissals; a patient with procedures is refused with `PatientInUse`; the command moves to the `procedure_orchestration` use case.
