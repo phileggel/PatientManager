@@ -80,5 +80,5 @@ The pieces only this repository has: the tools of its build.
 - `scripts/publish-release.sh` — the owner publishes the newest draft, its tag and run checked, on a yes. Never: run by the agent, or without a terminal.
 - `scripts/core-without-tauri.sh` — proves the core builds without the desktop shell
   (B47). Never: builds the shell.
-- `scripts/coverage-strip-tests.py` — removes inline Rust test modules from a coverage
-  report. Never: removes production lines.
+- `scripts/coverage-strip-tests.py` — removes inline Rust test modules and the lines of log
+  calls from a coverage report. Never: removes a line of logic.

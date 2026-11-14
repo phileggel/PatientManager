@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Drop inline test modules from an lcov report, in place.
+"""Drop inline test modules and log calls from an lcov report, in place.
 
 Rust keeps unit tests in the same file as the code, under `#[cfg(test)]`:
 test modules, but also test-only impl blocks and helper functions. llvm-cov
 instruments them like any code, so a file's coverage would count its own tests
 as covered logic. For every file in the report, each such item is located by
 its braces and the records inside it are removed; the file's line, function
-and branch totals are recomputed. Code after a test item stays. A source file the report names but that cannot be read is an
+and branch totals are recomputed. Code after a test item stays.
+
+A log call (`tracing::info!(…)` and its siblings) is no logic either, and rustc
+1.100 counts each of its argument lines (#674): the lines a call fills alone are
+removed the same way; a line it shares with other code stays. A source file the report names but that cannot be read is an
 error: silently keeping its tests would drift the number upward.
 
 Use:
@@ -38,11 +42,17 @@ def _brace_end(lines: list[str], start: int) -> int:
     Braces inside string literals and comments are skipped so a `{` in a test
     fixture cannot shift the range.
     """
+    return _closing(lines, start, 0, "{", "}")[0]
+
+
+def _closing(lines: list[str], start: int, column: int, opening: str, closing: str) -> tuple[int, int]:
+    """0-based (line, column) of the `closing` matching the first `opening` found from
+    `lines[start][column:]`; string literals and comments are skipped."""
     depth = 0
     in_block_comment = False
     for index in range(start, len(lines)):
         line = lines[index]
-        position = 0
+        position = column if index == start else 0
         while position < len(line):
             rest = line[position:]
             if in_block_comment:
@@ -65,14 +75,15 @@ def _brace_end(lines: list[str], start: int) -> int:
             if char:
                 position += char.end()  # a char literal such as '{' or '\''
                 continue
-            if rest[0] == "{":
+            if rest[0] == opening:
                 depth += 1
-            elif rest[0] == "}":
+            elif rest[0] == closing:
                 depth -= 1
                 if depth == 0:
-                    return index
+                    return index, position
             position += 1
-    return len(lines) - 1
+    # An unclosed item would strip everything to the end of the file as no logic.
+    raise ValueError(f"line {start + 1}: no closing {closing!r} for the {opening!r} it opens")
 
 
 def _string_length(rest: str) -> int:
@@ -137,6 +148,53 @@ def test_module_ranges(source: Path) -> list[tuple[int, int]]:
     return ranges
 
 
+def _in_comment(line: str, column: int) -> bool:
+    """Whether `column` of `line` lies in a `//` comment; a `//` inside a string
+    or char literal is no comment."""
+    position = 0
+    while position < column:
+        rest = line[position:]
+        if rest.startswith("//"):
+            return True
+        if rest.startswith('"') or re.match(r'r#*"', rest):
+            position += _string_length(rest)
+            continue
+        char = CHAR_LITERAL.match(rest)
+        position += char.end() if char else 1
+    return False
+
+
+LOG_CALL = re.compile(r"\btracing::(trace|debug|info|warn|error)!\s*\(")
+
+
+def log_call_ranges(source: Path) -> list[tuple[int, int]]:
+    """1-based inclusive (first, last) ranges of the lines log calls fill alone.
+
+    The line a call opens on stays when code precedes the call, the line it closes
+    on when anything but `;` or `,` follows it: both hold logic too.
+    """
+    lines = source.read_text(encoding="utf-8").splitlines()
+    ranges: list[tuple[int, int]] = []
+    index = 0
+    while index < len(lines):
+        call = LOG_CALL.search(lines[index])
+        if call and not _in_comment(lines[index], call.start()):
+            try:
+                _closing(lines, index, call.start(), "(", ")")
+            except ValueError as error:
+                raise ValueError(f"{source}: {error}; leaving it out would count it as no logic") from None
+        if not call or _in_comment(lines[index], call.start()):
+            index += 1
+            continue
+        end, column = _closing(lines, index, call.start(), "(", ")")
+        first = index if not lines[index][: call.start()].strip() else index + 1
+        last = end if lines[end][column + 1 :].strip() in ("", ";", ",") else end - 1
+        if first <= last:
+            ranges.append((first + 1, last + 1))
+        index = end + 1
+    return ranges
+
+
 def _inside(number: int, ranges: list[tuple[int, int]]) -> bool:
     return any(first <= number <= last for first, last in ranges)
 
@@ -198,7 +256,7 @@ def strip(report: Path) -> tuple[int, int]:
     trimmed = dropped = 0
     for line in report.read_text(encoding="utf-8").splitlines():
         if line.startswith("SF:"):
-            ranges = test_module_ranges(Path(line[3:]))
+            ranges = test_module_ranges(Path(line[3:])) + log_call_ranges(Path(line[3:]))
         record.append(line)
         if line == "end_of_record":
             if ranges:
@@ -230,7 +288,7 @@ def main() -> int:
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return 1
-    print(f"stripped inline test modules from {trimmed} files ({dropped} lines)")
+    print(f"stripped inline test modules and log calls from {trimmed} files ({dropped} lines)")
     return 0
 
 

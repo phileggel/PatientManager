@@ -1,6 +1,8 @@
-# Pinned: a new stable release changes the measured coverage (1.100 drops it three points
-# on the same code, #674). /app:dep-audit reports the drift at every batch end; a move to
-# a newer version is a pull request of its own.
+# Pinned: a new stable release can change the measured coverage (1.100 moved it three
+# points on the same code, #674). /app:dep-audit reports the drift at every batch end; a
+# move to a newer version is a pull request of its own.
+# After a move, delete target/llvm-cov-target: objects of the old compiler falsify the
+# local coverage figure (75.84% for 91.71%, #674).
 [toolchain]
-channel = "1.99.1"
+channel = "1.100.0"
 components = ["rustfmt", "clippy", "llvm-tools-preview"]
