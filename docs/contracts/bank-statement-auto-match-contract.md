@@ -1,7 +1,7 @@
 # Contract — Bank Statement Auto-Match
 
 > Domain: bank-statement-auto-match
-> Last updated by: `bank-statement-auto-match` spec, BAS-063A (#584), 2026-11-07
+> Last updated by: `bank-statement-auto-match` spec, business rules only (#643), 2026-11-14
 
 > Wire errors are the composite `BankStatementReconciliationError` (untagged union of `BankError`, `FundError`, and the use-case `BankStatementReconciliationTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
@@ -9,7 +9,7 @@
 
 ### `parse_bank_statement` — R2, R3, R26
 
-Step 1 of the workflow. Reads the PDF bank statement from the given file path, extracts the IBAN, statement period, and VIR SEPA credit lines (R3 — other line types are ignored). Returns a structured `NoVirSepaLines` error if no VIR SEPA entries remain after filtering — the workflow must stop at this point (R26).
+Step 1 of the workflow. Reads the PDF bank statement from the given file path, extracts the IBAN, statement period, and VIR SEPA credit lines (R3 — other line types are ignored). Returns a structured `NoSepaCreditLines` error if no VIR SEPA entries remain after filtering — the workflow must stop at this point (R26).
 
 - **Args:** `file_path: String`
 - **Returns:** `BankStatementParseResult`
@@ -19,9 +19,9 @@ Step 1 of the workflow. Reads the PDF bank statement from the given file path, e
 
 ### `resolve_bank_account_from_iban` — BAS-010
 
-Resolves the practitioner's `BankAccount` from the IBAN extracted by `parse_bank_statement`. Returns `None` if no account matches — the frontend then drives the inline create flow (BAS-011..017) by calling `create_bank_account` directly via the bank-account gateway, then proceeds to label-mapping with the new account.
+Resolves the practitioner's `BankAccount` from the IBAN extracted by `parse_bank_statement`. Returns `None` if no account matches; an account can then be created for that IBAN with `create_bank_account` (BAC-020), and the import goes on with it.
 
-> `Ok(None)` is intentional here, not a gap. An unregistered IBAN is a valid, expected workflow state (the user is offered the inline create form). This is distinct from `read_bank_account` which raises `NotFound` because a missing ID would indicate a data integrity problem.
+> `Ok(None)` is intentional here, not a gap. An unregistered IBAN is a valid, expected workflow state (an account can be created for it, BAC-020). This is distinct from `read_bank_account` which raises `NotFound` because a missing ID would indicate a data integrity problem.
 
 - **Args:** `iban: String`
 - **Returns:** `Option<BankAccount>` (type defined in `bank-contract.md`)
@@ -85,17 +85,17 @@ Superseded by the draft-UX rework (BAS-060–102): broadening moved server-side 
 
 ---
 
-### `compute_bank_statement_reconciliation` — BAS-041D, BAS-060–069, BAS-090–092, BAS-094, BAS-111–113
+### `compute_bank_statement_reconciliation` — BAS-030–032, BAS-036, BAS-041D, BAS-060–068, BAS-090–092, BAS-094, BAS-112–113, BAS-117
 
 The reconciliation engine. Computes the full bank-statement reconciliation as a pure function of the parsed statement plus an ordered list of correction commands. A saved label whose fund is gone is not a known label, so it is asked again (BAS-041D). Reads live unsettled `FundPaymentGroup`s, saved label mappings, and — for linked lines — the fund's **open procedures with patient display names** (BAS-112 predicate: line's fund, `payment_status == Created`, in no active fund-payment-group line, positive billed amount; ordered oldest procedure date first, id tiebreak). Applies heuristic suggestions, runs the auto-match (BAS-050–054), then **replays every correction in order** — link-fund cascade incl. procedure-assignment drop on re-link (BAS-066), group assignment with consumption (BAS-067, BAS-090), procedure assignment with consumption and per-line group/procedure mutual exclusion resolved by correction-list removal (BAS-113 — the exclusion is a cascade, never an error), remainder acknowledgment (BAS-092; applying either assignment kind resets a previously acknowledged remainder — its implied size changed, BAS-113; a zero-item acknowledgment resolves the line as left aside, BAS-123B) — re-deriving each line's status, candidate groups, and candidate procedures. Read-only: no DB writes; the reconciliation is never persisted (ephemeral, BAS-064). The frontend re-calls this on every correction and every revert (BAS-065 = drop a command and recompute).
 
 - **Args:** `bank_account_id: String, parse_result: BankStatementParseResult, corrections: Vec<BankStatementCorrection>`
 - **Returns:** `BankStatementReconciliation`
-- **Errors:** `AssignmentOverflow` (BAS-094 — assigned items exceed the line amount, either kind), `GroupNotEligible` (BAS-090 — group fails lock/settled criteria), `GroupAlreadyConsumed` (BAS-067 — group assigned to another line), `ProcedureNotEligible` (BAS-113 — procedure unknown, soft-deleted, not open, or not of the line's fund; subsumes not-found, no separate `ProcedureNotFound`), `ProcedureAlreadyConsumed` (BAS-113 — procedure assigned to another line), `LineNotFound`, `FundNotFound`, `DatabaseError`
+- **Errors:** `AssignmentOverflow` (BAS-094 — assigned items exceed the line amount, either kind), `GroupNotEligible` (BAS-090 — group unknown or failing lock/settled criteria, or the line not linked to a fund, BAS-064), `GroupAlreadyConsumed` (BAS-067 — group assigned to another line), `ProcedureNotEligible` (BAS-113 — procedure unknown, soft-deleted, not open, or not of the line's fund; subsumes not-found, no separate `ProcedureNotFound`; or the line not linked to a fund, BAS-064), `ProcedureAlreadyConsumed` (BAS-113 — procedure assigned to another line), `LineNotFound`, `FundNotFound`, `DatabaseError`
 
 ---
 
-### `validate_bank_statement_reconciliation` — BAS-063, BAS-063A, BAS-035, BAS-070–073, BAS-093, BAS-115
+### `validate_bank_statement_reconciliation` — BAS-063, BAS-063A, BAS-035, BAS-070–073, BAS-093, BAS-115, BAS-117
 
 Commits the reconciliation. An unknown account — a deleted one, or a technical one (BAC-055A) — is refused with `BankAccountNotFound` before anything is written (BAS-063A). **Recomputes the reconciliation server-side** from `corrections[]` (never trusts FE-side state), then in one pass: upserts the label mappings implied by link-fund corrections (BAS-035); for every line resolved **via procedures**, first births the `FundPaymentGroup` per the BAS-115 field mapping (fund = line fund, payment date = bank line date, total = Σ billed, one group line per procedure, born `BankPaid` + locked) — because validate recomputes, a procedure that stopped being open since the draft was computed re-fails the BAS-112 predicate here (`ProcedureNotEligible`), so a stale draft can never birth an invalid group; then for every resolved line creates one `BankEntry` per assigned group (N per multi-group line, BAS-093; exactly one for a born group), moves the procedures to their terminal status (`FundPaid` / `PartiallyFundPaid` per BAS-071, or `Created` → `FundPaid` for the born path per BAS-115), and locks the group (`BankPaid`, BAS-072–073). Unresolved/needs-\* lines are skipped (BAS-063); acknowledged remainders create nothing (BAS-092). A `NoProceduresSelected`-style input is impossible by construction — an empty set is an unassign, and the line is then not Matched. Writes are **not** wrapped in a single transaction (deferred UoW — see spec Accepted Limitations / ADR-003, widened by the born-group writes); any failure aborts loudly with a typed error, never a silent success count. Returns the count of `BankEntry` records created.
 
@@ -105,9 +105,9 @@ Commits the reconciliation. An unknown account — a deleted one, or a technical
 
 ---
 
-### `list_bank_label_mappings` — BAS-041, BAS-041D
+### `list_bank_label_mappings` — BAS-041, BAS-041A, BAS-041D
 
-Every saved label → fund mapping of every bank account, ordered by account then label; a mapping whose fund is gone is left out (BAS-041D). Read-only; feeds the management screen's « Libellés bancaires » section.
+Every saved label → fund mapping of every bank account, ordered by account name, then label (BAS-041A; today by account id, the frontend sorting by name — #683); a mapping whose fund is gone is left out (BAS-041D). Read-only; feeds the management screen's « Libellés bancaires » section.
 
 - **Args:** none
 - **Returns:** `Vec<BankFundLabelMapping>`
@@ -153,7 +153,7 @@ struct BankStatementParseResult {
     period: Option<String>,                    // statement period label e.g. "du 01/05/2025 au 30/05/2025"
     credit_lines: Vec<BankStatementCreditLine>,
     total_credits: i64,                        // sum of all VIR SEPA credit amounts in thousandths of a euro
-    unparsed_count: u32,                       // R4: lines the parser could not recognise; shown as a warning to the user
+    unparsed_count: u32,                       // R4 (BAS-022): VIR SEPA lines the parser could not read
 }
 
 struct BankStatementCreditLine {
@@ -166,7 +166,7 @@ struct BankStatementCreditLine {
 struct FundLabelResolution {
     bank_label: String,
     fund_id: Option<String>,              // confirmed fund ID from the mapping table; absent = no saved mapping
-    suggested_fund_id: Option<String>,    // heuristic candidate (R6); informational only, never pre-selected (R28)
+    suggested_fund_id: Option<String>,    // heuristic candidate (R6); informational only, never the label's assignment (BAS-036)
     suggested_fund_name: Option<String>,  // display name for the heuristic suggestion
     is_confirmed: bool,           // true = value comes from the saved mapping table (R5)
     is_rejected: bool,            // true = label is explicitly marked as not a fund payment (R8)
@@ -216,7 +216,7 @@ struct BankStatementReconciliationConfig {
     max_date_offset_days: i32,   // maximum days the bank date may follow the group payment date
 }
 
-// BAS-060–102: reconciliation model — all of the following are ephemeral (never persisted)
+// BAS-060–068, BAS-090–094, BAS-112–113: reconciliation model — all of the following are ephemeral (never persisted)
 
 // One user correction, replayed in order by compute_bank_statement_reconciliation / validate.
 // Reverting a correction = removing it from the list and recomputing (BAS-065).
@@ -237,8 +237,8 @@ enum FundAssignment {
 // The recomputed reconciliation state: every statement line with its resolved status.
 struct BankStatementReconciliation {
     lines: Vec<BankStatementLine>,
-    resolved_count: u32,        // BAS-069 — whole-document totals; unconsumed since BAS-122 (screen 2 derives
-    needs_correction_count: u32, // its counts frontend-side) — removal deferred to the next wire change (techdebt)
+    resolved_count: u32,        // whole-document totals, no consumer: the screen counts its visible lines;
+    needs_correction_count: u32, // removal deferred to the next wire change (#359)
 }
 
 // One bank credit line within the reconciliation, in document order (BAS-060).
@@ -254,7 +254,7 @@ struct BankStatementLine {
     candidate_groups: Vec<BankStatementCandidate>, // BAS-068 — proposals for needs-group/partial, fund-filtered (default view), most recent first
     broadened_candidates: Vec<BankStatementCandidate>, // BAS-068 — same proposals across ALL funds; shown on "broaden"
     candidate_procedures: Vec<BankStatementProcedureCandidate>, // BAS-112 — the linked fund's open procedures, oldest first; empty while needs-link
-    suggested_fund_id: Option<String>,     // BAS-066/032 — heuristic, for the screen-1 label row (BAS-120B)
+    suggested_fund_id: Option<String>,     // BAS-032 — heuristic, never the label's assignment (BAS-036)
     suggested_fund_name: Option<String>,
 }
 
@@ -312,3 +312,4 @@ struct BankStatementProcedureCandidate {
 - 2026-11-08 — `list_bank_label_mappings` and `compute_bank_statement_reconciliation` leave out a mapping whose fund is gone (#590, BAS-041D); no signature change.
 - 2026-11-07 — `validate_bank_statement_reconciliation`: an unknown or deleted account is refused with `BankAccountNotFound` before anything is written (BAS-063A, #584); no signature change.
 - 2026-11-08 — `validate_bank_statement_reconciliation`: a technical account is refused as unknown too (BAC-055A, #518); no signature change.
+- 2026-11-14 — #643: the spec holds business rules only; the rule references follow (BAC-020 for the account created for an unknown IBAN, BAS-022, BAS-030–032, BAS-036, BAS-041A with #683, BAS-112–113, BAS-117; BAS-069 is vacant, its counters' removal is #359). No signature, type or error change.

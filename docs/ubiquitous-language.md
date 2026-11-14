@@ -255,7 +255,7 @@ The nature of a `BankEntry`. Encodes both the payment instrument and its source/
 
 ### Left-aside line (« Laissée de côté »)
 
-A bank-statement line consciously excluded from settlement during reconciliation: fund known, zero settlement items assigned, whole amount acknowledged as untracked remainder (BAS-123). Resolved (engine status `matched`) with a distinct badge; session-only — nothing is persisted for it at validate, and re-importing would surface it again. Not a stored concept.
+A bank-statement line consciously excluded from settlement during reconciliation: fund known, zero settlement items assigned, whole amount acknowledged as untracked remainder (BAS-092, BAS-123B). Resolved (engine status `matched`) with a distinct badge; session-only — nothing is persisted for it at validate, and re-importing would surface it again. Not a stored concept.
 
 > Status: confirmed (2026-08-03)
 

@@ -96,7 +96,7 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-058 — Direct payments moved on upgrade (backend)**: On upgrade, every patient's direct payment moves to the technical account of its type, wherever it was recorded; the account it was on is not kept. A refund stays where it is (owner, 2026-11-07, #518).
 
-**BAC-059 — A new account's type (backend)**: An account created by the user (BAC-020) or by a bank statement import (BAS-013) is a `bank` account; no other type can be created.
+**BAC-059 — A new account's type (backend)**: An account created by the user (BAC-020) or by a bank statement import (BAS-010) is a `bank` account; no other type can be created.
 
 ### Accounts on upgrade (060–069)
 
