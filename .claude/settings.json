@@ -103,7 +103,9 @@
       "Read(~/.local/share/com.projectsf.patient-manager/**)",
       "Edit(~/.local/share/com.projectsf.patient-manager/**)",
       "Bash(gh release edit *--draft=false*)",
-      "Bash(gh release edit *--draft false*)"
+      "Bash(gh release edit *--draft false*)",
+      "Bash(*just*publish-release*)",
+      "Bash(*publish-release.sh*)"
     ]
   },
   "hooks": {

@@ -26,6 +26,10 @@ check-full:
 release-check:
     python3 scripts/check.py --strict
 
+# The owner publishes the newest draft release, checked and confirmed; denied to the agent
+publish-release:
+    bash scripts/publish-release.sh
+
 # ⚠️  Destructive: removes stale remote-tracking branches
 clean-branches: (_used "clean-branches")
     #!/usr/bin/env bash
