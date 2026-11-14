@@ -21,6 +21,7 @@ FORBIDDEN = {
         "gh release edit v1.2.3 --draft=false",
         "gh release edit v1.2.3 --draft=false --latest",
         "gh release edit v1.2.3 --latest --draft false",
+        "gh release create v1.2.3 --notes-file notes.md",
         "just publish-release",
         "just -f justfile publish-release",
         "env just publish-release",
