@@ -5,7 +5,7 @@
  * persisted. Tests that need prerequisites call these in their `before()` hook.
  *
  * Selectors target stable `id` attributes (locale-invariant) per the project
- * convention — see `docs/e2e-rules.md` and ADR-007. The E2E build runs in
+ * convention — see `docs/e2e-rules.md` (E12). The E2E build runs in
  * mode='e2e' which sets `VITE_LOCALE=en`, but `id` selectors don't depend
  * on the active locale either way.
  */

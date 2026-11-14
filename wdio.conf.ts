@@ -100,7 +100,7 @@ export const config: Options.Testrunner = {
     // the frontend builds with `vite --mode e2e` instead of the default
     // `mode='production'`. That keeps the `e2eOverride` branch (gated
     // by the dev/test/e2e mode allowlist) alive in the binary WebDriver
-    // drives. See ADR-007.
+    // drives. See `docs/e2e-rules.md` E12.
     // The overlay also makes the Windows webview open its debugging port:
     // the webview library sets its own browser arguments, so the runtime drops
     // the ones msedgedriver passes by environment, and every session fails with
@@ -112,7 +112,7 @@ export const config: Options.Testrunner = {
     if (!existsSync(tauriConfPath)) {
       throw new Error(
         `tauri.e2e.conf.json not found at ${tauriConfPath}. ` +
-          `The E2E build needs this overlay to keep the e2eOverride branch alive — see ADR-007.`,
+          `The E2E build needs this overlay to keep the e2eOverride branch alive — see docs/e2e-rules.md E12.`,
       );
     }
     const result = spawnSync(

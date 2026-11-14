@@ -144,7 +144,7 @@ Recorded in [`docs/adr/`](docs/adr/). Each ADR ratifies a non-obvious design cho
 - [ADR-004](docs/adr/004-e2e-rtl-test-boundary-combobox.md) — E2E / RTL test boundary for HeadlessUI `ComboboxField`.
 - [ADR-005](docs/adr/005-combobox-feasibility-investigation.md) — Combobox feasibility — investigation result.
 - [ADR-006](docs/adr/006-frontend-resolves-pdf-translations.md) — Frontend resolves PDF translations (backend places strings, never i18n).
-- [ADR-007](docs/adr/007-e2e-native-dialog-override.md) — E2E native-dialog override (Tauri WebDriver friction workaround).
+- [ADR-007](docs/adr/007-e2e-native-dialog-override.md) — E2E native-dialog override. Retired: `docs/e2e-rules.md` E12 holds its rules.
 - [ADR-008](docs/adr/008-native-dialog-modal-system.md) — Native `<dialog>` top layer for the modal system.
 - [ADR-009](docs/adr/009-soft-delete-leaves-table-by-table.md) — Soft delete leaves the project table by table, bank statement labels first.
 

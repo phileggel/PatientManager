@@ -24,7 +24,7 @@ const PROCEDURE_TYPE_NAME = "E2E-BT-Consultation";
 const BILLED_AMOUNT_MILLIS = 25000; // €25.00
 
 async function navigateToBankTransfer(): Promise<void> {
-  // Selectors target stable `id` attributes — locale-invariant per ADR-007.
+  // Selectors target stable `id` attributes — locale-invariant (E4).
   await browser.keys(["Escape"]);
   await openManagementPage("#mgmt-card-bank-transfers", "#bank-transfer-list");
 }

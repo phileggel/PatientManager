@@ -1,5 +1,5 @@
 /**
- * E2E native-dialog override helpers (ADR-007).
+ * E2E native-dialog override helpers (`docs/e2e-rules.md` E12).
  *
  * Tauri WebDriver cannot drive native OS dialogs. Tests substitute
  * deterministic return values via `window.__e2e[<key>]`, which the

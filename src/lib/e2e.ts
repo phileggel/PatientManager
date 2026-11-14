@@ -1,5 +1,5 @@
 /**
- * E2E native-dialog override (ADR-007).
+ * E2E native-dialog override (`docs/e2e-rules.md` E12).
  *
  * Tauri WebDriver tests cannot drive native OS dialogs. Every gateway
  * method that wraps `@tauri-apps/plugin-dialog`'s `open()` or `save()`
@@ -7,19 +7,18 @@
  * deterministic return value via `window.__e2e[<key>]` set from the
  * E2E side via `browser.execute`.
  *
- * The override branch is gated by `import.meta.env.MODE !== "production"`
- * so it tree-shakes out of `tauri build --release` (mode='production')
- * but stays present in:
+ * The override branch is gated by an allowlist of modes, so it tree-shakes
+ * out of `tauri build --release` (mode='production') but stays present in:
  *   - `vite dev` / `tauri dev`           — MODE='development'
  *   - `vitest`                            — MODE='test'
  *   - `vite build --mode e2e` / E2E build — MODE='e2e'
  *
  * The E2E binary is produced via `npm run build:e2e` (= `vite build
  * --mode e2e`), wired through `src-tauri/tauri.e2e.conf.json` which
- * overrides Tauri's `beforeBuildCommand`. See ADR-007 for rationale.
+ * overrides Tauri's `beforeBuildCommand`.
  *
- * Net cost in production: zero (Vite constant-folds `MODE !==
- * "production"` to `false`; esbuild eliminates the branch).
+ * Net cost in production: zero (Vite constant-folds the mode test to
+ * `false`; esbuild eliminates the branch).
  *
  * Adding a new native-API gateway:
  * 1. Add an entry to `Window["__e2e"]` below — key must match the

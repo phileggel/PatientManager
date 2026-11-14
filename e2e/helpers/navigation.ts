@@ -1,7 +1,7 @@
 /**
  * Navigation helpers shared by the E2E suites (FLOW-020).
  *
- * Selectors target stable `id` attributes — locale-invariant per ADR-007.
+ * Selectors target stable `id` attributes — locale-invariant (E4).
  */
 import { $ } from "@wdio/globals";
 

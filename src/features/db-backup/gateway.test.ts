@@ -48,7 +48,7 @@ describe("db-backup/gateway — pickExportPath", () => {
     expect(await pickExportPath("Export DB", "/home/u/backup.gz")).toBeNull();
   });
 
-  // ADR-007: e2e override
+  // E12: e2e override
   it("returns the override and skips save() when window.__e2e.pickExportPath is set", async () => {
     window.__e2e = { pickExportPath: "/fixture/backup.gz" };
     expect(await pickExportPath("t", "/default.gz")).toBe("/fixture/backup.gz");
@@ -83,7 +83,7 @@ describe("db-backup/gateway — pickImportPath", () => {
     expect(await pickImportPath("t")).toBeNull();
   });
 
-  // ADR-007: e2e override
+  // E12: e2e override
   it("returns the override and skips open() when window.__e2e.pickImportPath is set", async () => {
     window.__e2e = { pickImportPath: "/fixture/in.gz" };
     expect(await pickImportPath("t")).toBe("/fixture/in.gz");
@@ -141,7 +141,7 @@ describe("db-backup/gateway — diagnostic report", () => {
     expect(result).toBe("/home/u/diagnostic.txt");
   });
 
-  // ADR-007: e2e override
+  // E12: e2e override
   it("returns the override and skips save() when window.__e2e.pickDiagnosticReportPath is set", async () => {
     window.__e2e = { pickDiagnosticReportPath: "/fixture/diagnostic.txt" };
     expect(await pickDiagnosticReportPath("t", "d.txt")).toBe("/fixture/diagnostic.txt");

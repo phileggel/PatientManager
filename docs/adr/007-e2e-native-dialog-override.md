@@ -1,7 +1,7 @@
 # ADR 007 — E2E native-dialog override pattern
 
 **Date**: 2026-05-09
-**Status**: Accepted
+**Status**: Retired — `docs/e2e-rules.md` E12 holds its rules (owner, 2026-11-09, #671)
 
 ## Context
 
