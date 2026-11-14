@@ -15,31 +15,6 @@ support code.
 
 ## Business Rules
 
-### Entry and destination (010–019)
-
-**DGR-010 — Entry point (frontend)**: The database backup dialog (opened from the "Maintenance"
-entry of the navigation drawer; `db-backup.md` R1) has a third section, « Rapport de diagnostic »,
-below export and restore. It holds a description stating that the report contains no patient
-data, and one button, « Générer le rapport ».
-
-**DGR-011 — Destination (frontend)**: The button opens a native save dialog filtered to `.txt`
-files, with the default name `diagnostic-YYYYMMDD.txt` (local date). Cancelling the save dialog
-does nothing.
-
-**DGR-012 — Loading state (frontend)**: While the report is being written, the button is in a
-loading state and cannot be pressed again.
-
-**DGR-013 — Busy guard (frontend)**: The button is disabled while an export or a restore is
-running. Writing a report does not disable export or restore.
-
-**DGR-014 — Success display (frontend)**: Once the report is written, the section shows the saved
-file's name and the report's support code. They stay until the database backup dialog is closed
-or a new report is started.
-
-**DGR-015 — Failure feedback (frontend)**: When the report cannot be written, an error toast
-names the cause: the home directory could not be found (DGR-026), the destination is not allowed
-(DGR-023), or the file could not be written (DGR-025). Nothing is shown as saved.
-
 ### Report content (020–029)
 
 **DGR-020 — Support code (backend)**: Each report carries a support code of eight characters in
@@ -102,43 +77,20 @@ anyway and logs a warning.
 ## Workflow
 
 ```
-« Générer le rapport » → save dialog ──cancel──→ nothing
-                              │
-                         destination
-                              │
-        backend validates it (DGR-023, DGR-026) ──refused──→ error toast (DGR-015)
-                              │
-          collects the parts (DGR-021, DGR-025), writes the file ──fails──→ error toast
-                              │
-        section shows the file name and the support code (DGR-014)
+a destination ──refused (DGR-023, DGR-026)──→ a specific error
+      │
+collect the parts (DGR-021, DGR-025), write the file ──fails──→ a specific error
+      │
+the file is written; the result gives the support code (DGR-020)
 ```
-
----
-
-## UX Draft
-
-### Entry Point
-
-The « Rapport de diagnostic » section of the database backup dialog, under « Restaurer une
-sauvegarde ». Validated by the owner from mocks on 2026-10-03; the shipped screen is
-`screenshots/DbBackupModal-{light,dark}-{open,saved}.png`.
-
-### States
-
-- **Idle**: title, description, a secondary button « Générer le rapport ».
-- **Writing**: the button shows a spinner (DGR-012).
-- **Saved**: a notice above the button — « Rapport enregistré : » and the file name, then
-  « Envoyez ce fichier au support et indiquez le code » and the support code (DGR-014).
-- **Failed**: an error toast; the section is back to idle (DGR-015).
 
 ---
 
 ## Open Questions
 
+- [ ] A report written while an export or a restore runs: the backend does not prevent it; whether DGR-025's best effort answers what it then holds is not stated.
 - [x] Which log lines may the report carry? — Decided by the owner on 2026-10-03: the log is
       emptied when the version changes (DGR-030). Following the security review, the report also
       keeps only the lines the backend wrote (DGR-022).
 - [x] How does the report reach support? — Decided by the owner on 2026-10-03: saved to a file
       the user sends; no upload.
-
-None — all questions have been resolved.

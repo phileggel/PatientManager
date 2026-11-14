@@ -1,13 +1,13 @@
 # Contract — Excel Import
 
 > Domain: excel-import
-> Last updated by: excel-import spec
+> Last updated by: excel-import spec, business rules only (#647), 2026-11-14
 
 ## Commands
 
 ### `parse_excel_file` — R1, R2, R3, R4, R5, R6
 
-Parses the Excel file at the given path, which must be an existing `.xlsx` file under the user's home directory. Reads `Patiente`, `Secu`, and monthly sheets. Assigns `temp_id` UUIDs to each entity (R5) and groups procedures by amount to derive `procedure_type_tmp_id` (R6). Validates SSNs (R3) and fund identifiers (R4). Returns skipped lines and missing sheets in `parsing_issues` (R2, R21). The returned `ParseExcelResponse` must be kept in memory — re-parsing would produce different `procedure_type_tmp_id` UUIDs, invalidating any existing type mapping (R7).
+Parses the Excel file at the given path, which must be an existing `.xlsx` file under the user's home directory. Reads `Patiente`, `Secu`, and monthly sheets. Assigns `temp_id` UUIDs to each entity (R5) and groups procedures by amount to derive `procedure_type_tmp_id` (R6). Validates SSNs (R3) and fund identifiers (R4). Returns skipped lines and missing sheets in `parsing_issues` (R2, R21). Each parse draws new `procedure_type_tmp_id` UUIDs, so a type mapping holds for the parse that produced it only (EXI-070).
 
 - **Args:** `file_path: String`
 - **Returns:** `ParseExcelResponse`
@@ -15,11 +15,11 @@ Parses the Excel file at the given path, which must be an existing `.xlsx` file 
 
 ---
 
-### `execute_excel_import` — R8, R9, R10, R15, R16, R17, R18, R19, R20, R24, R25, PRO-300, EXI-131, EXI-171, EXI-175, EXI-176, EXI-177, EXI-178, EXI-179, EXI-270, EXI-280, EXI-281, EXI-290
+### `execute_excel_import` — R8, R9, R10, R15, R16, R17, R18, R19, R20, R24, R25, PRO-300, EXI-110, EXI-130, EXI-131, EXI-171, EXI-175, EXI-176, EXI-177, EXI-178, EXI-179, EXI-270, EXI-280, EXI-281, EXI-290
 
 Executes the import from a previously parsed response. Resolves and creates patients (R8) and funds (R9). Selection is by sheet (EXI-270): the backend filters rows by `ExcelProcedure.sheet_month` equality against `selected_sheets`. For each selected sheet, checks blocking (R15) on the sheet's nominal month and lists the non-blocked months to replace (R16), neither under EXI-171; their procedures are deleted before any procedure is created, in one transaction with every other write (EXI-175). For each procedure row in a selected sheet, the orchestrator applies the execute-time validation gates before creation: `procedure_date` and `confirmed_payment_date` must parse (EXI-280), and `procedure_date.month` must equal the sheet's nominal month (EXI-281). Rows that fail any gate are added to `ImportExecutionResult.skipped_procedures` (EXI-290) with the source sheet, row number, and a typed reason (`SkipReason`); the import continues with the remaining rows. Accepted procedures are created in the correct initial status (R19) and patient tracking fields are updated (R18). Procedures whose `procedure_type_tmp_id` is absent from `procedure_type_mapping` are skipped (R25); one mapped to `imported-from-excel` is created with the reserved `import-pdf` type (EXI-131). Returns a detailed result report (R20).
 
-> R7: `parsed_data` must be the original parse response — never re-parsed.
+> EXI-070: `parsed_data` and `procedure_type_mapping` come from the same parse.
 
 - **Args:** `parsed_data: ParseExcelResponse, procedure_type_mapping: Map<String, String>, selected_sheets: Vec<String>` — `selected_sheets` carries canonical sheet names (`"Jan"`, `"Fév"`, …) matching `ExcelProcedure.sheet_month`.
 - **Returns:** `ImportExecutionResult`
@@ -50,7 +50,7 @@ Persists the user's amount → procedure type choices. Upserted keyed on `amount
 ## Shared Types
 
 ```rust
-// R1, R6 — full parse result; held in memory for the lifetime of the import session (R7)
+// R1, R6 — full parse result; its type mapping holds for it only (EXI-070)
 struct ParseExcelResponse {
     patients: Vec<ExcelPatient>,
     funds: Vec<ExcelFund>,
@@ -138,10 +138,10 @@ struct ImportExecutionResult {
     funds_created: u32,
     funds_reused: u32,
     procedures_created: u32,
-    procedures_skipped: u32,            // count covers BOTH parse-time skips (R25 amount-mapping) AND execute-time skips (EXI-280/281, also surfaced in skipped_procedures)
+    procedures_skipped: u32,            // EXI-210 — execute-time skips only: unselected sheet or blocked month, unresolved patient, unmapped amount (R25), date gates (EXI-280/281, also in skipped_procedures)
     procedures_deleted: u32,
     blocked_months: Vec<String>,        // R15 — YYYY-MM format
-    skipped_procedures: Vec<SkippedRow>, // EXI-290 — per-row execute-time skip report (reuses the EXI-220 SkippedRow shape)
+    skipped_procedures: Vec<SkippedRow>, // EXI-290 — per-row execute-time skip report; merged with the parse's into EXI-220's report on screen today (#429) (reuses the EXI-220 SkippedRow shape)
 }
 
 // R22, R23 — a single saved amount → procedure type preference
@@ -168,6 +168,7 @@ Each is raised after the commit, at most once per import; a failed import raises
 
 ## Changelog
 
+- 2026-11-14 — #647: the spec holds business rules only; EXI-070 says a mapping holds for its parse, EXI-110 and EXI-130 back `execute_excel_import`; EXI-220's merged, sorted report is assembled on screen today, owed by #429. No signature, type or error change.
 - 2026-11-07 — `execute_excel_import` stores the default type `imported-from-excel` as the reserved `import-pdf` type (EXI-131).
 - 2026-11-01 — `SkippedRow.reason` documented as the `SkipReason` the wire already carries (EXI-290); EXI-171's exception stated on `execute_excel_import`.
 - 2026-05-02 — Added by `excel-import` spec: parse_excel_file, execute_excel_import, get_excel_amount_mappings, save_excel_amount_mappings

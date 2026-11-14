@@ -23,7 +23,7 @@ a table that holds practice data (DGR-022).
 ## Shared Types
 
 ```rust
-// DGR-014, DGR-020 — what the screen shows once the report is written
+// DGR-020 — the support code of the written report
 struct DiagnosticReportResult {
     support_code: String,   // "XXXX-XXXX"
 }
@@ -42,4 +42,5 @@ None. Generating a report changes no application state.
 
 ## Changelog
 
+- 2026-11-14 — #647: the result's comment cites DGR-020 alone (DGR-014, a screen clause, is vacant). No signature, type or error change.
 - 2026-10-24 — `generate_diagnostic_report`: a destination inside the app's data or log folder is `PathRejected`; the report is written beside the destination, then moved over it (DGR-027, #512).

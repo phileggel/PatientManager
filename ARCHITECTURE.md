@@ -39,7 +39,7 @@ Primary locale **fr-FR**; secondary **en-GB**. PDF parsing is French-format-spec
 
 Source: practitioner's monthly accounting spreadsheet (`.xlsx`). Spec: [`docs/spec/excel-import.md`](docs/spec/excel-import.md).
 
-**Two-phase**: `parse_excel_file` → `execute_excel_import`. Parsing generates session-only `procedure_type_tmp_id` UUIDs; re-parsing would regenerate them and break the user's type-mapping choices, so the FE keeps the `ParseExcelResponse` in memory and `execute_excel_import` consumes it verbatim (EXI-070).
+**Two-phase**: `parse_excel_file` → `execute_excel_import`. Parsing generates session-only `procedure_type_tmp_id` UUIDs; re-parsing would regenerate them and break the user's type-mapping choices, so a type mapping holds for the parse that produced it, and `execute_excel_import` receives both (EXI-070).
 
 **Patient dedup priority**: SSN if valid, else case-insensitive Unicode-aware name match (EXI-080).
 

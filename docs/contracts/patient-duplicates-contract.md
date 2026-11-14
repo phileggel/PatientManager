@@ -48,7 +48,7 @@ struct PatientSummary {
     latest_procedure_date: Option<String>,  // "YYYY-MM-DD"
 }
 
-// PDU-010, PDU-013 — `first` is the patient preselected as the one to keep
+// PDU-010, PDU-013 — `first` comes first by PDU-013
 struct DuplicatePair {
     name: String,
     first: PatientSummary,
@@ -66,4 +66,5 @@ struct DuplicatePair {
 
 ## Changelog
 
+- 2026-11-14 — #647: `first` is described by PDU-013 alone (PDU-020, a screen clause, is vacant). No signature, type or error change.
 - 2026-11-08 — merge (#591, PDU-021): the other patient is really deleted; no signature change.
