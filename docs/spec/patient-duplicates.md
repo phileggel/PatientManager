@@ -56,25 +56,9 @@ The pair shows the name as recorded on the patient that comes first by PDU-013.
 pair, the patient with the most procedures comes first; with equal counts, the one that has an
 SSN; then by identifier, so the order is stable.
 
-**PDU-014 — Search (frontend)**: The search field keeps the pairs whose name contains the typed
-text, ignoring case and accents.
-
-**PDU-015 — Empty and loading states (frontend)**: While the pairs load, the list shows a loading
-message. With no pair to show, it shows « Aucun doublon à examiner. ». If loading fails, it shows
-an error message in place of the rows.
-
-**PDU-016 — Entry point (frontend)**: The page is opened from a « Doublons de patients » card in
-the management dialog.
-
 ### Merge (020–029)
 
-**PDU-020 — Choosing the patient to keep (frontend)**: « Fusionner » opens a dialog showing the
-two patients of the pair with their SSN, procedure count and latest procedure date. The first
-patient of the pair (PDU-013) is preselected as the one to keep; the user can pick the other. The
-dialog states how many procedures move to the kept patient (the other patient's count, PDU-012)
-and that the other patient is deleted, and that the action cannot be undone.
-
-**PDU-021 — Merge (backend)**: Merging moves every procedure of the other patient, whatever their
+**PDU-021 — Merge (backend)**: A merge names the patient to keep and the other; it moves every procedure of the other patient, whatever their
 payment status, to the kept patient, and deletes the other patient: it is removed, its name and SSN
 included, as for any patient deletion (PRO-297) (#591).
 
@@ -96,24 +80,12 @@ dismissal does not make a merge refused.
 **PDU-026 — Dismissals of the deleted patient (backend)**: Dismissals that involve the deleted
 patient are removed in the merge.
 
-**PDU-027 — Feedback (frontend)**: While the merge runs the dialog's buttons are disabled. On
-success a confirmation toast is shown, the dialog closes and the list reloads. On failure an
-error toast names the cause and the dialog stays open; if the pair no longer exists the list
-reloads.
-
-**PDU-028 — Other screens after a merge (backend)**: A merge publishes `PatientUpdated` and
-`ProcedureUpdated`, so every screen showing patients or procedures reflects it.
-
-**PDU-029 — Different SSN notice (frontend)**: When both patients of the pair have an SSN and the
-two differ, the merge dialog shows the notice « Ces deux fiches ont un INS différent : il s'agit
-peut-être de deux personnes. L'INS de la fiche N ne sera pas conservé. », N being the patient that
-is not the kept patient; it follows the choice of PDU-020. That SSN is not carried to the kept
-patient (PDU-021, PDU-022). The merge stays allowed (PDU-025). No
-notice when an SSN is missing or the two are equal.
+**PDU-028 — Events of a merge (backend)**: A merge publishes `PatientUpdated` and
+`ProcedureUpdated`.
 
 ### Dismissal (030–039)
 
-**PDU-030 — Not a duplicate (backend)**: « Pas un doublon » records a dismissal for the pair
+**PDU-030 — Not a duplicate (backend)**: Dismissing a pair records a dismissal for it
 (Entity Definition). The pair is not proposed again, on this run or any later one.
 
 **PDU-031 — Dismissing twice (backend)**: Dismissing a pair that is already dismissed changes
@@ -124,54 +96,19 @@ the same or when either patient does not exist. The names are not checked: any t
 existing patients can be declared different people. A dismissal publishes no event: no patient
 changes.
 
-**PDU-033 — Feedback (frontend)**: On success the pair leaves the list. On failure an error toast
-names the cause.
-
 ---
 
 ## Workflow
 
 ```
-management dialog → « Doublons de patients » → list of pairs
+the pairs (PDU-010 to PDU-013)
         │
-        ├── « Pas un doublon » ─→ dismissal recorded ─→ the pair leaves the list (PDU-030, PDU-033)
+        ├── dismissal ─→ recorded, the pair is not proposed again (PDU-030 to PDU-032)
         │
-        └── « Fusionner » ─→ dialog: which patient to keep (PDU-020),
-                  │             a notice if the two SSN differ (PDU-029)
-                  ├── « Annuler » ─→ nothing
-                  └── « Fusionner » ─→ procedures move, SSN and defaults carried, other patient
-                                       deleted (PDU-021 to PDU-026) ─→ toast, list reloads (PDU-027)
+        └── merge, naming the patient to keep ─→ procedures move, SSN and tracking fields carried,
+                                                  the other patient deleted (PDU-021 to PDU-026),
+                                                  events published (PDU-028)
 ```
-
----
-
-## UX Draft
-
-### Entry Point
-
-A card « Doublons de patients » in the management dialog, after « Patients ». Validated by the
-owner from mocks on 2026-10-03 (shipped screen: `screenshots/PatientDuplicateManager-*.png`).
-
-### Main Component
-
-The manager layout used by the other management pages: on the left the list with its search
-field and pair count; on the right a panel explaining what a duplicate is and what the two
-actions do. One row per pair: name, first patient (SSN, « N actes · dernier le … »), second
-patient, and the actions « Pas un doublon » and « Fusionner ».
-
-### States
-
-- **Loading / empty / error**: one message row (PDU-015).
-- **Merge dialog**: two selectable cards, the different-SSN notice when it applies (PDU-029), the
-  consequence sentence, « Annuler » and a danger « Fusionner » (PDU-020). The notice was validated by
-  the owner from a mock on 2026-10-04.
-
-### User Flow
-
-1. Open the page; read a pair.
-2. Either « Pas un doublon »: the row disappears.
-3. Or « Fusionner »: choose the patient to keep, confirm; the row disappears and the kept patient
-   now carries all the procedures.
 
 ---
 
@@ -183,8 +120,8 @@ patient, and the actions « Pas un doublon » and « Fusionner ».
       and kept in the database; superseded by the owner on 2026-11-01 (#579): really deleted
       (PDU-021, #591).
 - [x] Two patients that each have an SSN? — Decided by the owner on 2026-10-03, completed on
-      2026-10-04: the kept patient's SSN stays, the merge is not refused (PDU-022), and the dialog
-      warns when the two differ (PDU-029).
+      2026-10-04: the kept patient's SSN stays, the merge is not refused (PDU-022), and the screen
+      warns when the two differ (its mock).
 - [x] Which pairs are proposed? — Decided by the owner on 2026-10-03: same name only (PDU-010).
 
 None — all questions have been resolved.

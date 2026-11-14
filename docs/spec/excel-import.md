@@ -42,7 +42,7 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-060 (R6) — Temporary procedure-type identifier (backend)**: A `procedure_type_tmp_id` (UUID) is assigned to each procedure based on its amount. All procedures with the same amount share the same `procedure_type_tmp_id`. This grouping by amount lets the user map each unique amount to a real procedure type.
 
-**EXI-070 (R7) — Re-parsing forbidden (backend + frontend)**: `procedure_type_tmp_id`s are generated randomly at parsing time. Re-parsing the same file would produce different UUIDs, invalidating any type mapping the user has already established. The frontend therefore keeps the parse response in memory and never re-runs parsing a second time.
+**EXI-070 (R7) — A mapping belongs to its parse (backend)**: Each parse draws new `procedure_type_tmp_id`s (EXI-060), so a type mapping keyed on them holds for the parse that produced it only. Whether the screen parses a file again is the mock's (owner, 2026-11-07, #634).
 
 ### Deduplication
 
@@ -61,17 +61,13 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 ### Sheet selection
 
-**EXI-110 (R11) — Selecting which sheets to import (frontend)**: After parsing, the user selects which monthly sheets to import via a checkbox list. All sheets detected in the parsed procedures are offered, identified by their canonical sheet name (`Jan`, `Fév`, `Mars`, …). By default, all are selected. Only selected sheets are passed to the execution command. The "Continue" button is disabled if no sheet is selected. **Special case**: if no procedure was parsed (file with no monthly sheets, or all lines skipped), the sheet-selection and type-mapping steps are skipped — the import runs without further steps.
+**EXI-110 (R11) — Sheets to import (backend)**: An import executes the monthly sheets it is given, by canonical sheet name (`Jan`, `Fév`, `Mars`, …); procedures of the other sheets are not imported. An import given no sheet still resolves the workbook's patients and funds (EXI-080, EXI-090) and creates no procedure.
 
 ### Procedure-type mapping
 
-**EXI-120 (R12) — Mapping pre-fill (frontend)**: For each unique amount detected in the parsed procedures, the user associates a procedure type. The frontend automatically pre-fills each amount with the first available type (or the default type `imported-from-excel`, EXI-130, if no type exists). All amounts therefore always have a value in the mapping sent.
-
-**EXI-130 (R13) — Default type (frontend)**: The user can choose the default type, « Importé depuis Excel » (sent as `imported-from-excel`), for an amount. Matching procedures are created with the reserved type « Import » (EXI-131).
+**EXI-130 (R13) — Default type (backend)**: An amount can be mapped to the default type `imported-from-excel`; its procedures take the reserved type « Import » (EXI-131).
 
 **EXI-131 — The default type is stored as the reserved type (backend)**: A procedure whose amount is mapped to `imported-from-excel` is created with the reserved type, id `import-pdf` (see R21 of procedure-type.md). No procedure type is created.
-
-**EXI-140 (R14) — Inline procedure-type creation (frontend)**: The user can create a new procedure type directly from the mapping screen, via a modal. The default amount is pre-filled with the matching value. The created type is immediately available in the mapping list.
 
 **EXI-150 (R25) — Procedures skipped if amount missing from mapping (backend)**: If an amount is missing from the mapping received at execution time, all procedures matching that amount are skipped.
 
@@ -91,11 +87,9 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-177 — Events of an import (backend)**: Once the transaction is committed, an import raises `PatientUpdated` if it wrote a patient, `FundUpdated` if it created a fund, and `ProcedureUpdated` if it deleted or created a procedure, each at most once. A failed import raises none.
 
-**EXI-178 — What a failed import does not undo (backend)**: The mapping preferences (EXI-230) and the procedure types created on the mapping screen (EXI-140) remain after a failed import.
+**EXI-178 — What a failed import does not undo (backend)**: The mapping preferences (EXI-230) and the procedure types created for its mapping remain after a failed import.
 
 **EXI-179 — What fails an import (backend)**: An import fails, as EXI-175 says, when a read or a write fails (the database refusing a patient, fund or procedure is a failed write), or when the domain refuses a patient or fund that passed parsing. The refused patient and the refused fund each have their own error.
-
-**EXI-179A — One message for a failed import (frontend)**: A failed read or write of an import, a refused patient and a refused fund show the same message.
 
 ### Import orchestration
 
@@ -113,53 +107,45 @@ The writes of these steps and of EXI-190 apply as one (EXI-175).
 **EXI-200 (R19) — Initial status of imported procedures (backend)**: The initial status is computed by the orchestration based on the payment data present in the Excel (see R15 and R16 of procedure-orchestration.md):
 
 - Procedure with no confirmed payment → `Created`
-- Procedure with confirmed payment, ES/CH method or no fund → `ImportDirectlyPayed`
-- Procedure with confirmed payment, other method, with fund → `ImportFundPayed`
+- Procedure with confirmed payment, ES/CH method or no fund → `ImportDirectlyPaid`
+- Procedure with confirmed payment, other method, with fund → `ImportFundPaid`
 
 Procedures in `Created` are then eligible for fund reconciliation (see R1 of fund-payment-auto-match.md).
 
 ### Result and reporting
 
-**EXI-210 (R20) — Result report (backend + frontend)**: At the end of the import, a summary is displayed containing:
+**EXI-210 (R20) — Result (backend)**: An import's result counts the patients created and reused, the funds created and reused, and the procedures created, deleted and skipped — skipped meaning a row of an unselected sheet or a blocked month, whose patient was not resolved, whose amount has no mapping (EXI-150), or that failed a date gate (EXI-280, EXI-281); parse-time skips are not counted. It lists the blocked months, if any.
 
-- Patients created / reused
-- Funds created / reused
-- Procedures created / skipped / deleted
-- List of blocked months (if any)
+**EXI-220 (R21) — Import report (backend)**: An import's report holds two lists (today the parse gives the missing sheets and its skipped lines, the import its own, and the screen merges and sorts them — owed by #429):
 
-**EXI-220 (R21) — Import report (backend + frontend)**: At the end of import, a single detailed report is reachable from the result screen. It contains two sections:
-
-- **Missing sheets**: list of monthly sheets expected but not found in the Excel file, displayed by the same name the user sees on the sheet-selection step (EXI-110).
-- **Skipped lines**: a single flat table with columns sheet, row, reason. Lines may come from either parse-time skips (see EXI-020, EXI-040) or execute-time skips (see EXI-290) — the two origins are merged because the user-facing concept ("rows that didn't make it into the database") is identical regardless of pipeline stage. Lines skipped because of an `#N/A` name or empty row are never reported (too numerous and not informative — the parser drops them silently, so they reach neither the wire nor the display). Rows are sorted by sheet (canonical month order) then row number.
+- **Missing sheets**: list of monthly sheets expected but not found in the Excel file, by their canonical name (EXI-110).
+- **Skipped lines**: a single flat table with columns sheet, row, reason. Lines may come from either parse-time skips (see EXI-020, EXI-040) or execute-time skips (see EXI-290) — the two origins are merged: a line either reached the database or did not, whatever the stage. Lines skipped because of an `#N/A` name or empty row are never reported (too numerous and not informative — the parser drops them silently, so they reach neither the wire nor the display). Rows are sorted by sheet (canonical month order) then row number.
 
 This report is informative and non-blocking.
 
 ### Mapping memory
 
-**EXI-230 (R22) — Mapping persistence (frontend)**: When the mapping step is confirmed, the user's choices (amount → procedure type) are persisted in the database.
+**EXI-230 (R22) — Mapping persistence (backend)**: A type mapping (amount → procedure type) is saved for later imports, one per amount, a later save replacing it; any procedure type is accepted, one deleted later being filtered out on read (EXI-250). It is saved apart from the import and stays after a failed one (EXI-178).
 
-**EXI-240 (R23) — Reload as defaults (frontend)**: On a later import, the saved preferences are offered as defaults on the mapping screen. The user can edit any value — there is no auto-validation.
+**EXI-240 (R23) — Saved mappings read back (backend)**: The saved mappings can be read back, filtered as EXI-250 says; an import applies only the mapping it is given.
 
-**EXI-250 (R24) — Filtering of deleted types (backend)**: Mapping preferences are filtered before being passed to the frontend: only mappings whose procedure type still exists (not deleted) or whose value is the default type `imported-from-excel` are returned; a mapping keeps that value as such (EXI-131 applies to the procedure only). If a type was deleted since the last import, its mapping is excluded — the UI then falls back to the pre-fill of EXI-120.
-
-### Last-folder memory
-
-**EXI-260 (R25) — Last-folder memory (frontend)**: When the user successfully picks an Excel file from the OS file dialog, the parent folder of the picked file is persisted in `localStorage` under the per-feature key `import-last-folder:excel`. On the next Excel import, that folder is passed to the dialog as `defaultPath` so the user starts where they left off. Each of the three import flows (Excel, fund PDF, bank PDF) has its own slot — picking a bank-statement PDF never moves the Excel default. Cancelling the dialog leaves the persisted folder untouched. If the persisted folder is no longer reachable, the native dialog opens at the OS's own fallback (home or last-used location depending on platform); no explicit fallback resolution happens in the app.
+**EXI-250 (R24) — Filtering of deleted types (backend)**: Saved mappings are filtered before they are returned: only mappings whose procedure type still exists (not deleted) or whose value is the default type `imported-from-excel` are returned; a mapping keeps that value as such (EXI-131 applies to the procedure only). If a type was deleted since the last import, its mapping is excluded.
 
 ### Open Questions
 
 - [x] **Year-drift acceptance (Stance A, accepted)**: EXI-281 only checks that `procedure_date.month` equals the sheet's nominal month; it does not check the year. A 2025-dated row in a 2026 workbook's `Jan` sheet is accepted. Convention violation is the user's responsibility, and downstream consumers filter by full `procedure_date` anyway. **This is a recorded non-goal, not a latent gap** — surfacing year drift via EXI-290 is out of scope for this feature.
-- [ ] **The reserved type on the mapping screen (EXI-120)**: the mapping screen lists every procedure type, the reserved one included (see R22 of procedure-type.md), so « Import » is offered beside « Importé depuis Excel », can be the pre-fill, and "if no type exists" never happens. Both store the same type (EXI-131) but are saved as different mappings. Whether the screen should hide « Import » is the owner's call; today's behaviour is kept (ticket #608).
+- [ ] **The reserved type and the default type**: a mapping accepts both the reserved type « Import » (see R22 of procedure-type.md) and the default type `imported-from-excel`; both store the same type on the procedure (EXI-131) but are saved as different mappings (ticket #608, with the owner).
+- [ ] **A failed mapping save** (EXI-230): what the user's mapping becomes when its save fails is not stated.
 
 ### Execute-time validation and reporting
 
-**EXI-270 — Sheet-based selection (backend + frontend)**: Import selection is by sheet, not by month-derived-from-date. The frontend offers the user the list of detected sheets (identified by their canonical sheet name, e.g. `Jan`, `Fév`) and passes the user's choice to the backend. The backend filters procedure rows by source-sheet identity (matching each row to its parser-assigned canonical sheet name). The previous derived-month substring filter on the date cell is replaced — date validation moves to EXI-280 and EXI-281.
+**EXI-270 — Sheet-based selection (backend)**: Import selection is by sheet, not by month derived from the date: procedure rows are kept by their source sheet's canonical name, as the parser assigned it. Dates are checked by EXI-280 and EXI-281.
 
 **EXI-280 — Execute-time date format validation (backend)**: For each procedure row in a selected sheet, `procedure_date` (required) MUST parse as a calendar date in `YYYY-MM-DD` format. `confirmed_payment_date` (when present and non-empty) MUST also parse. A row whose `procedure_date` or `confirmed_payment_date` is malformed is skipped and recorded in the execute-time skip report defined by EXI-290 (which is the rule that owns user-visible reporting). The other procedures in the import proceed normally; the import as a whole does not abort because of a single malformed row.
 
 **EXI-281 — Procedure date must match sheet's nominal month (backend)**: For each procedure row in a selected sheet, after `procedure_date` parses successfully (per EXI-280), the parsed date's month MUST equal the source sheet's nominal month — a row in the `Jan` sheet must have a January `procedure_date`, `Fév` → February, etc. The sheet-name → nominal-month mapping covers both abbreviated and full canonical forms per EXI-010 (e.g. both `Jan` and `Janvier` map to January). A row whose parsed `procedure_date.month` differs from its sheet's nominal month is skipped and recorded in the execute-time skip report defined by EXI-290. A row whose sheet name maps to no month is reported the same way, though EXI-010 means detection should never select one. The year is not checked — the workbook is single-year by convention and the year is not part of sheet identity (see the Open Question on year-drift acceptance). `confirmed_payment_date` is NOT subject to this constraint: a procedure performed in January can be confirmed-paid in February (or any other month), and that is legitimate data.
 
-**EXI-290 — Execute-time skip rows (backend + frontend)**: The import-execution result carries per-row skip entries covering every procedure skipped during execution (format failures per EXI-280; month mismatches per EXI-281; future execute-time skip reasons fall under this rule). Each entry uses the same `SkippedRow` shape as EXI-220 (sheet + row + reason), reused without modification. The `reason` is a stable typed code with cause-specific evidence as a payload — the raw cell text for format failures (verbatim, as it appears in the file), the parsed date in `YYYY-MM-DD` form for month mismatches. The backend authors no display text; the frontend translates the code through its i18n pipeline in the user's runtime locale and renders the payload inline. These entries are merged with the parse-time skip rows in the EXI-220 import report; the two pipeline origins are not surfaced separately in the UI.
+**EXI-290 — Execute-time skip rows (backend)**: The import-execution result carries per-row skip entries covering every procedure skipped during execution (format failures per EXI-280; month mismatches per EXI-281; future execute-time skip reasons fall under this rule). Each entry uses the same `SkippedRow` shape as EXI-220 (sheet + row + reason), reused without modification. The `reason` is a stable typed code with cause-specific evidence as a payload — the raw cell text for format failures (verbatim, as it appears in the file), the parsed date in `YYYY-MM-DD` form for month mismatches. No display text is authored with it: the code carries the cause. They join the parse-time skip rows in the import's report (EXI-220; merged on screen today, #429).
 
 ---
 
@@ -176,17 +162,10 @@ This report is informative and non-blocking.
   → Collect skipped lines
           │
           ▼
-[Sheet selection] (frontend)
-  → List of detected sheets (canonical names: Jan, Fév, …), all checked by default
-  → User unchecks sheets to exclude
-          │
-          ▼
-[Procedure-type mapping] (frontend)
-  → Load saved preferences (backend filters out deleted types)
-  → Table: amount → procedure type (pre-filled with preferences or first available type)
-  → Options: existing type / create new / default type
-  → Inline creation via modal
-  → Save choices on confirmation
+[Sheets and type mapping] — chosen on screen (mocks)
+  → the sheets to import (EXI-110), the amount → type mapping (EXI-130, EXI-150)
+  → the saved mapping returned, deleted types filtered out (EXI-240, EXI-250)
+  → the mapping saved (EXI-230)
           │
           ▼
 [Run the import] (backend)
@@ -197,16 +176,11 @@ This report is informative and non-blocking.
   → For each procedure row in a selected sheet:
        → Validate date formats (EXI-280); skip + report on failure
        → Validate procedure_date.month == sheet.month (EXI-281); skip + report on mismatch
-       → Create with the mapped type (status Created / ImportDirectlyPayed / ImportFundPayed per EXI-200)
+       → Create with the mapped type (status Created / ImportDirectlyPaid / ImportFundPaid per EXI-200)
   → Update patient tracking fields
           │
           ▼
-[Result report] (frontend)
-  → Counters: patients / funds / procedures (created / skipped / deleted)
-  → Warning: blocked months
-  → Access to the parsing report (parse-time skipped lines, EXI-220)
-  → Access to the execute-time skip report (EXI-290)
-          │
-          ▼
-[End — back to home or new import]
+[Result] (EXI-210)
+  → counters: patients / funds / procedures (created / skipped / deleted), blocked months
+  → the report: missing sheets, skipped lines of both origins (EXI-220, EXI-290)
 ```
