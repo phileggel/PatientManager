@@ -63,8 +63,10 @@ tests never run in a hook (hooks export `GIT_DIR`). Beside the loop's checks:
 
 ## Reviewers
 
-- No lane runs for documents that are not guides. A green CI needs no local run (owner,
-  2026-10-19).
+- The lanes `spec`, `contract`, `adr` and `guides` run locally before the first push, never in
+  CI whatever `loop.md` § 5 says; the release sweep reads the batch's documents (owner, 2026-11-14, #677).
+- No lane runs for documents that are not guides. For the code lanes, a green CI needs no
+  local run (owner, 2026-10-19).
 - A "not a finding" rule, and a rule for what CI found and the local run missed, go in the
   lane's rules document (`review.rules` of `.claude/daneel.json`): the prompts `loop.md` § 5
   names are daneel's, pinned, not this repository's (phileggel/daneel#15).
