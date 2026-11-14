@@ -43,6 +43,15 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
         key: "bank:errors.payment_group_not_found",
         params: { id: err.fund_payment_group_id },
       };
+    // BSM-037 — a group a bank entry already settled.
+    case "BankPaymentAlreadyConfirmed":
+      return {
+        key: "bank:errors.payment_group_already_settled",
+        params: { id: err.fund_payment_group_id },
+      };
+    // BSM-039 — a selected procedure that is no longer Created.
+    case "ProcedureStatusNotCreated":
+      return { key: "bank:errors.procedure_not_created", params: { id: err.procedure_id } };
 
     // --- shared infra catch-all (Bank/Fund/Procedure all emit this) ---
     case "DatabaseError":

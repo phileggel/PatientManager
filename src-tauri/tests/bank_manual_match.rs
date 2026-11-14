@@ -11,8 +11,8 @@ use patient_manager_app::{
             BankEntryInvalidReason, BankEntryService, BankEntryType, BankError,
             SqliteBankAccountRepository, SqliteBankEntryLinkRepository, SqliteBankEntryRepository,
         },
-        fund::{FundPaymentService, SqliteFundPaymentRepository},
-        procedure::{ProcedureService, SqliteProcedureRepository},
+        fund::{FundError, FundPaymentService, SqliteFundPaymentRepository},
+        procedure::{ProcedureError, ProcedureService, SqliteProcedureRepository},
     },
     shared::{
         event_bus::{BankEntryUpdated, EventBus, FundPaymentGroupUpdated, ProcedureUpdated},
@@ -323,4 +323,219 @@ async fn bsm_030_021_a_fund_edit_is_refused_for_its_fields_first() {
             BankEntryInvalidReason::NothingSelected,
         ]
     );
+}
+
+/// A bank account and two `Active` fund payment groups a FUND entry can take.
+async fn seed_account_and_two_groups(pool: &SqlitePool) {
+    for statement in [
+        "INSERT INTO bank_account (id, name) VALUES ('bank-acc', 'Bank')",
+        "INSERT INTO fund (id, fund_identifier, name) VALUES ('fund-640', '75', 'CPAM n° 75')",
+        "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status)
+         VALUES ('group-1', 'fund-640', '2026-03-09', 50000, 'ACTIVE')",
+        "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status)
+         VALUES ('group-2', 'fund-640', '2026-03-09', 30000, 'ACTIVE')",
+    ] {
+        sqlx::query(statement).execute(pool).await.expect("seed");
+    }
+}
+
+/// A second `Created` procedure, beside `seed_open_procedure`'s.
+async fn seed_second_open_procedure(pool: &SqlitePool) -> String {
+    sqlx::query(
+        r#"INSERT INTO "procedure" (id, patient_id, procedure_type_id, procedure_date, billed_amount, payment_status)
+           VALUES ('proc-2', 'patient-1', 'type-1', '2026-03-10', 30000, 'CREATED')"#,
+    )
+    .execute(pool)
+    .await
+    .expect("seed");
+    "proc-2".to_string()
+}
+
+/// BSM-027 (#640): a fund's wire sent to the direct path is refused as a wrong
+/// type, and nothing is written.
+#[tokio::test]
+async fn test_640_bsm_027_a_fund_wire_is_refused_as_a_direct_payment() {
+    let (orchestrator, pool) = setup().await;
+    let proc_id = seed_open_procedure(&pool).await;
+
+    let err = orchestrator
+        .create_direct_transfer(
+            "any-account".to_string(),
+            "2026-03-10".to_string(),
+            BankEntryType::FundWire,
+            vec![proc_id],
+        )
+        .await
+        .expect_err("a fund wire is no direct payment");
+
+    assert!(matches!(
+        err,
+        BankManualMatchError::Task(BankManualMatchTask::WrongTransferType)
+    ));
+    assert_eq!(bank_entry_count(&pool).await, 0);
+    let status: String =
+        sqlx::query_scalar(r#"SELECT payment_status FROM "procedure" WHERE id = 'proc-1'"#)
+            .fetch_one(&pool)
+            .await
+            .expect("status");
+    assert_eq!(status, "CREATED");
+}
+
+fn group_already_confirmed(err: BankManualMatchError) -> String {
+    match err {
+        BankManualMatchError::Fund(FundError::BankPaymentAlreadyConfirmed {
+            fund_payment_group_id,
+        }) => fund_payment_group_id,
+        other => panic!("expected BankPaymentAlreadyConfirmed, got {other:?}"),
+    }
+}
+
+async fn fund_link_count(pool: &SqlitePool) -> i64 {
+    sqlx::query_scalar("SELECT COUNT(*) FROM bank_transfer_fund_group_link")
+        .fetch_one(pool)
+        .await
+        .expect("count links")
+}
+
+/// BSM-037 (#640): a group a bank entry already settled is refused by a creation
+/// and by another entry's edit, named, and nothing is written.
+#[tokio::test]
+async fn test_640_bsm_037_a_settled_group_is_refused_at_creation_and_edit() {
+    let (orchestrator, pool) = setup().await;
+    seed_account_and_two_groups(&pool).await;
+    let create = |groups: &[&str]| {
+        orchestrator.create_fund_transfer(
+            "bank-acc".to_string(),
+            "2026-03-10".to_string(),
+            groups.iter().map(|g| g.to_string()).collect(),
+        )
+    };
+    create(&["group-1"]).await.expect("group-1 settled");
+    let other = create(&["group-2"]).await.expect("group-2 settled");
+
+    let created = create(&["group-1"])
+        .await
+        .expect_err("settled once already");
+    let edited = orchestrator
+        .update_fund_transfer(
+            other.transfer_id,
+            "2026-03-10".to_string(),
+            vec!["group-2".to_string(), "group-1".to_string()],
+        )
+        .await
+        .expect_err("group-1 belongs to another entry");
+
+    assert_eq!(group_already_confirmed(created), "group-1");
+    assert_eq!(group_already_confirmed(edited), "group-1");
+    assert_eq!(bank_entry_count(&pool).await, 2);
+    assert_eq!(fund_link_count(&pool).await, 2);
+}
+
+/// BSM-037 (#640): an edit keeps a group its own entry settled.
+#[tokio::test]
+async fn test_640_bsm_037_an_edit_keeps_its_own_group() {
+    let (orchestrator, pool) = setup().await;
+    seed_account_and_two_groups(&pool).await;
+    let entry = orchestrator
+        .create_fund_transfer(
+            "bank-acc".to_string(),
+            "2026-03-10".to_string(),
+            vec!["group-1".to_string()],
+        )
+        .await
+        .expect("group-1 settled");
+
+    let edited = orchestrator
+        .update_fund_transfer(
+            entry.transfer_id,
+            "2026-03-11".to_string(),
+            vec!["group-1".to_string(), "group-2".to_string()],
+        )
+        .await
+        .expect("group-1 kept, group-2 added");
+
+    assert!(matches!(edited, BankEntryEdit::Updated { .. }));
+    assert_eq!(fund_link_count(&pool).await, 2);
+}
+
+fn procedure_not_created(err: BankManualMatchError) -> String {
+    match err {
+        BankManualMatchError::Procedure(ProcedureError::ProcedureStatusNotCreated {
+            procedure_id,
+        }) => procedure_id,
+        other => panic!("expected ProcedureStatusNotCreated, got {other:?}"),
+    }
+}
+
+/// BSM-039 (#640): a procedure that is not `Created` is refused by a creation and
+/// by another entry's edit, named, and nothing is written; its own entry keeps it.
+#[tokio::test]
+async fn test_640_bsm_039_a_procedure_not_created_is_refused_at_creation_and_edit() {
+    let (orchestrator, pool) = setup().await;
+    let paid = seed_open_procedure(&pool).await;
+    let open = seed_second_open_procedure(&pool).await;
+    let create = |procedures: Vec<String>| {
+        orchestrator.create_direct_transfer(
+            "cash-account-default".to_string(),
+            "2026-03-10".to_string(),
+            BankEntryType::PatientCheck,
+            procedures,
+        )
+    };
+    let first = create(vec![paid.clone()]).await.expect("proc-1 paid");
+    let other = create(vec![open.clone()]).await.expect("proc-2 paid");
+
+    let created = create(vec![paid.clone()]).await.expect_err("paid already");
+    let edited = orchestrator
+        .update_direct_transfer(
+            other.transfer_id,
+            "2026-03-10".to_string(),
+            vec![open.clone(), paid.clone()],
+        )
+        .await
+        .expect_err("proc-1 belongs to another entry");
+    let kept = orchestrator
+        .update_direct_transfer(first.transfer_id, "2026-03-11".to_string(), vec![paid])
+        .await
+        .expect("its own procedure, a new date");
+
+    assert_eq!(procedure_not_created(created), "proc-1");
+    assert_eq!(procedure_not_created(edited), "proc-1");
+    assert!(matches!(kept, BankEntryEdit::Updated { .. }));
+    assert_eq!(bank_entry_count(&pool).await, 2);
+}
+
+/// BSM-028 (#640): a group or procedure repeated in a selection counts once — in the
+/// amount and the links.
+#[tokio::test]
+async fn test_640_bsm_028_a_repeated_selection_counts_once() {
+    let (orchestrator, pool) = setup().await;
+    seed_account_and_two_groups(&pool).await;
+    let proc_id = seed_open_procedure(&pool).await;
+
+    let fund = orchestrator
+        .create_fund_transfer(
+            "bank-acc".to_string(),
+            "2026-03-10".to_string(),
+            vec!["group-1".to_string(), "group-1".to_string()],
+        )
+        .await
+        .expect("group-1 once");
+    let direct = orchestrator
+        .create_direct_transfer(
+            "cash-account-default".to_string(),
+            "2026-03-10".to_string(),
+            BankEntryType::PatientCheck,
+            vec![proc_id.clone(), proc_id],
+        )
+        .await
+        .expect("proc-1 once");
+
+    assert_eq!((fund.linked_count, direct.linked_count), (1, 1));
+    let amounts: Vec<i64> = sqlx::query_scalar("SELECT amount FROM bank_transfer ORDER BY amount")
+        .fetch_all(&pool)
+        .await
+        .expect("amounts");
+    assert_eq!(amounts, vec![50000, 50000]);
+    assert_eq!(fund_link_count(&pool).await, 1);
 }

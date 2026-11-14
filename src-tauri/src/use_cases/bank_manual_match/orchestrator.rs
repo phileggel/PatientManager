@@ -72,6 +72,14 @@ pub enum BankEntryEdit {
     Unchanged,
 }
 
+/// BSM-028 — a selection is a set: each id once, in the order it first appears.
+fn distinct(ids: Vec<String>) -> Vec<String> {
+    let mut seen = HashSet::new();
+    ids.into_iter()
+        .filter(|id| seen.insert(id.clone()))
+        .collect()
+}
+
 /// Whether two selections hold the same ids, order and repeats aside
 /// (BSM-031).
 fn same_selection(stored: &[String], sent: &[String]) -> bool {
@@ -126,7 +134,8 @@ impl BankManualMatchOrchestrator {
 
     /// What reverting `reverted` and settling `settled` on `confirmed_date` makes
     /// of their procedures and groups, written nowhere yet. A group in both ends
-    /// as if it had been reverted, then settled.
+    /// as if it had been reverted, then settled; any other group already settled
+    /// or locked is refused (BSM-037).
     async fn plan_fund_settlement(
         &self,
         reverted: &[String],
@@ -135,6 +144,7 @@ impl BankManualMatchOrchestrator {
     ) -> Result<(Vec<Procedure>, Vec<(String, FundPaymentGroupStatus)>), BankManualMatchError> {
         let mut procedures: HashMap<String, Procedure> = HashMap::new();
         let mut statuses: HashMap<String, FundPaymentGroupStatus> = HashMap::new();
+        let mut reverted_groups: HashMap<String, FundPaymentGroup> = HashMap::new();
         for group_id in reverted {
             // A group that is not found has nothing to revert.
             let Some(mut group) = self.fund_payment_service.read_group(group_id).await? else {
@@ -145,20 +155,24 @@ impl BankManualMatchOrchestrator {
             }
             group.revert_bank_payment();
             statuses.insert(group_id.clone(), group.status);
+            reverted_groups.insert(group_id.clone(), group);
         }
         for group_id in settled {
-            let mut group = self
-                .fund_payment_service
-                .read_group(group_id)
-                .await?
-                .ok_or_else(|| FundError::PaymentGroupNotFound {
-                    fund_payment_group_id: group_id.clone(),
-                })?;
+            let mut group = match reverted_groups.remove(group_id) {
+                Some(group) => group,
+                None => self
+                    .fund_payment_service
+                    .read_group(group_id)
+                    .await?
+                    .ok_or_else(|| FundError::PaymentGroupNotFound {
+                        fund_payment_group_id: group_id.clone(),
+                    })?,
+            };
+            group.confirm_bank_payment()?;
             for procedure in self.read_group_procedures(&group).await? {
                 let current = procedures.remove(&procedure.id).unwrap_or(procedure);
                 procedures.insert(current.id.clone(), settled_by_fund(current, confirmed_date));
             }
-            group.confirm_bank_payment();
             statuses.insert(group_id.clone(), group.status);
         }
         Ok((
@@ -168,7 +182,8 @@ impl BankManualMatchOrchestrator {
     }
 
     /// What reverting `reverted` and paying `paid` directly makes of those
-    /// procedures, written nowhere yet. A procedure in both ends paid.
+    /// procedures, written nowhere yet. A procedure in both ends paid; any other
+    /// procedure that is not `Created` is refused (BSM-039).
     async fn plan_direct_payment(
         &self,
         reverted: &[String],
@@ -182,18 +197,24 @@ impl BankManualMatchOrchestrator {
             .read_procedures_by_ids(reverted.to_vec())
             .await?
         {
-            procedures.insert(procedure.id.clone(), reverted_from_direct(procedure));
+            procedures.insert(procedure.id.clone(), procedure.revert_direct_payment());
         }
-        for procedure in self
+        let mut read: HashMap<String, Procedure> = self
             .procedure_service
             .read_procedures_by_ids(paid.to_vec())
             .await?
-        {
+            .into_iter()
+            .map(|p| (p.id.clone(), p))
+            .collect();
+        // In the selection's order, so the refusal names its first procedure.
+        for procedure_id in paid {
+            // An unknown one was refused before (BSM-036).
+            let Some(procedure) = read.remove(procedure_id) else {
+                continue;
+            };
             let current = procedures.remove(&procedure.id).unwrap_or(procedure);
-            procedures.insert(
-                current.id.clone(),
-                paid_directly(current, payment_method, confirmed_date),
-            );
+            let paid = current.pay_directly(payment_method, confirmed_date)?;
+            procedures.insert(paid.id.clone(), paid);
         }
         Ok(procedures.into_values().collect())
     }
@@ -253,6 +274,7 @@ impl BankManualMatchOrchestrator {
         group_ids: Vec<String>,
     ) -> Result<BankManualMatchResult, BankManualMatchError> {
         // BSM-020, BSM-021 — the form's fields first, nothing read before.
+        let group_ids = distinct(group_ids);
         let confirmed_date =
             BankEntry::read_form(Some(&bank_account_id), &transfer_date, group_ids.len())?;
         let transfer_date = confirmed_date.format("%Y-%m-%d").to_string();
@@ -297,6 +319,7 @@ impl BankManualMatchOrchestrator {
         new_group_ids: Vec<String>,
     ) -> Result<BankEntryEdit, BankManualMatchError> {
         // BSM-030, BSM-021 — the form's fields first, nothing read before.
+        let new_group_ids = distinct(new_group_ids);
         let new_date = BankEntry::read_form(None, &new_transfer_date, new_group_ids.len())?;
         let new_transfer_date = new_date.format("%Y-%m-%d").to_string();
 
@@ -463,7 +486,8 @@ impl BankManualMatchOrchestrator {
     /// update procedure statuses to DirectlyPaid.
     ///
     /// Rejects `FundOutgoingWire` (REF-080) — that variant is reserved for the
-    /// overpayment refund flow.
+    /// overpayment refund flow — and a fund's wire, which is no direct payment
+    /// (BSM-027).
     pub async fn create_direct_transfer(
         &self,
         bank_account_id: String,
@@ -473,6 +497,7 @@ impl BankManualMatchOrchestrator {
     ) -> Result<BankManualMatchResult, BankManualMatchError> {
         // BSM-020, BSM-021 — the form's fields first; a direct payment's account is not
         // asked of the form: the bank context records it on its technical account (BSM-026).
+        let procedure_ids = distinct(procedure_ids);
         let confirmed_date = BankEntry::read_form(
             transfer_type.asked_account(&bank_account_id),
             &transfer_date,
@@ -480,6 +505,9 @@ impl BankManualMatchOrchestrator {
         )?;
         let transfer_date = confirmed_date.format("%Y-%m-%d").to_string();
         transfer_type.ensure_not_refund_only_variant()?;
+        if !transfer_type.is_patient_payment() {
+            return Err(BankManualMatchTask::WrongTransferType.into());
+        }
 
         let total_amount = self.compute_procedures_amount(&procedure_ids).await?;
 
@@ -547,6 +575,7 @@ impl BankManualMatchOrchestrator {
         new_procedure_ids: Vec<String>,
     ) -> Result<BankEntryEdit, BankManualMatchError> {
         // BSM-030, BSM-021 — the form's fields first, nothing read before.
+        let new_procedure_ids = distinct(new_procedure_ids);
         let new_date = BankEntry::read_form(None, &new_transfer_date, new_procedure_ids.len())?;
         let new_transfer_date = new_date.format("%Y-%m-%d").to_string();
 
@@ -783,23 +812,6 @@ fn reverted_from_fund(mut p: Procedure) -> Procedure {
         other => other, // Unexpected — leave as-is
     };
     p.revert_fund_payment()
-}
-
-/// R15 — A procedure paid directly: DirectlyPaid with its payment info.
-fn paid_directly(
-    mut p: Procedure,
-    payment_method: PaymentMethod,
-    confirmed_date: NaiveDate,
-) -> Procedure {
-    p.payment_status = ProcedureStatus::DirectlyPaid;
-    let amount = p.billed_amount;
-    p.with_payment_info(payment_method, Some(confirmed_date), Some(amount))
-}
-
-/// R16 — A procedure whose direct payment is gone: Created, payment info cleared.
-fn reverted_from_direct(mut p: Procedure) -> Procedure {
-    p.payment_status = ProcedureStatus::Created;
-    p.clear_payment_info()
 }
 
 fn parse_date(s: &str) -> Result<NaiveDate, BankError> {

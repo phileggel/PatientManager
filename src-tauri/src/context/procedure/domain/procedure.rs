@@ -383,6 +383,29 @@ impl Procedure {
         self
     }
 
+    /// R15 — Paid directly by the patient: `DirectlyPaid`, its method, date and
+    /// billed amount set. Only a `Created` procedure is paid so (BSM-039).
+    pub fn pay_directly(
+        mut self,
+        payment_method: PaymentMethod,
+        confirmed_date: NaiveDate,
+    ) -> Result<Self, ProcedureError> {
+        if self.payment_status != ProcedureStatus::Created {
+            return Err(ProcedureError::ProcedureStatusNotCreated {
+                procedure_id: self.id,
+            });
+        }
+        self.payment_status = ProcedureStatus::DirectlyPaid;
+        let amount = self.billed_amount;
+        Ok(self.with_payment_info(payment_method, Some(confirmed_date), Some(amount)))
+    }
+
+    /// R16 — Its direct payment gone: `Created` again, payment info cleared.
+    pub fn revert_direct_payment(mut self) -> Self {
+        self.payment_status = ProcedureStatus::Created;
+        self.clear_payment_info()
+    }
+
     /// Reverts the Stage 2 (bank-side) payment when a FUND bank
     /// transfer is deleted. Clears `payment_method` and
     /// `confirmed_payment_date`; preserves `fund_reconciliation_date`
@@ -765,6 +788,28 @@ mod tests {
             ProcedureStatus::Created,
         )
         .map_err(Into::into)
+    }
+
+    #[test]
+    fn test_640_bsm_039_pay_directly_takes_a_created_procedure_only() {
+        let date = NaiveDate::from_ymd_opt(2026, 3, 10).unwrap();
+        let paid = make_new("p", "t")
+            .unwrap()
+            .pay_directly(PaymentMethod::Check, date)
+            .expect("a created procedure");
+        assert_eq!(paid.payment_status, ProcedureStatus::DirectlyPaid);
+        assert_eq!(paid.confirmed_payment_date, Some(date));
+        assert_eq!(paid.paid_amount, Some(100_000));
+
+        let reverted = paid.clone().revert_direct_payment();
+        assert_eq!(reverted.payment_status, ProcedureStatus::Created);
+        assert_eq!(reverted.paid_amount, None);
+
+        let id = paid.id.clone();
+        assert!(matches!(
+            paid.pay_directly(PaymentMethod::Check, date),
+            Err(ProcedureError::ProcedureStatusNotCreated { procedure_id }) if procedure_id == id
+        ));
     }
 
     fn reasons_of(err: ProcedureError) -> Vec<ProcedureInvalidReason> {

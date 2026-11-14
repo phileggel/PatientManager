@@ -47,6 +47,7 @@ export function formatBankStatementError(err: BankStatementReconciliationError):
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     case "PaymentGroupNotFound":
+    case "BankPaymentAlreadyConfirmed":
     // --- draft-engine correction guards (BAS-064/090/094); the reconciliation
     // view maps these to dedicated messages via reconciliationPresenter —
     // this gate-level presenter only needs the generic fallback ---

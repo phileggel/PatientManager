@@ -171,6 +171,7 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     case "PaymentGroupNotFound":
+    case "BankPaymentAlreadyConfirmed":
       return { key: "bank:reconciliation.error.unknown" };
   }
 }

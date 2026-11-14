@@ -127,6 +127,7 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     case "FundPaymentGroupIdEmpty":
     case "LineProcedureIdEmpty":
     case "PaymentGroupNotFound":
+    case "BankPaymentAlreadyConfirmed":
     // --- PatientError domain invariants ---
     case "NameEmpty":
     case "NonAnonymousRequiresName":
@@ -135,6 +136,7 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     // --- ProcedureError domain invariants ---
     case "ProcedureInvalid":
     case "ProcedureNotFound":
+    case "ProcedureStatusNotCreated":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":
     case "ProcedureTypeNotFound":
