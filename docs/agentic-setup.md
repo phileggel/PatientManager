@@ -42,8 +42,7 @@ reads each generic piece against its line. A piece is a list item opened by its 
 ### Scripts
 
 - `scripts/changed-scope.sh` — the checks each changed path needs. Never: runs a check.
-- `scripts/scoped-checks.sh` — the fast checks of a change, for the hooks. Never:
-  tests, coverage or a build.
+- `scripts/scoped-checks.sh` — the fast checks of a change, for the hooks. Never: tests, coverage or a build.
 - `scripts/check.py` — the quality checks of each layer, fast or full. Never: fixes
   what it reports unless asked to format.
 - `scripts/harness.sh` — the merge gate of CI, locally, scoped to what moved; coverage with `--coverage`. Never: a
@@ -77,8 +76,8 @@ The pieces only this repository has: the tools of its build.
 - `.claude/hooks/session-start.sh` — installs a web session's toolchain. Never: the app's data.
 - `.claude/hooks/review-report-required.sh` — sends a CI reviewer back to save its
   report. Never: a local session, or a second time.
-- `scripts/start-app.sh` — starts the application in development mode. Never: touches
-  the installed application's data.
+- `scripts/start-app.sh` — starts the application in development mode. Never: touches the installed application's data.
+- `scripts/publish-release.sh` — the owner publishes the newest draft, its tag and run checked, on a yes. Never: run by the agent, or without a terminal.
 - `scripts/core-without-tauri.sh` — proves the core builds without the desktop shell
   (B47). Never: builds the shell.
 - `scripts/coverage-strip-tests.py` — removes inline Rust test modules from a coverage

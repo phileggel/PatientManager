@@ -21,6 +21,12 @@ FORBIDDEN = {
         "gh release edit v1.2.3 --draft=false",
         "gh release edit v1.2.3 --draft=false --latest",
         "gh release edit v1.2.3 --latest --draft false",
+        "just publish-release",
+        "just -f justfile publish-release",
+        "env just publish-release",
+        "just  publish-release",
+        "bash scripts/publish-release.sh",
+        "./scripts/publish-release.sh",
     ],
     "bypassing a hook": [
         "git commit --no-verify -m x",
@@ -60,6 +66,7 @@ ALLOWED = [
     "gh run rerun 123 --failed",
     "gh release edit v1.2.3 --notes-file notes.md",
     "just release-check",
+    "just build",
 ]
 
 
