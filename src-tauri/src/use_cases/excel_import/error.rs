@@ -42,6 +42,10 @@ pub enum ExcelImportError {
     #[error("A fund of the workbook is invalid")]
     FundInvalid,
 
+    /// EXI-151 — the mapping names a procedure type that does not exist.
+    #[error("The mapping names a procedure type that does not exist")]
+    ProcedureTypeNotFound { procedure_type_id: String },
+
     /// `execute_excel_import` — catch-all: a read or a write failed (EXI-179).
     /// Nothing was written (EXI-175). Logged at the call site; the wire surface
     /// carries no detail.
@@ -80,5 +84,16 @@ mod tests {
                 "variant {code} must serialize to {{\"code\": \"{code}\"}}",
             );
         }
+    }
+
+    #[test]
+    fn test_procedure_type_not_found_carries_the_type_id() {
+        assert_eq!(
+            to_value(ExcelImportError::ProcedureTypeNotFound {
+                procedure_type_id: "type-1".to_string(),
+            })
+            .unwrap(),
+            json!({ "code": "ProcedureTypeNotFound", "procedure_type_id": "type-1" }),
+        );
     }
 }

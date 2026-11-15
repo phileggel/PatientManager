@@ -729,6 +729,9 @@ impl ProcedureRepository for SqliteProcedureRepository {
               AND (
                   payment_status IN (SELECT value FROM json_each(?))
                   OR id IN (SELECT procedure_id FROM fund_payment_line)
+                  OR id IN (SELECT procedure_id FROM bank_transfer_procedure_link)
+                  OR id IN (SELECT source_procedure_id FROM procedure_refund)
+                  OR id IN (SELECT refund_procedure_id FROM procedure_refund)
               )
             "#,
             pattern,
@@ -990,7 +993,7 @@ mod tests {
         assert_eq!(rows_with_id(&repo, &created.id).await, 0);
     }
 
-    /// PRO-030 — a procedure a payment line, a bank link or a refund record still
+    /// PRO-030 — a procedure a payment line, a bank link or a procedure refund still
     /// refers to is not deleted, whatever its status.
     #[tokio::test]
     async fn test_588_delete_procedure_refused_while_referred_to() {
@@ -1133,6 +1136,46 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(blocked, status.is_blocking(), "{status:?}");
+        }
+    }
+
+    /// EXI-161 (#621): a bank entry or a procedure refund naming a `CREATED`
+    /// procedure blocks its month.
+    #[tokio::test]
+    async fn test_621_exi_161_a_bank_entry_or_a_refund_record_blocks_the_month() {
+        for link in [
+            "INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id) VALUES ('l1', 't1', 'proc-1')",
+            "INSERT INTO procedure_refund (id, source_procedure_id, refund_procedure_id, refund_fund_payment_group_id, refund_bank_transfer_id, refund_date, previous_payment_status) VALUES ('r1', 'proc-1', 'other', 'g1', 't1', '2026-01-20', 'CREATED')",
+            "INSERT INTO procedure_refund (id, source_procedure_id, refund_procedure_id, refund_fund_payment_group_id, refund_bank_transfer_id, refund_date, previous_payment_status) VALUES ('r1', 'other', 'proc-1', 'g1', 't1', '2026-01-20', 'CREATED')",
+        ] {
+            let repo = setup().await;
+            let created = repo
+                .create_procedure(
+                    "p1".to_string(),
+                    None,
+                    "t1".to_string(),
+                    d("2026-01-10"),
+                    0,
+                    PaymentMethod::None,
+                    None,
+                    None,
+                    None,
+                    ProcedureStatus::Created,
+                )
+                .await
+                .unwrap();
+            sqlx::query("UPDATE \"procedure\" SET id = 'proc-1' WHERE id = ?")
+                .bind(&created.id)
+                .execute(&repo.pool)
+                .await
+                .unwrap();
+            sqlx::query(link).execute(&repo.pool).await.unwrap();
+
+            let blocked = repo
+                .has_blocking_procedures_in_month("2026-01")
+                .await
+                .unwrap();
+            assert!(blocked, "{link}");
         }
     }
 

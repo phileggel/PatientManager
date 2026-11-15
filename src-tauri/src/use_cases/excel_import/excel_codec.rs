@@ -179,6 +179,8 @@ pub enum SkipReason {
     UnrecognizedDateFormat {
         value: String,
     },
+    /// EXI-020 — the date cell is empty.
+    MissingDate,
     /// The row references a patient absent from the parsed patient sheet.
     PatientNotFound {
         name: String,
@@ -204,6 +206,16 @@ pub enum SkipReason {
     DateOutsideSheetMonth {
         date: String,
     },
+    /// EXI-150 — no procedure type is mapped for this amount.
+    UnmappedAmount {
+        amount: i64,
+    },
+    /// EXI-160 — the row's month (YYYY-MM) is blocked.
+    MonthBlocked {
+        month: String,
+    },
+    /// EXI-290 — the row's patient reference matches no patient of the workbook.
+    PatientNotResolved,
 }
 
 impl SkipReason {
@@ -217,6 +229,7 @@ impl SkipReason {
             SkipReason::MissingFundIdentifier => "MissingFundIdentifier",
             SkipReason::MissingFundName => "MissingFundName",
             SkipReason::UnrecognizedDateFormat { .. } => "UnrecognizedDateFormat",
+            SkipReason::MissingDate => "MissingDate",
             SkipReason::PatientNotFound { .. } => "PatientNotFound",
             SkipReason::FundNotFound { .. } => "FundNotFound",
             SkipReason::InvalidAmount { .. } => "InvalidAmount",
@@ -224,6 +237,9 @@ impl SkipReason {
             SkipReason::InvalidConfirmedPaymentDate { .. } => "InvalidConfirmedPaymentDate",
             SkipReason::UnknownSheetName => "UnknownSheetName",
             SkipReason::DateOutsideSheetMonth { .. } => "DateOutsideSheetMonth",
+            SkipReason::UnmappedAmount { .. } => "UnmappedAmount",
+            SkipReason::MonthBlocked { .. } => "MonthBlocked",
+            SkipReason::PatientNotResolved => "PatientNotResolved",
         }
     }
 }

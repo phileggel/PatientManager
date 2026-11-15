@@ -65,20 +65,21 @@ mod tests {
     };
     use crate::context::patient::{PatientService, SqlitePatientRepository};
     use crate::context::procedure::{
-        ProcedureService, SqliteProcedureRefundRepository, SqliteProcedureRepository,
-        SqliteProcedureTypeRepository,
+        ProcedureService, ProcedureTypeService, SqliteProcedureRefundRepository,
+        SqliteProcedureRepository, SqliteProcedureTypeRepository,
     };
     use crate::shared::event_bus::{EventBus, FundUpdated, PatientUpdated, ProcedureUpdated};
     use crate::shared::uow::SqlxTransactionManager;
     use crate::use_cases::excel_import::dto::ParseExcelResponse;
     use crate::use_cases::excel_import::excel_codec::{
-        ExcelFund, ExcelPatient, ExcelProcedure, ParsingIssues,
+        ExcelFund, ExcelPatient, ExcelProcedure, ParsingIssues, SkipReason, SkippedRow,
     };
     use crate::use_cases::excel_import::orchestrator::ExcelImportOrchestrator;
+    use crate::use_cases::excel_import::ExcelImportError;
     use crate::use_cases::procedure_orchestration::ProcedureOrchestrationService;
 
     /// January and February each hold one `Created` procedure, neither blocking.
-    /// February's is still referenced by a refund record, so the database refuses
+    /// February's is still referenced by a procedure refund, so the database refuses
     /// to purge that month: the failure these tests need.
     async fn seeded_pool() -> SqlitePool {
         let pool = SqlitePoolOptions::new()
@@ -124,6 +125,10 @@ mod tests {
             Arc::new(PatientService::new(patient_repo.clone(), bus.clone())),
             Arc::new(FundService::new(fund_repo.clone(), bus.clone())),
             procedure_service.clone(),
+            Arc::new(ProcedureTypeService::new(
+                Arc::new(SqliteProcedureTypeRepository::new(pool.clone())),
+                bus.clone(),
+            )),
             Arc::new(ProcedureOrchestrationService::new(
                 procedure_service,
                 patient_repo,
@@ -196,6 +201,15 @@ mod tests {
         (ids.into_iter().map(|(id,)| id).collect(), patients, funds)
     }
 
+    /// Triggers refusing any procedure dated in one month: a write failure after
+    /// the earlier months' writes, whatever EXI-151 and EXI-161 catch.
+    const REFUSE_JANUARY: &str = r#"CREATE TRIGGER refuse_january BEFORE INSERT ON "procedure" WHEN NEW.procedure_date LIKE '2026-01-%' BEGIN SELECT RAISE(ABORT, 'refused'); END"#;
+    const REFUSE_FEBRUARY: &str = r#"CREATE TRIGGER refuse_february BEFORE INSERT ON "procedure" WHEN NEW.procedure_date LIKE '2026-02-%' BEGIN SELECT RAISE(ABORT, 'refused'); END"#;
+
+    async fn refuse_procedures(pool: &SqlitePool, trigger: &'static str) {
+        sqlx::query(trigger).execute(pool).await.expect("trigger");
+    }
+
     fn untouched() -> (Vec<String>, i64, i64) {
         (vec!["feb-old".to_string(), "jan-old".to_string()], 1, 1)
     }
@@ -203,6 +217,11 @@ mod tests {
     #[tokio::test]
     async fn test_580_a_failure_on_the_second_month_changes_nothing() {
         let pool = seeded_pool().await;
+        sqlx::query("DELETE FROM procedure_refund")
+            .execute(&pool)
+            .await
+            .expect("February unblocked");
+        refuse_procedures(&pool, REFUSE_FEBRUARY).await;
 
         let result = orchestrator(&pool)
             .execute_import(
@@ -220,11 +239,12 @@ mod tests {
     async fn test_580_a_failure_at_the_creation_changes_nothing() {
         let pool = seeded_pool().await;
 
-        // No such procedure type: the database refuses the new procedure.
+        refuse_procedures(&pool, REFUSE_JANUARY).await;
+
         let result = orchestrator(&pool)
             .execute_import(
                 workbook(vec![row("Jan", "2026-01-15")]),
-                mapping("no-such-type"),
+                mapping("type-1"),
                 vec!["Jan".to_string()],
             )
             .await;
@@ -543,5 +563,191 @@ mod tests {
             .await
             .expect("procedure types");
         count
+    }
+
+    /// EXI-161 (#621): a procedure a bank entry names blocks its month, whatever its status;
+    /// the month's rows are reported (EXI-290).
+    #[tokio::test]
+    async fn test_621_exi_161_a_bank_entry_blocks_its_month_and_its_rows_are_reported() {
+        let pool = seeded_pool().await;
+        sqlx::query("INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id) VALUES ('link-1', 'transfer-1', 'jan-old')")
+            .execute(&pool)
+            .await
+            .expect("seed");
+
+        let result = orchestrator(&pool)
+            .execute_import(
+                workbook(vec![row("Jan", "2026-01-15")]),
+                mapping("type-1"),
+                vec!["Jan".to_string()],
+            )
+            .await
+            .expect("the import succeeds");
+
+        assert_eq!(result.blocked_months, vec!["2026-01"]);
+        assert_eq!(result.procedures_deleted, 0);
+        assert_eq!(
+            result.skipped_procedures,
+            vec![SkippedRow {
+                sheet: "Jan".to_string(),
+                row_number: 2,
+                reason: SkipReason::MonthBlocked {
+                    month: "2026-01".to_string(),
+                },
+            }]
+        );
+    }
+
+    /// EXI-161 (#621): a procedure a procedure refund names blocks its month, whatever its status.
+    #[tokio::test]
+    async fn test_621_exi_161_a_refund_record_blocks_its_month() {
+        let pool = seeded_pool().await;
+
+        let result = orchestrator(&pool)
+            .execute_import(
+                workbook(vec![row("Fév", "2026-02-15")]),
+                mapping("type-1"),
+                vec!["Fév".to_string()],
+            )
+            .await
+            .expect("the import succeeds");
+
+        // The seed's procedure refund names `feb-old`, a `CREATED` procedure.
+        assert_eq!(result.blocked_months, vec!["2026-02"]);
+        let (procedures, _, _) = stored(&pool).await;
+        assert!(procedures.contains(&"feb-old".to_string()));
+    }
+
+    /// EXI-151 (#621): a mapping naming a type that does not exist refuses the import,
+    /// naming it, before anything is written.
+    #[tokio::test]
+    async fn test_621_exi_151_a_mapped_type_gone_refuses_the_import_and_writes_nothing() {
+        let pool = seeded_pool().await;
+        let before = stored(&pool).await;
+
+        let result = orchestrator(&pool)
+            .execute_import(
+                workbook(vec![row("Jan", "2026-01-15")]),
+                mapping("type-gone"),
+                vec!["Jan".to_string()],
+            )
+            .await;
+
+        let err = result.unwrap_err();
+        assert_eq!(
+            err,
+            ExcelImportError::ProcedureTypeNotFound {
+                procedure_type_id: "type-gone".to_string(),
+            }
+        );
+        assert_eq!(stored(&pool).await, before);
+    }
+
+    /// EXI-151: the refusal holds even when no row uses the gone type's amount.
+    #[tokio::test]
+    async fn test_621_exi_151_a_gone_type_no_row_uses_still_refuses() {
+        let pool = seeded_pool().await;
+        let mut mapping = mapping("type-1");
+        mapping.insert("tmp-unused".to_string(), "type-gone".to_string());
+
+        let result = orchestrator(&pool)
+            .execute_import(
+                workbook(vec![row("Jan", "2026-01-15")]),
+                mapping,
+                vec!["Jan".to_string()],
+            )
+            .await;
+
+        let err = result.unwrap_err();
+        assert_eq!(
+            err,
+            ExcelImportError::ProcedureTypeNotFound {
+                procedure_type_id: "type-gone".to_string(),
+            }
+        );
+    }
+
+    /// EXI-178: the mapping preferences and the types made for the mapping stay
+    /// after a failed import.
+    #[tokio::test]
+    async fn test_621_exi_178_a_failed_import_keeps_the_mappings_and_the_types() {
+        let pool = seeded_pool().await;
+        for statement in [
+            "INSERT INTO procedure_type (id, name, default_amount) VALUES ('type-made', 'Type made', 100000)",
+            "INSERT INTO excel_amount_type_mapping (id, amount, procedure_type_id) VALUES ('map-1', 100000, 'type-made')",
+        ] {
+            sqlx::query(statement).execute(&pool).await.expect("seed");
+        }
+        refuse_procedures(&pool, REFUSE_JANUARY).await;
+
+        let result = orchestrator(&pool)
+            .execute_import(
+                workbook(vec![row("Jan", "2026-01-15")]),
+                mapping("type-made"),
+                vec!["Jan".to_string()],
+            )
+            .await;
+
+        assert!(result.is_err());
+        let kept: (i64, i64) = sqlx::query_as(
+            "SELECT (SELECT COUNT(*) FROM procedure_type WHERE id = 'type-made'), (SELECT COUNT(*) FROM excel_amount_type_mapping WHERE id = 'map-1')",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("count");
+        assert_eq!(kept, (1, 1));
+    }
+
+    /// EXI-177: an import that only deletes raises `ProcedureUpdated` alone.
+    #[tokio::test]
+    async fn test_621_exi_177_a_delete_only_import_raises_procedure_updated_alone() {
+        let pool = seeded_pool().await;
+        let bus = Arc::new(EventBus::new());
+        let mut patients = bus.subscribe::<PatientUpdated>().expect("subscribe");
+        let mut funds = bus.subscribe::<FundUpdated>().expect("subscribe");
+        let mut procedures = bus.subscribe::<ProcedureUpdated>().expect("subscribe");
+
+        // January's `jan-old` is replaced by nothing: the row's patient is not in the workbook.
+        let mut parsed = workbook(vec![row("Jan", "2026-01-15")]);
+        parsed.patients.clear();
+        parsed.funds.clear();
+        let result = orchestrator_on(&pool, bus)
+            .execute_import(parsed, mapping("type-1"), vec!["Jan".to_string()])
+            .await
+            .expect("the import succeeds");
+
+        assert_eq!(
+            (result.procedures_deleted, result.procedures_created),
+            (1, 0)
+        );
+        assert!(procedures.try_recv().is_ok());
+        assert!(procedures.try_recv().is_err());
+        assert!(patients.try_recv().is_err());
+        assert!(funds.try_recv().is_err());
+    }
+
+    /// EXI-177: an import that writes a known patient only through its tracking
+    /// fields raises `PatientUpdated`, and no `FundUpdated` for a known fund.
+    #[tokio::test]
+    async fn test_621_exi_177_a_tracking_only_patient_write_raises_patient_updated() {
+        let pool = seeded_pool().await;
+        let bus = Arc::new(EventBus::new());
+        let mut patients = bus.subscribe::<PatientUpdated>().expect("subscribe");
+        let mut funds = bus.subscribe::<FundUpdated>().expect("subscribe");
+
+        let mut parsed = workbook(vec![row("Mars", "2026-03-15")]);
+        parsed.patients[0].name = "Marie Dupont".to_string();
+        parsed.patients[0].ssn = "1234567890123".to_string();
+        parsed.funds[0].fund_identifier = "75".to_string();
+        let result = orchestrator_on(&pool, bus)
+            .execute_import(parsed, mapping("type-1"), vec!["Mars".to_string()])
+            .await
+            .expect("the import succeeds");
+
+        assert_eq!((result.patients_created, result.patients_reused), (0, 1));
+        assert_eq!((result.funds_created, result.funds_reused), (0, 1));
+        assert!(patients.try_recv().is_ok());
+        assert!(patients.try_recv().is_err());
+        assert!(funds.try_recv().is_err());
     }
 }

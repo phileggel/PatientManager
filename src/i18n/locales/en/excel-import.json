@@ -75,7 +75,8 @@
     "invalid_format": "The file is not a readable Excel workbook.",
     "parse_error": "The Excel file could not be parsed.",
     "import_failed": "The import could not be completed. Please try again.",
-    "database_error": "An unexpected database error occurred."
+    "database_error": "An unexpected database error occurred.",
+    "procedure_type_not_found": "A procedure type of the mapping no longer exists. Map this amount again, then run the import again."
   },
   "parsing_report": {
     "unified_title": "Import report",
@@ -103,7 +104,11 @@
       "invalid_procedure_date": "Invalid procedure date: '{{value}}'",
       "invalid_confirmed_payment_date": "Invalid confirmed payment date: '{{value}}'",
       "unknown_sheet_name": "Unknown sheet name",
-      "date_outside_sheet_month": "Procedure date {{date}} does not match the sheet month"
+      "date_outside_sheet_month": "Procedure date {{date}} does not match the sheet month",
+      "missing_date": "Missing date",
+      "unmapped_amount": "No procedure type mapped to this amount",
+      "month_blocked": "Month {{month}} blocked: it holds a payment",
+      "patient_not_resolved": "Patient not found in the file"
     }
   }
 }

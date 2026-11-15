@@ -1367,9 +1367,15 @@ total_amount: number;
  */
 partly_paid_lines: BankStatementPartlyPaidLine[]; 
 /**
- * The statement's period (ISO dates), when the parse read it (BAS-020).
+ * The first day of the statement's period (ISO date), when the parse
+ * read it (BAS-020).
  */
-period_start: string | null; period_end: string | null; 
+period_start: string | null; 
+/**
+ * The last day of the statement's period (ISO date), when the parse
+ * read it.
+ */
+period_end: string | null; 
 /**
  * `YYYY-MM` when the period covers exactly one calendar month.
  */
@@ -1663,6 +1669,10 @@ export type ExcelImportError =
  * (EXI-179). Nothing was written (EXI-175).
  */
 { code: "FundInvalid" } | 
+/**
+ * EXI-151 — the mapping names a procedure type that does not exist.
+ */
+{ code: "ProcedureTypeNotFound"; procedure_type_id: string } | 
 /**
  * `execute_excel_import` — catch-all: a read or a write failed (EXI-179).
  * Nothing was written (EXI-175). Logged at the call site; the wire surface
@@ -2743,6 +2753,10 @@ export type SkipReason =
  */
 { code: "UnrecognizedDateFormat"; value: string } | 
 /**
+ * EXI-020 — the date cell is empty.
+ */
+{ code: "MissingDate" } | 
+/**
  * The row references a patient absent from the parsed patient sheet.
  */
 { code: "PatientNotFound"; name: string } | 
@@ -2765,7 +2779,19 @@ export type SkipReason =
 /**
  * EXI-281 — procedure_date's month differs from the sheet's nominal month.
  */
-{ code: "DateOutsideSheetMonth"; date: string }
+{ code: "DateOutsideSheetMonth"; date: string } | 
+/**
+ * EXI-150 — no procedure type is mapped for this amount.
+ */
+{ code: "UnmappedAmount"; amount: number } | 
+/**
+ * EXI-160 — the row's month (YYYY-MM) is blocked.
+ */
+{ code: "MonthBlocked"; month: string } | 
+/**
+ * EXI-290 — the row's patient reference matches no patient of the workbook.
+ */
+{ code: "PatientNotResolved" }
 /**
  * Information about a skipped row during parsing
  */

@@ -39,15 +39,14 @@ pub struct ImportExecutionResult {
     pub funds_created: u32,
     pub funds_reused: u32,
     pub procedures_created: u32,
-    /// Counter of skipped procedures. Covers parse-time mapping skips (R25)
-    /// AND execute-time row skips (EXI-280/281); only the latter are
-    /// itemised in `skipped_procedures` below.
+    /// Counter of the rows the import skipped (EXI-210): a row of an
+    /// unselected sheet is only counted; every other one is also itemised in
+    /// `skipped_procedures` below.
     pub procedures_skipped: u32,
     pub procedures_deleted: u32,
-    /// Months (YYYY-MM) that were blocked: they hold a procedure with a blocking status (EXI-160) or a fund payment line (EXI-161).
+    /// Months (YYYY-MM) that were blocked: they hold a procedure with a blocking status (EXI-160), or one a fund payment line, a bank entry or a procedure refund names (EXI-161).
     pub blocked_months: Vec<String>,
-    /// EXI-290 — per-row execute-time skip report (reuses the EXI-220 `SkippedRow` shape).
-    /// Each entry: source sheet name + 1-based row number + human-readable reason
-    /// authored on the backend in the user's runtime locale.
+    /// EXI-290 — every skipped row of a selected sheet (the EXI-220 `SkippedRow`
+    /// shape): source sheet name, 1-based row number and a typed reason.
     pub skipped_procedures: Vec<SkippedRow>,
 }

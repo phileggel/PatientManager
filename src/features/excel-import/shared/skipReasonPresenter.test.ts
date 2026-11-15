@@ -38,6 +38,22 @@ describe("formatSkipReason", () => {
     });
   });
 
+  it("maps the reasons #621 added (EXI-020, EXI-290)", () => {
+    expect(formatSkipReason({ code: "MissingDate" })).toEqual({
+      key: "excel-import:parsing_report.reasons.missing_date",
+    });
+    expect(formatSkipReason({ code: "UnmappedAmount", amount: 50000 })).toEqual({
+      key: "excel-import:parsing_report.reasons.unmapped_amount",
+    });
+    expect(formatSkipReason({ code: "MonthBlocked", month: "2026-01" })).toEqual({
+      key: "excel-import:parsing_report.reasons.month_blocked",
+      params: { month: "2026-01" },
+    });
+    expect(formatSkipReason({ code: "PatientNotResolved" })).toEqual({
+      key: "excel-import:parsing_report.reasons.patient_not_resolved",
+    });
+  });
+
   it("maps unit variants to their bare keys", () => {
     const cases: Array<[SkipReason, string]> = [
       [{ code: "MissingPatientName" }, "excel-import:parsing_report.reasons.missing_patient_name"],
