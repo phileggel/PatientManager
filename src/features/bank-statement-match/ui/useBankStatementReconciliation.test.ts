@@ -327,14 +327,7 @@ describe("useBankStatementReconciliation — validate (BAS-063/093)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// BAS-113/066 — correction-list compaction of the STORED list
-//
-// The engine's pre-replay filter (BAS-113/066) already drops superseded
-// corrections before REPLAYING them server-side, but that alone cannot make
-// `revertCorrection` safe: if the stored list still carries a superseded
-// correction, reverting a LATER correction can resurrect it. `applyCorrection`
-// and `revertCorrection` must therefore compact the STORED corrections[]
-// themselves, before appending / before recomputing.
+// BAS-064A — the hook sends the corrections in the order they were made
 // ---------------------------------------------------------------------------
 
 describe("useBankStatementReconciliation — corrections sent as made (BAS-064A, #697)", () => {

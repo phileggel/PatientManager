@@ -8,7 +8,7 @@
  * react-i18next is mocked to echo keys, so assertions read stable keys.
  */
 
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankStatementCorrection, BankStatementLine, Fund } from "@/bindings";
@@ -20,6 +20,33 @@ vi.mock("react-i18next", () => ({
       opts ? `${key}:${JSON.stringify(opts)}` : key,
     i18n: { language: "fr" },
   }),
+}));
+
+// ADR-004 — the HeadlessUI combobox is not reliably drivable in jsdom; a
+// native select stands in for it, its own behaviour left to its suite.
+vi.mock("@/ui/components/field/ComboboxField", () => ({
+  ComboboxField: ({
+    id,
+    value,
+    onChange,
+    items,
+    disabled,
+  }: {
+    id: string;
+    value: string;
+    onChange: (id: string) => void;
+    items: { id: string; name: string }[];
+    disabled?: boolean;
+  }) => (
+    <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+      <option value="">-</option>
+      {items.map((item) => (
+        <option key={item.id} value={item.id}>
+          {item.name}
+        </option>
+      ))}
+    </select>
+  ),
 }));
 
 import { LabelAssociationScreen } from "./LabelAssociationScreen";
@@ -172,13 +199,12 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
     expect((element("label-assoc-continue") as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("links a label to the fund searched and picked", async () => {
+  it("links a label to the fund picked", async () => {
     const user = userEvent.setup();
     const onApplyCorrection = vi.fn().mockResolvedValue(true);
     renderScreen({ onApplyCorrection });
 
-    await user.type(element("label-assoc-fund-TODO"), "Mut");
-    await user.click(await screen.findByRole("option", { name: "Mutuelle Générale" }));
+    await user.selectOptions(element("label-assoc-fund-TODO"), "fund-2");
 
     expect(onApplyCorrection).toHaveBeenCalledWith({
       type: "LinkFund",

@@ -12,12 +12,39 @@
  * would need a native file-picker workaround.
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankStatementReconciliation } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { makeBankAccount } from "@/tests/bank.factory";
+
+// ADR-004 — the HeadlessUI combobox is not reliably drivable in jsdom; a
+// native select stands in for it, its own behaviour left to its suite.
+vi.mock("@/ui/components/field/ComboboxField", () => ({
+  ComboboxField: ({
+    id,
+    value,
+    onChange,
+    items,
+    disabled,
+  }: {
+    id: string;
+    value: string;
+    onChange: (id: string) => void;
+    items: { id: string; name: string }[];
+    disabled?: boolean;
+  }) => (
+    <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+      <option value="">-</option>
+      {items.map((item) => (
+        <option key={item.id} value={item.id}>
+          {item.name}
+        </option>
+      ))}
+    </select>
+  ),
+}));
 
 vi.mock("../gateway", () => ({
   parseBankStatement: vi.fn(),
@@ -232,8 +259,7 @@ describe("BankStatementModal — the abandon confirmation and the fixed height (
   }
 
   async function doSomeWork(user: ReturnType<typeof userEvent.setup>) {
-    await user.type(element("label-assoc-fund-CPAM75"), "CPAM");
-    await user.click(await screen.findByRole("option", { name: "CPAM 75" }));
+    await user.selectOptions(element("label-assoc-fund-CPAM75"), "fund-1");
     await waitFor(() => {
       expect(mockCompute).toHaveBeenCalledWith("acc-1", PARSE_RESULT, [
         { type: "LinkFund", bank_label: "CPAM75", assignment: { type: "Fund", fund_id: "fund-1" } },
