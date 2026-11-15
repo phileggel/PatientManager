@@ -13,7 +13,6 @@
  */
 import { describe, expect, it } from "vitest";
 import type {
-  BankStatementCorrection,
   BankStatementLine,
   BankStatementLineStatus,
   BankStatementReconciliationError,
@@ -21,7 +20,6 @@ import type {
 
 import {
   lineStatusTone,
-  presentCorrection,
   presentLineBadge,
   presentLineStatus,
   presentReconciliationError,
@@ -93,98 +91,6 @@ describe("lineStatusTone — BAS-061 badge tone", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// presentCorrection — applied-correction description (BAS-065)
-// ---------------------------------------------------------------------------
-
-describe("presentCorrection — BAS-065 applied-correction descriptions", () => {
-  it("maps a LinkFund/Fund correction to the link-fund key with the label", () => {
-    const correction: BankStatementCorrection = {
-      type: "LinkFund",
-      bank_label: "CPAM75",
-      assignment: { type: "Fund", fund_id: "fund-1" },
-    };
-    expect(presentCorrection(correction)).toEqual({
-      key: "bank:reconciliation.correction.link_fund",
-      params: { label: "CPAM75" },
-    });
-  });
-
-  it("maps a LinkFund/Rejected correction to the rejected key", () => {
-    const correction: BankStatementCorrection = {
-      type: "LinkFund",
-      bank_label: "MGEN",
-      assignment: { type: "Rejected" },
-    };
-    expect(presentCorrection(correction)).toEqual({
-      key: "bank:reconciliation.correction.link_fund_rejected",
-      params: { label: "MGEN" },
-    });
-  });
-
-  it("maps a non-empty AssignGroups correction to the assign key with line + count", () => {
-    const correction: BankStatementCorrection = {
-      type: "AssignGroups",
-      line_id: "line-1",
-      group_ids: ["g1", "g2"],
-    };
-    expect(presentCorrection(correction)).toEqual({
-      key: "bank:reconciliation.correction.assign_groups",
-      params: { line: "line-1", count: 2 },
-    });
-  });
-
-  it("maps an empty AssignGroups correction to the unassign key (BAS-062 override)", () => {
-    const correction: BankStatementCorrection = {
-      type: "AssignGroups",
-      line_id: "line-1",
-      group_ids: [],
-    };
-    expect(presentCorrection(correction)).toEqual({
-      key: "bank:reconciliation.correction.unassign_groups",
-      params: { line: "line-1" },
-    });
-  });
-
-  it("maps an AcknowledgeRemainder correction to the acknowledge key with the line", () => {
-    const correction: BankStatementCorrection = {
-      type: "AcknowledgeRemainder",
-      line_id: "line-2",
-    };
-    expect(presentCorrection(correction)).toEqual({
-      key: "bank:reconciliation.correction.acknowledge_remainder",
-      params: { line: "line-2" },
-    });
-  });
-
-  // BAS-113 — AssignProcedures mirrors the AssignGroups presentation exactly.
-  it("maps a non-empty AssignProcedures correction to the assign-procedures key with line + count (BAS-113)", () => {
-    const correction: BankStatementCorrection = {
-      type: "AssignProcedures",
-      line_id: "line-3",
-      procedure_ids: ["proc-1", "proc-2"],
-    };
-    expect(presentCorrection(correction)).toEqual({
-      key: "bank:reconciliation.correction.assign_procedures",
-      params: { line: "line-3", count: 2 },
-    });
-  });
-
-  it("maps an empty AssignProcedures correction to the unassign-procedures key (BAS-113 override)", () => {
-    const correction: BankStatementCorrection = {
-      type: "AssignProcedures",
-      line_id: "line-3",
-      procedure_ids: [],
-    };
-    expect(presentCorrection(correction)).toEqual({
-      key: "bank:reconciliation.correction.unassign_procedures",
-      params: { line: "line-3" },
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// presentReconciliationError — draft-engine correction guards (BAS-064)
 // ---------------------------------------------------------------------------
 
 describe("presentReconciliationError — draft-engine correction guards", () => {

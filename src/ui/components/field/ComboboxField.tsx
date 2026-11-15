@@ -25,6 +25,9 @@ interface ComboboxFieldProps<T extends object> {
   createLabel?: string;
   /** Optional neutral message shown in the dropdown when the search finds nothing. */
   noResultLabel?: (query: string) => string;
+  /** Keeps the label for screen readers only, when the row already says what
+   *  the field is (#697). */
+  hideLabel?: boolean;
 }
 
 const CREATE_MARKER = "@@CREATE";
@@ -66,6 +69,7 @@ export function ComboboxField<T extends object>({
   onCreateNew,
   createLabel,
   noResultLabel,
+  hideLabel = false,
 }: ComboboxFieldProps<T>) {
   const { query, setQuery, filteredItems, isNoResult } = useComboboxField(
     items,
@@ -105,7 +109,7 @@ export function ComboboxField<T extends object>({
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="m3-input-label">
+      <label htmlFor={id} className={hideLabel ? "sr-only" : "m3-input-label"}>
         {label}
       </label>
 

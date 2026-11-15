@@ -7,13 +7,15 @@ import type {
 } from "@/bindings";
 import { getProcedureWindowDays } from "@/infra/settings/store";
 import { Button } from "@/ui/components/button";
-import { presentCorrection, presentReconciliationError } from "../shared/reconciliationPresenter";
+import { deriveLabelRows } from "../shared/labelRows";
+import { presentReconciliationError } from "../shared/reconciliationPresenter";
 import { AssignGroupsModal } from "./AssignGroupsModal";
 import { ErrorStep } from "./ErrorStep";
 import { LabelAssociationScreen } from "./LabelAssociationScreen";
 import { LoadingStep } from "./LoadingStep";
 import { ReconciliationList } from "./ReconciliationList";
 import { ReconciliationWizard } from "./ReconciliationWizard";
+import { StepBar } from "./StepBar";
 import { useBankStatementReconciliation } from "./useBankStatementReconciliation";
 
 interface ReconciliationViewProps {
@@ -46,16 +48,20 @@ export function ReconciliationView({
   const { t } = useTranslation("bank");
   const {
     reconciliation,
+    initialReconciliation,
     corrections,
     isBusy,
     error,
     applyCorrection,
     clearError,
-    revertCorrection,
     validate,
   } = useBankStatementReconciliation(bankAccountId, parseResult);
 
   const [screen, setScreen] = useState<"labels" | "settlement">("labels");
+  // #692 — each label's link when the matching step was left for the labels.
+  const [linksAtMatching, setLinksAtMatching] = useState<ReadonlyMap<string, string | null> | null>(
+    null,
+  );
   const [activeLine, setActiveLine] = useState<BankStatementLine | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [createdCount, setCreatedCount] = useState<number | null>(null);
@@ -94,22 +100,25 @@ export function ReconciliationView({
   // the native <dialog> top layer and is invisible while a modal is open.
   const correctionErrorText = error ? t(presentReconciliationError(error).key) : null;
 
-  // --- Screen 1 — label association (BAS-120–121). ---
+  // --- Step 2 — the labels (#692). ---
   if (screen === "labels") {
     return (
-      <LabelAssociationScreen
-        reconciliation={reconciliation}
-        corrections={corrections}
-        isBusy={isBusy}
-        errorText={correctionErrorText}
-        onApplyCorrection={applyCorrection}
-        onRevertCorrection={revertCorrection}
-        onContinue={() => {
-          clearError();
-          setScreen("settlement");
-        }}
-        onCancel={onCancel}
-      />
+      <div className="flex flex-col flex-1 min-h-0">
+        <StepBar current="labels" />
+        <LabelAssociationScreen
+          reconciliation={reconciliation}
+          initialReconciliation={initialReconciliation}
+          isBusy={isBusy}
+          errorText={correctionErrorText}
+          onApplyCorrection={applyCorrection}
+          onContinue={() => {
+            clearError();
+            setScreen("settlement");
+          }}
+          onCancel={onCancel}
+          linksAtMatching={linksAtMatching}
+        />
+      </div>
     );
   }
 
@@ -157,60 +166,40 @@ export function ReconciliationView({
 
   return (
     <div className="flex flex-col flex-1 gap-6 min-h-0">
+      <StepBar current="matching" />
       <ReconciliationList
         reconciliation={settlementReconciliation}
         onApplyCorrection={openLine}
         isBusy={isBusy}
       />
 
-      {/* BAS-065 — applied corrections, each revertable. */}
-      {corrections.length > 0 && (
-        <div id="applied-corrections">
-          <h3 className="text-sm font-medium text-m3-on-surface-variant mb-2">
-            {t("reconciliation.applied_corrections.title")}
-          </h3>
-          <ul className="flex flex-col gap-1">
-            {corrections.map((correction, index) => {
-              const { key, params } = presentCorrection(correction);
-              return (
-                <li
-                  // biome-ignore lint/suspicious/noArrayIndexKey: corrections are an ordered append-only log; the index IS the stable identity (BAS-065 revert removes by index).
-                  key={index}
-                  className="flex items-center justify-between gap-3 text-sm text-m3-on-surface"
-                >
-                  <span>{t(key, params)}</span>
-                  <Button
-                    id={`correction-revert-${index}`}
-                    variant="secondary"
-                    aria-label={t("reconciliation.applied_corrections.revert_aria")}
-                    disabled={isBusy}
-                    onClick={() => void revertCorrection(index)}
-                  >
-                    {t("reconciliation.applied_corrections.revert")}
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
       {correctionErrorText && <ErrorStep error={correctionErrorText} />}
 
       {/* BAS-122A — pinned screen actions. */}
       <div className="flex items-center justify-between gap-3">
-        <Button
-          id="reconciliation-back-to-labels"
-          variant="ghost"
-          disabled={isBusy}
-          onClick={() => {
-            clearError();
-            setScreen("labels");
-          }}
-        >
-          {t("reconciliation.back_to_labels")}
+        <Button id="reconciliation-cancel" variant="outline" onClick={onCancel}>
+          {t("label_association.cancel_all")}
         </Button>
         <div className="flex items-center gap-3">
+          <Button
+            id="reconciliation-back-to-labels"
+            variant="ghost"
+            disabled={isBusy}
+            onClick={() => {
+              clearError();
+              setLinksAtMatching(
+                new Map(
+                  deriveLabelRows(reconciliation.lines).map((row) => [
+                    row.label,
+                    row.isRejected ? null : row.fundId,
+                  ]),
+                ),
+              );
+              setScreen("labels");
+            }}
+          >
+            {t("reconciliation.back_to_labels")}
+          </Button>
           <Button
             id="reconciliation-wizard-btn"
             variant="secondary"

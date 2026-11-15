@@ -1,36 +1,14 @@
 /**
- * RTL component integration tests — LabelAssociationScreen (BAS-120–121).
+ * RTL integration tests — LabelAssociationScreen, step 2 of the bank statement
+ * import (#697, the validated mocks of #692): one row per label with an
+ * « Ignorer » switch, a searchable fund field and a tag for where its link
+ * comes from; the header counter; the common footer; the note on a link
+ * changed after the matching (BAS-066B).
  *
- * Screen 1 of the two-screen flow (BAS-120): one row per distinct label,
- * ordered by first occurrence, replacing the removed per-line LinkFundModal.
- * Each row: raw label, count + total amount, inline fund select (pre-filled
- * from the saved mapping, empty + suggestion helper for an unknown label,
- * BAS-120B), a status chip, and a single state-dependent action
- * (Ignorer/Rétablir, BAS-120C). « Continuer » gates on every label being
- * decided (BAS-121); destructive re-link/ignore on a label whose lines carry
- * assigned settlement items asks for inline confirmation first (BAS-120E).
- *
- * Design pins (no contract/plan authority beyond the task description —
- * documented for the implementer):
- *   - Props: reconciliation, corrections, isBusy, errorText,
- *     onApplyCorrection (Promise<boolean>), onRevertCorrection(index),
- *     onContinue, onCancel.
- *   - Stable ids: label-assoc-row-{slug}, label-assoc-select-{slug},
- *     label-assoc-ignore-{slug} (single state-dependent action),
- *     label-assoc-suggestion-{slug}, label-assoc-chip-{slug},
- *     label-assoc-confirm-{slug} / label-assoc-confirm-cancel-{slug}
- *     (BAS-120E inline guard), label-assoc-continue, label-assoc-cancel —
- *     where {slug} = labelSlug(label) (whitespace → "_", F25: HTML ids must
- *     not contain spaces and real bank labels do).
- *
- * Mocks the gateway boundary is not needed here (pure props component); the
- * fund cache store is seeded directly (test-rules.md § Seeding Zustand
- * store). i18n mocked pass-through. Stable id selectors (F25).
- *
- * These tests fail until ui/LabelAssociationScreen.tsx is created.
+ * react-i18next is mocked to echo keys, so assertions read stable keys.
  */
 
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankStatementCorrection, BankStatementLine, Fund } from "@/bindings";
@@ -78,422 +56,176 @@ function makeReconciliation(lines: BankStatementLine[]) {
   };
 }
 
-function renderScreen(
-  lines: BankStatementLine[],
-  overrides: {
-    corrections?: BankStatementCorrection[];
-    onApplyCorrection?: (c: BankStatementCorrection) => Promise<boolean>;
-    onRevertCorrection?: (i: number) => Promise<void>;
-    onContinue?: () => void;
-    onCancel?: () => void;
-    isBusy?: boolean;
-  } = {},
-) {
+// The four origins: saved and unchanged, newly linked, to link, ignored.
+const KNOWN = makeLine({
+  line_id: "line-0",
+  credit_line: { date: "2026-04-01", label: "KNOWN", amount: 1000 },
+  status: "Matched",
+  fund_id: "fund-1",
+});
+const NEW = makeLine({
+  line_id: "line-1",
+  credit_line: { date: "2026-04-02", label: "NEW", amount: 2000 },
+  status: "NeedsGroup",
+  fund_id: "fund-2",
+});
+const TODO = makeLine({
+  line_id: "line-2",
+  credit_line: { date: "2026-04-03", label: "TODO", amount: 3000 },
+  suggested_fund_name: "CPAM 75",
+});
+const IGNORED = makeLine({
+  line_id: "line-3",
+  credit_line: { date: "2026-04-04", label: "IGNORED", amount: 4000 },
+  status: "Rejected",
+});
+
+// What the saved links gave before any correction: NEW had no fund yet.
+const INITIAL = [KNOWN, { ...NEW, fund_id: null, status: "NeedsLink" as const }, TODO, IGNORED];
+
+interface Overrides {
+  lines?: BankStatementLine[];
+  initial?: BankStatementLine[];
+  onApplyCorrection?: (c: BankStatementCorrection) => Promise<boolean>;
+  onContinue?: () => void;
+  onCancel?: () => void;
+  linksAtMatching?: ReadonlyMap<string, string | null> | null;
+}
+
+function renderScreen(overrides: Overrides = {}) {
+  const linksAtMatching = overrides.linksAtMatching ?? null;
   return render(
     <LabelAssociationScreen
-      reconciliation={makeReconciliation(lines)}
-      corrections={overrides.corrections ?? []}
-      isBusy={overrides.isBusy ?? false}
+      reconciliation={makeReconciliation(overrides.lines ?? [KNOWN, NEW, TODO, IGNORED])}
+      initialReconciliation={makeReconciliation(overrides.initial ?? INITIAL)}
+      isBusy={false}
       onApplyCorrection={overrides.onApplyCorrection ?? vi.fn().mockResolvedValue(true)}
-      onRevertCorrection={overrides.onRevertCorrection ?? vi.fn().mockResolvedValue(undefined)}
       onContinue={overrides.onContinue ?? vi.fn()}
       onCancel={overrides.onCancel ?? vi.fn()}
+      linksAtMatching={linksAtMatching}
     />,
   );
 }
 
-describe("LabelAssociationScreen — BAS-120–121", () => {
+function element(id: string): HTMLElement {
+  const found = document.getElementById(id);
+  if (!found) throw new Error(`#${id} missing`);
+  return found;
+}
+
+describe("LabelAssociationScreen — step 2 (#697)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useCacheStore.setState({ funds: MOCK_FUNDS });
   });
 
-  // -------------------------------------------------------------------------
-  // BAS-120 — one row per distinct label, first-occurrence order
-  // -------------------------------------------------------------------------
+  it("tags each label by where its link comes from", () => {
+    renderScreen();
 
-  it("renders one row per distinct label, ordered by first occurrence", () => {
-    const lines = [
-      makeLine({ line_id: "l1", credit_line: { date: "2026-04-10", label: "MGEN", amount: 1000 } }),
-      makeLine({
-        line_id: "l2",
-        credit_line: { date: "2026-04-11", label: "CPAM75", amount: 2000 },
-      }),
-      makeLine({ line_id: "l3", credit_line: { date: "2026-04-12", label: "MGEN", amount: 500 } }),
-    ];
-
-    renderScreen(lines);
-
-    const rows = document.querySelectorAll("[id^='label-assoc-row-']");
-    expect(rows).toHaveLength(2);
-    expect(rows[0]?.id).toBe("label-assoc-row-MGEN");
-    expect(rows[1]?.id).toBe("label-assoc-row-CPAM75");
+    expect(element("label-assoc-chip-KNOWN").textContent).toBe("label_association.chip.known");
+    expect(element("label-assoc-chip-NEW").textContent).toBe("label_association.chip.new");
+    expect(element("label-assoc-chip-TODO").textContent).toBe("label_association.chip.todo");
+    expect(element("label-assoc-chip-IGNORED").textContent).toBe("label_association.chip.ignored");
   });
 
-  // F25 — real bank labels contain spaces (`SALAIRE KINE REMPL`); an HTML id
-  // must not, so row-scoped ids use the whitespace-sanitized slug.
-  it("builds id-safe slugs for labels containing whitespace", () => {
-    const lines = [
-      makeLine({
-        line_id: "l1",
-        credit_line: { date: "2026-04-10", label: "SALAIRE KINE REMPL", amount: 1000 },
-      }),
-    ];
+  it("counts the origins in the header", () => {
+    renderScreen();
 
-    renderScreen(lines);
-
-    expect(document.getElementById("label-assoc-row-SALAIRE_KINE_REMPL")).not.toBeNull();
-    expect(document.getElementById("label-assoc-select-SALAIRE_KINE_REMPL")).not.toBeNull();
-    expect(document.querySelector("[id*=' ']")).toBeNull();
+    const counter = element("label-assoc-counter").textContent ?? "";
+    expect(counter).toContain('label_association.counter.known:{"count":1}');
+    expect(counter).toContain('label_association.counter.todo:{"count":1}');
+    expect(counter).toContain('label_association.counter.ignored:{"count":1}');
   });
 
-  it("shows the credit-line count and total amount for the label", () => {
-    const lines = [
-      makeLine({ line_id: "l1", credit_line: { date: "2026-04-10", label: "MGEN", amount: 1000 } }),
-      makeLine({ line_id: "l2", credit_line: { date: "2026-04-11", label: "MGEN", amount: 500 } }),
-    ];
+  it("shows a suggestion under the field of a label to link, and a note under an ignored one", () => {
+    renderScreen();
 
-    renderScreen(lines);
-
-    const row = document.getElementById("label-assoc-row-MGEN");
-    expect(row?.textContent).toMatch(/2/);
-  });
-
-  // -------------------------------------------------------------------------
-  // BAS-120B — select semantics
-  // -------------------------------------------------------------------------
-
-  it("pre-fills the select from the saved/resolved fund mapping", () => {
-    const lines = [
-      makeLine({
-        status: "Matched",
-        fund_id: "fund-1",
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 },
-      }),
-    ];
-
-    renderScreen(lines);
-
-    const select = document.getElementById("label-assoc-select-CPAM75") as HTMLSelectElement | null;
-    expect(select?.value).toBe("fund-1");
-  });
-
-  it("leaves the select empty and shows the suggestion helper text for an unknown label (BAS-032/033/036)", () => {
-    const lines = [
-      makeLine({
-        credit_line: { date: "2026-04-10", label: "MUTGEN", amount: 1000 },
-        suggested_fund_id: "fund-2",
-        suggested_fund_name: "Mutuelle Générale",
-      }),
-    ];
-
-    renderScreen(lines);
-
-    const select = document.getElementById("label-assoc-select-MUTGEN") as HTMLSelectElement | null;
-    expect(select?.value).toBe("");
-    const suggestion = document.getElementById("label-assoc-suggestion-MUTGEN");
-    expect(suggestion?.textContent).toContain("Mutuelle Générale");
-  });
-
-  it("applies a LinkFund/Fund correction when a fund is chosen for an undecided label with no assigned items", async () => {
-    const onApplyCorrection = vi.fn().mockResolvedValue(true);
-    const lines = [
-      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
-    ];
-
-    renderScreen(lines, { onApplyCorrection });
-
-    const select = document.getElementById("label-assoc-select-CPAM75");
-    if (!select) throw new Error("fund select missing");
-    await userEvent.selectOptions(select, "fund-1");
-
-    expect(onApplyCorrection).toHaveBeenCalledWith({
-      type: "LinkFund",
-      bank_label: "CPAM75",
-      assignment: { type: "Fund", fund_id: "fund-1" },
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // BAS-120A/C — chip + single state-dependent action
-  // -------------------------------------------------------------------------
-
-  it("shows the 'to associate' chip and an Ignorer action for an undecided label", () => {
-    const lines = [
-      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
-    ];
-
-    renderScreen(lines);
-
-    const chip = document.getElementById("label-assoc-chip-CPAM75");
-    expect(chip?.textContent).toBe("bank:label_association.chip.todo");
-    const action = document.getElementById("label-assoc-ignore-CPAM75");
-    expect(action?.textContent).toBe("bank:label_association.ignore");
-  });
-
-  it("shows the 'associated' chip for a linked label", () => {
-    const lines = [
-      makeLine({
-        status: "Matched",
-        fund_id: "fund-1",
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 },
-      }),
-    ];
-
-    renderScreen(lines);
-
-    expect(document.getElementById("label-assoc-chip-CPAM75")?.textContent).toBe(
-      "bank:label_association.chip.linked",
+    expect(element("label-assoc-suggestion-TODO").textContent).toContain("CPAM 75");
+    expect(element("label-assoc-row-IGNORED").textContent).toContain(
+      "label_association.ignored_note",
     );
   });
 
-  it("shows the 'ignored' chip and a Rétablir action, with the select disabled, for a rejected label", () => {
-    const lines = [
-      makeLine({
-        status: "Rejected",
-        fund_id: null,
-        credit_line: { date: "2026-04-10", label: "SALAIRE", amount: 1000 },
-      }),
-    ];
-
-    renderScreen(lines);
-
-    expect(document.getElementById("label-assoc-chip-SALAIRE")?.textContent).toBe(
-      "bank:label_association.chip.ignored",
-    );
-    const action = document.getElementById("label-assoc-ignore-SALAIRE");
-    expect(action?.textContent).toBe("bank:label_association.restore");
-    const select = document.getElementById(
-      "label-assoc-select-SALAIRE",
-    ) as HTMLSelectElement | null;
-    expect(select?.disabled).toBe(true);
-  });
-
-  it("applies LinkFund/Rejected directly when Ignorer is clicked on a label with no assigned items", async () => {
+  it("ignores a label with its switch", async () => {
+    const user = userEvent.setup();
     const onApplyCorrection = vi.fn().mockResolvedValue(true);
-    const lines = [
-      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
-    ];
+    renderScreen({ onApplyCorrection });
 
-    renderScreen(lines, { onApplyCorrection });
-
-    const ignoreBtn = document.getElementById("label-assoc-ignore-CPAM75");
-    if (!ignoreBtn) throw new Error("ignore button missing");
-    await userEvent.click(ignoreBtn);
+    await user.click(element("label-assoc-ignore-TODO"));
 
     expect(onApplyCorrection).toHaveBeenCalledWith({
       type: "LinkFund",
-      bank_label: "CPAM75",
-      assignment: { type: "Rejected" },
-    });
-    // No confirmation control rendered — nothing was staged for this label.
-    expect(document.getElementById("label-assoc-confirm-CPAM75")).toBeNull();
-  });
-
-  // -------------------------------------------------------------------------
-  // BAS-120E — destructive re-link/ignore guard
-  // -------------------------------------------------------------------------
-
-  it("asks for inline confirmation before ignoring a label whose lines carry assigned settlement items", async () => {
-    const onApplyCorrection = vi.fn().mockResolvedValue(true);
-    const lines = [
-      makeLine({
-        status: "Matched",
-        fund_id: "fund-1",
-        assigned_group_ids: ["group-1"],
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 },
-      }),
-    ];
-
-    renderScreen(lines, { onApplyCorrection });
-
-    const ignoreBtn = document.getElementById("label-assoc-ignore-CPAM75");
-    if (!ignoreBtn) throw new Error("ignore button missing");
-    await userEvent.click(ignoreBtn);
-
-    // Not applied yet — an inline confirmation control appears instead.
-    expect(onApplyCorrection).not.toHaveBeenCalled();
-    const confirm = document.getElementById("label-assoc-confirm-CPAM75");
-    expect(confirm).not.toBeNull();
-
-    if (!confirm) throw new Error("confirm control missing");
-    await userEvent.click(confirm);
-
-    expect(onApplyCorrection).toHaveBeenCalledWith({
-      type: "LinkFund",
-      bank_label: "CPAM75",
+      bank_label: "TODO",
       assignment: { type: "Rejected" },
     });
   });
 
-  it("does not apply anything when the BAS-120E confirmation is cancelled", async () => {
+  it("turns an ignored label back to « À associer » until a fund is picked, sending nothing", async () => {
+    const user = userEvent.setup();
     const onApplyCorrection = vi.fn().mockResolvedValue(true);
-    const lines = [
-      makeLine({
-        status: "Matched",
-        fund_id: "fund-1",
-        assigned_procedure_ids: ["proc-1"],
-        credit_line: { date: "2026-04-10", label: "RATP", amount: 1000 },
-      }),
-    ];
+    renderScreen({ lines: [KNOWN, IGNORED], initial: [KNOWN, IGNORED], onApplyCorrection });
 
-    renderScreen(lines, { onApplyCorrection });
-
-    const ignoreBtn = document.getElementById("label-assoc-ignore-RATP");
-    if (!ignoreBtn) throw new Error("ignore button missing");
-    await userEvent.click(ignoreBtn);
-
-    const cancelConfirm = document.getElementById("label-assoc-confirm-cancel-RATP");
-    if (!cancelConfirm) throw new Error("confirm-cancel control missing");
-    await userEvent.click(cancelConfirm);
+    await user.click(element("label-assoc-ignore-IGNORED"));
 
     expect(onApplyCorrection).not.toHaveBeenCalled();
-    expect(document.getElementById("label-assoc-confirm-RATP")).toBeNull();
+    expect(element("label-assoc-chip-IGNORED").textContent).toBe("label_association.chip.todo");
+    expect((element("label-assoc-continue") as HTMLButtonElement).disabled).toBe(true);
   });
 
-  // -------------------------------------------------------------------------
-  // BAS-120C — Rétablir: in-session revert vs saved-rejected unlock
-  // -------------------------------------------------------------------------
+  it("links a label to the fund searched and picked", async () => {
+    const user = userEvent.setup();
+    const onApplyCorrection = vi.fn().mockResolvedValue(true);
+    renderScreen({ onApplyCorrection });
 
-  it("reverts the in-session LinkFund/Rejected correction when Rétablir is clicked", async () => {
-    const onRevertCorrection = vi.fn().mockResolvedValue(undefined);
-    const lines = [
-      makeLine({
-        status: "Rejected",
-        fund_id: null,
-        credit_line: { date: "2026-04-10", label: "SALAIRE", amount: 1000 },
-      }),
-    ];
-    const corrections: BankStatementCorrection[] = [
-      { type: "LinkFund", bank_label: "SALAIRE", assignment: { type: "Rejected" } },
-    ];
+    await user.type(element("label-assoc-fund-TODO"), "Mut");
+    await user.click(await screen.findByRole("option", { name: "Mutuelle Générale" }));
 
-    renderScreen(lines, { corrections, onRevertCorrection });
-
-    const restoreBtn = document.getElementById("label-assoc-ignore-SALAIRE");
-    if (!restoreBtn) throw new Error("restore button missing");
-    await userEvent.click(restoreBtn);
-
-    expect(onRevertCorrection).toHaveBeenCalledWith(0);
+    expect(onApplyCorrection).toHaveBeenCalledWith({
+      type: "LinkFund",
+      bank_label: "TODO",
+      assignment: { type: "Fund", fund_id: "fund-2" },
+    });
   });
 
-  it("unlocks the select without reverting anything when Rétablir targets a SAVED rejection (no correction to revert)", async () => {
-    const onRevertCorrection = vi.fn().mockResolvedValue(undefined);
-    const lines = [
-      makeLine({
-        status: "Rejected",
-        fund_id: null,
-        credit_line: { date: "2026-04-10", label: "SALAIRE", amount: 1000 },
-      }),
-    ];
+  it("keeps « Continuer › » off while a label is to link, on once every label is decided", () => {
+    const { unmount } = renderScreen();
+    expect((element("label-assoc-continue") as HTMLButtonElement).disabled).toBe(true);
+    unmount();
 
-    renderScreen(lines, { corrections: [], onRevertCorrection });
-
-    const select = document.getElementById(
-      "label-assoc-select-SALAIRE",
-    ) as HTMLSelectElement | null;
-    expect(select?.disabled).toBe(true);
-
-    const restoreBtn = document.getElementById("label-assoc-ignore-SALAIRE");
-    if (!restoreBtn) throw new Error("restore button missing");
-    await userEvent.click(restoreBtn);
-
-    expect(onRevertCorrection).not.toHaveBeenCalled();
-    const unlockedSelect = document.getElementById(
-      "label-assoc-select-SALAIRE",
-    ) as HTMLSelectElement | null;
-    expect(unlockedSelect?.disabled).toBe(false);
+    renderScreen({ lines: [KNOWN, NEW, IGNORED], initial: [KNOWN, NEW, IGNORED] });
+    expect((element("label-assoc-continue") as HTMLButtonElement).disabled).toBe(false);
+    expect(element("label-assoc-continue").textContent).toBe("label_association.continue");
   });
 
-  // -------------------------------------------------------------------------
-  // BAS-121 — Continuer gate + Annuler
-  // -------------------------------------------------------------------------
-
-  it("disables Continuer while at least one label is undecided", () => {
-    const lines = [
-      makeLine({
-        status: "Matched",
-        fund_id: "fund-1",
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 },
-      }),
-      makeLine({
-        credit_line: { date: "2026-04-11", label: "MGEN", amount: 500 },
-      }),
-    ];
-
-    renderScreen(lines);
-
-    const continueBtn = document.getElementById("label-assoc-continue") as HTMLButtonElement | null;
-    expect(continueBtn).not.toBeNull();
-    expect(continueBtn?.disabled).toBe(true);
-  });
-
-  it("enables Continuer once every label is linked or ignored", () => {
-    const lines = [
-      makeLine({
-        status: "Matched",
-        fund_id: "fund-1",
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 },
-      }),
-      makeLine({
-        status: "Rejected",
-        fund_id: null,
-        credit_line: { date: "2026-04-11", label: "SALAIRE", amount: 500 },
-      }),
-    ];
-
-    renderScreen(lines);
-
-    const continueBtn = document.getElementById("label-assoc-continue") as HTMLButtonElement | null;
-    expect(continueBtn?.disabled).toBe(false);
-  });
-
-  it("calls onContinue when Continuer is clicked", async () => {
+  it("back from the matching, returns there and says which link changed (BAS-066B)", async () => {
+    const user = userEvent.setup();
     const onContinue = vi.fn();
-    const lines = [
-      makeLine({
-        status: "Matched",
-        fund_id: "fund-1",
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 },
-      }),
-    ];
+    renderScreen({
+      lines: [KNOWN, NEW, IGNORED],
+      initial: [KNOWN, NEW, IGNORED],
+      onContinue,
+      linksAtMatching: new Map([
+        ["KNOWN", "fund-1"],
+        ["NEW", "fund-1"],
+        ["IGNORED", null],
+      ]),
+    });
 
-    renderScreen(lines, { onContinue });
+    expect(element("label-assoc-changed-NEW").textContent).toContain('"count":1');
+    expect(document.getElementById("label-assoc-changed-KNOWN")).toBeNull();
+    expect(element("label-assoc-continue").textContent).toBe("label_association.back_to_matching");
 
-    const continueBtn = document.getElementById("label-assoc-continue");
-    if (!continueBtn) throw new Error("continue button missing");
-    await userEvent.click(continueBtn);
-
+    await user.click(element("label-assoc-continue"));
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onCancel when Annuler is clicked, abandoning the import", async () => {
+  it("cancels the whole import from « Tout annuler »", async () => {
+    const user = userEvent.setup();
     const onCancel = vi.fn();
-    const lines = [
-      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
-    ];
+    renderScreen({ onCancel });
 
-    renderScreen(lines, { onCancel });
-
-    const cancelBtn = document.getElementById("label-assoc-cancel");
-    if (!cancelBtn) throw new Error("cancel button missing");
-    await userEvent.click(cancelBtn);
+    await user.click(element("label-assoc-cancel"));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
-  });
-
-  it("disables the fund selects and action buttons while isBusy", () => {
-    const lines = [
-      makeLine({ credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 } }),
-    ];
-
-    renderScreen(lines, { isBusy: true });
-
-    const select = document.getElementById("label-assoc-select-CPAM75") as HTMLSelectElement | null;
-    const ignoreBtn = document.getElementById(
-      "label-assoc-ignore-CPAM75",
-    ) as HTMLButtonElement | null;
-    expect(select?.disabled).toBe(true);
-    expect(ignoreBtn?.disabled).toBe(true);
   });
 });

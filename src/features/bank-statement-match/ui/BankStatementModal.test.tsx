@@ -12,7 +12,7 @@
  * would need a native file-picker workaround.
  */
 
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankStatementReconciliation } from "@/bindings";
@@ -227,13 +227,13 @@ describe("BankStatementModal — the abandon confirmation and the fixed height (
   async function renderReady(onClose: () => void) {
     render(<BankStatementModal filePath={FILE_PATH} onClose={onClose} />);
     await waitFor(() => {
-      expect(document.getElementById("label-assoc-select-CPAM75")).not.toBeNull();
+      expect(document.getElementById("label-assoc-fund-CPAM75")).not.toBeNull();
     });
   }
 
   async function doSomeWork(user: ReturnType<typeof userEvent.setup>) {
-    const select = document.getElementById("label-assoc-select-CPAM75") as HTMLSelectElement;
-    await user.selectOptions(select, "fund-1");
+    await user.type(element("label-assoc-fund-CPAM75"), "CPAM");
+    await user.click(await screen.findByRole("option", { name: "CPAM 75" }));
     await waitFor(() => {
       expect(mockCompute).toHaveBeenCalledWith("acc-1", PARSE_RESULT, [
         { type: "LinkFund", bank_label: "CPAM75", assignment: { type: "Fund", fund_id: "fund-1" } },
@@ -283,7 +283,7 @@ describe("BankStatementModal — the abandon confirmation and the fixed height (
 
     expect(onClose).not.toHaveBeenCalled();
     expect(document.getElementById("bank-statement-abandon-confirmation")).toBeNull();
-    expect(document.getElementById("label-assoc-select-CPAM75")).not.toBeNull();
+    expect(document.getElementById("label-assoc-fund-CPAM75")).not.toBeNull();
   });
 
   it("asks on Escape", async () => {
