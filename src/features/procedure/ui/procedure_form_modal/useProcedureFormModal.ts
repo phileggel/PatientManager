@@ -16,6 +16,7 @@ import { formatPatientError } from "@/features/patient/shared/presenter";
 import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { toastService } from "@/ui/components/snackbar";
+import { todayIsoDate } from "@/ui/format/formatters";
 import * as gateway from "../../api/gateway";
 import { formatPatientLabel } from "../../model";
 import {
@@ -97,7 +98,7 @@ export function useProcedureFormModal({
     [clearFieldError],
   );
 
-  // Auto-fill on patient selection (create mode only, PRO-020).
+  // Auto-fill on patient selection (create mode only).
   // Each field is propagated only when it is still in its not-initialized state
   // (the user has not entered a value).
   const handlePatientChange = useCallback(
@@ -112,9 +113,12 @@ export function useProcedureFormModal({
         !procedureTypeId &&
         patient.latest_procedure_type &&
         procedureTypes.some((pt) => pt.id === patient.latest_procedure_type)
-      )
+      ) {
         setProcedureTypeId(patient.latest_procedure_type);
-      if (!procedureDate) changeProcedureDate(new Date().toISOString().split("T")[0] ?? "");
+        // #606 — a pre-filled type answers « Choose a procedure type. ».
+        clearFieldError("procedureTypeId");
+      }
+      if (!procedureDate) changeProcedureDate(todayIsoDate());
       if (billedAmount == null && patient.latest_procedure_amount != null)
         setBilledAmount(patient.latest_procedure_amount / 1000);
     },
@@ -131,7 +135,7 @@ export function useProcedureFormModal({
     ],
   );
 
-  // Auto-fill amount on procedure type selection (create mode only, PRO-025).
+  // Auto-fill amount on procedure type selection (create mode only).
   // Amount is propagated only when it is still in its not-initialized state.
   const handleProcedureTypeChange = useCallback(
     (id: string) => {
@@ -313,10 +317,12 @@ export function useProcedureFormModal({
       const patient: Patient = result.data;
       setPatientId(patient.id);
       clearFieldError("patientId");
+      // #606 — a patient created here gets today's date like a chosen one.
+      if (mode === "create" && !procedureDate) changeProcedureDate(todayIsoDate());
       setPatientModal({ open: false, query: "" });
       return {};
     },
-    [t, tc, clearFieldError],
+    [t, tc, clearFieldError, mode, procedureDate, changeProcedureDate],
   );
 
   const selectedPatient = useMemo(

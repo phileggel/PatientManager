@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Fund, ProcedureType } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { makePatient } from "@/tests/patient.factory";
+import { todayIsoDate } from "@/ui/format/formatters";
 import { useProcedureFormModal } from "./useProcedureFormModal";
 
 vi.mock("@/features/procedure/api/gateway", () => ({
@@ -53,7 +54,7 @@ beforeEach(() => {
 
 describe("create mode — auto-fill on patient select", () => {
   it("fills fund, procedure type, date and amount from patient latest data", () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayIsoDate();
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
     act(() => {
@@ -117,7 +118,7 @@ describe("create mode — auto-fill on patient select", () => {
     expect(result.current.billedAmount).toBeNull();
   });
 
-  it("does not overwrite procedure type if already set (PRO-020)", () => {
+  it("does not overwrite procedure type if already set", () => {
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
     act(() => {
@@ -131,9 +132,63 @@ describe("create mode — auto-fill on patient select", () => {
   });
 });
 
-// --- Create mode: PRO-025 amount propagation on type change ---
+// --- Create mode: amount propagation on type change ---
 
-describe("create mode — PRO-025 amount propagation on type change", () => {
+describe("create mode — #606 pre-fill", () => {
+  it("fills in the local day, also just after local midnight", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 15, 0, 5));
+    try {
+      const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+      act(() => {
+        result.current.handlePatientChange("p1");
+      });
+
+      expect(result.current.procedureDate).toBe("2026-11-15");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a type pre-filled from the patient clears the type's message", async () => {
+    const { addProcedure } = await import("@/features/procedure/api/gateway");
+    vi.mocked(addProcedure).mockResolvedValueOnce({
+      success: false,
+      error: { code: "ProcedureInvalid", reasons: ["PatientIdEmpty", "ProcedureTypeIdEmpty"] },
+    });
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as FormEvent);
+    });
+    expect(result.current.fieldErrors.procedureTypeId).toBeDefined();
+
+    act(() => {
+      result.current.handlePatientChange("p1");
+    });
+
+    expect(result.current.procedureTypeId).toBe("pt2");
+    expect(result.current.fieldErrors.procedureTypeId).toBeUndefined();
+  });
+
+  it("a patient created from the form gets today's date", async () => {
+    const { createNewPatient } = await import("@/features/procedure/api/gateway");
+    vi.mocked(createNewPatient).mockResolvedValueOnce({
+      success: true,
+      data: makePatient({ id: "p-new" }),
+    });
+    const { result } = makeHook({ mode: "create", onClose: vi.fn() });
+
+    await act(async () => {
+      await result.current.handlePatientCreated({ name: "Léa Fontaine" });
+    });
+
+    expect(result.current.patientId).toBe("p-new");
+    expect(result.current.procedureDate).toBe(todayIsoDate());
+  });
+});
+
+describe("create mode — amount propagation on type change", () => {
   it("pre-fills amount from type default_amount when amount is not initialized", () => {
     const { result } = makeHook({ mode: "create", onClose: vi.fn() });
 
@@ -816,7 +871,7 @@ describe("TODO-026 — the backend judges the form, its refusals shown under eac
     expect(result.current.fieldErrors).toEqual({});
   });
 
-  it("PRO-123: choosing a procedure type clears its message", async () => {
+  it("choosing a procedure type clears its message", async () => {
     const { addProcedure } = await import("@/features/procedure/api/gateway");
     vi.mocked(addProcedure).mockResolvedValueOnce({
       success: false,

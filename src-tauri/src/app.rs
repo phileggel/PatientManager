@@ -157,6 +157,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         procedure_type_repository.clone(),
         fund_repository.clone(),
         procedure_refund_repository.clone(),
+        patient_service.clone(),
     ));
     tracing::info!(target: BACKEND, "Procedure orchestration service created");
 

@@ -97,9 +97,9 @@ raises at most one `ProcedureUpdated` event, regardless of batch size (EXI-177).
 fields are updated: `latest_date`, `latest_procedure_type`, `latest_fund`,
 `latest_procedure_amount`. In batch mode, the most recent procedure of the batch is
 identified per patient and a single update is applied per patient. If the new procedure has
-no fund (a direct-payment procedure), `latest_fund` is cleared.
+no fund (a direct-payment procedure), `latest_fund` is cleared. A single creation that updates them raises the `PatientUpdated` event; a batch follows PRO-300 and EXI-177 (#606).
 
-**PRO-270 (R20) — Patient tracking on deletion (backend)**: After a procedure is deleted, the patient's four tracking fields follow their most recent remaining procedure; with none left, they are cleared.
+**PRO-270 (R20) — Patient tracking on deletion (backend)**: After a procedure is deleted, the patient's four tracking fields follow their most recent remaining procedure; with none left, they are cleared. Every deletion that recomputes them raises the `PatientUpdated` event (#606).
 
 **PRO-280 (R21) — Cascading clear on procedure-type deletion (backend)**: When a procedure type is deleted,
 any patient whose `latest_procedure_type` references this type has
