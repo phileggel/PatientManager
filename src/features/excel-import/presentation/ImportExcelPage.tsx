@@ -5,9 +5,10 @@ import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import { FormModal } from "@/ui/components";
 import { Button } from "@/ui/components/button";
+import { useFormatters } from "@/ui/format/formatters";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";
 import { deriveProcedureMappings } from "../shared/mappings";
-import { formatExcelImportError } from "../shared/presenter";
+import { formatExcelImportError, formatImportFailure } from "../shared/presenter";
 import { ParsingReportModal } from "./components/ParsingReportModal";
 import { ProcedureTypeMappingStep } from "./components/ProcedureTypeMappingStep";
 import { ProgressIndicator } from "./components/ProgressIndicator";
@@ -24,6 +25,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
   const { t } = useTranslation("excel-import");
 
   const procedureTypes = useCacheStore((state) => state.procedureTypes);
+  const { formatCurrency } = useFormatters();
 
   useEffect(() => {
     logger.info("[ImportExcelPage] mounted");
@@ -33,6 +35,9 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  // #621 — a failed import shows in the mapping modal; the user confirms again
+  // from there, on the same parse (EXI-070).
+  const [importError, setImportError] = useState<string | null>(null);
   const [showParsingReport, setShowParsingReport] = useState(false);
 
   // Parsed data from Excel (held in state so the mapping step can use it)
@@ -47,6 +52,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
   const handleFileSelect = useCallback(
     async (fileData: { name: string; path: string }) => {
       setError(null);
+      setImportError(null);
       setCurrentStep("parsing");
       setIsLoading(true);
       setLoadingStatus(t("status.parsing"));
@@ -134,11 +140,19 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         selectedSheets,
       });
 
+      setImportError(null);
       try {
         const result = await executeExcelImport(parsed, mapping, selectedSheets);
 
         if (!result.success) {
-          throw new Error(t(formatExcelImportError(result.error).key));
+          // EXI-151 — a gone type is named, with the amounts mapped to it.
+          const message = formatImportFailure(result.error, {
+            mapping,
+            rows: deriveProcedureMappings(parsed.procedures, selectedSheets),
+            types: procedureTypes,
+            formatAmount: formatCurrency,
+          });
+          throw new Error(t(message.key, message.params));
         }
 
         setImportResult(result.data);
@@ -148,7 +162,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         });
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        setError(errorMessage);
+        setImportError(errorMessage);
         logger.error("[ImportExcelPage] Import execution failed", { error: errorMessage });
         setCurrentStep("mapping_procedure_types");
       } finally {
@@ -156,7 +170,7 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         setLoadingStatus("");
       }
     },
-    [parsed, t, selectedSheets],
+    [parsed, t, selectedSheets, procedureTypes, formatCurrency],
   );
 
   const handleRetry = useCallback(() => {
@@ -227,12 +241,29 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         {/* Procedure Type Mapping Modal */}
         <FormModal
           id="excel-mapping-procedure-types-modal"
-          isOpen={currentStep === "mapping_procedure_types" && parsed !== null}
+          // #621 — the modal stays open while its import runs, so a failure
+          // returns to the user's own choices, not to the defaults.
+          isOpen={
+            parsed !== null &&
+            (currentStep === "mapping_procedure_types" ||
+              (currentStep === "importing" && parsed.procedures.length > 0))
+          }
           title={t("mapping.modal_title")}
           onClose={handleMappingModalClose}
           maxWidth="max-w-3xl"
           maxHeight="max-h-[80vh]"
         >
+          {importError && (
+            <div
+              id="excel-import-mapping-failure"
+              className="mb-4 p-4 bg-m3-error-container rounded-xl text-m3-on-error-container"
+              role="alert"
+              aria-live="polite"
+            >
+              <p className="font-medium">{t("status.import_failed")}</p>
+              <p className="text-sm mt-1 opacity-90">{importError}</p>
+            </div>
+          )}
           {parsed && (
             <ProcedureTypeMappingStep
               procedureMappings={deriveProcedureMappings(parsed.procedures, selectedSheets)}

@@ -76,7 +76,9 @@
     "parse_error": "Le fichier Excel n'a pas pu être analysé.",
     "import_failed": "L'import n'a pas pu être effectué. Veuillez réessayer.",
     "database_error": "Une erreur de base de données inattendue s'est produite.",
-    "procedure_type_not_found": "Un type d'acte du mapping n'existe plus. Associez de nouveau ce montant, puis relancez l'import."
+    "procedure_type_not_found": "Un type d'acte de l'association n'existe plus. Choisissez-en un autre, puis importez de nouveau.",
+    "procedure_type_not_found_named": "Le type d'acte « {{name}} » choisi pour {{amounts}} n'existe plus. Choisissez-en un autre, puis importez de nouveau.",
+    "procedure_type_not_found_for": "Le type d'acte choisi pour {{amounts}} n'existe plus. Choisissez-en un autre, puis importez de nouveau."
   },
   "parsing_report": {
     "unified_title": "Rapport d'import",

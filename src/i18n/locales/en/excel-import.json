@@ -76,7 +76,9 @@
     "parse_error": "The Excel file could not be parsed.",
     "import_failed": "The import could not be completed. Please try again.",
     "database_error": "An unexpected database error occurred.",
-    "procedure_type_not_found": "A procedure type of the mapping no longer exists. Map this amount again, then run the import again."
+    "procedure_type_not_found": "A procedure type of the mapping no longer exists. Choose another, then import again.",
+    "procedure_type_not_found_named": "The procedure type \"{{name}}\" chosen for {{amounts}} no longer exists. Choose another, then import again.",
+    "procedure_type_not_found_for": "The procedure type chosen for {{amounts}} no longer exists. Choose another, then import again."
   },
   "parsing_report": {
     "unified_title": "Import report",
