@@ -212,7 +212,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
           REVIEWER: ${{ matrix.reviewer }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           code=0
           python3 .daneel/plugins/app/scripts/lane-reviewed.py "$PR_NUMBER" "$REVIEWER" || code=$?
           case "$code" in

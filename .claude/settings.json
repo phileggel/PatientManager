@@ -106,7 +106,9 @@
       "Bash(gh release edit *--draft false*)",
       "Bash(*just*publish-release*)",
       "Bash(*publish-release.sh*)",
-      "Bash(gh release create *)"
+      "Bash(gh release create *)",
+      "Bash(gh release edit *)",
+      "Bash(gh api *releases*)"
     ]
   },
   "hooks": {
