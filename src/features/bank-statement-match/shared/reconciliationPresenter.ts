@@ -3,6 +3,7 @@ import type {
   BankStatementLineStatus,
   BankStatementReconciliationError,
 } from "@/bindings";
+import type { LabelRow } from "./labelRows";
 
 /**
  * Pure presenters for the draft-UX reconciliation flow (F27 layer 3).
@@ -33,7 +34,7 @@ export function presentLineStatus(status: BankStatementLineStatus): string {
 }
 
 /**
- * BAS-123C — badge key for a line: a left-aside line (matched with zero
+ * #692 — tag key for a line: a left-aside line (matched with zero
  * assigned settlement items and an acknowledged remainder) gets its own badge
  * so it never reads as a real match; every other line badges by status.
  */
@@ -47,24 +48,23 @@ export function presentLineBadge(line: BankStatementLine): string {
 }
 
 /**
- * Visual tone for a line's status badge: `link` for the fund-unknown state
- * (NeedsLink — the label itself is unrecognized), `attention` (gold) for the
- * transaction-missing states, `resolved` (subdued) for the two done states
- * (Matched / Rejected). Three tones so "fund unknown" and "transaction
- * missing" are distinguishable at a glance (field report 2026-07-30).
- * Exhaustive over BAS-061.
+ * #692 — the tag tone of a line, the import's colour meaning: a line matched
+ * with a settlement item is done (green); a left-aside line (BAS-123B) or a
+ * rejected one is set aside (grey); every other status needs action (orange).
  */
-export function lineStatusTone(status: BankStatementLineStatus): "link" | "attention" | "resolved" {
-  switch (status) {
+export function lineTagTone(line: BankStatementLine): "done" | "action" | "aside" {
+  switch (line.status) {
     case "Matched":
+      return line.assigned_group_ids.length > 0 || line.assigned_procedure_ids.length > 0
+        ? "done"
+        : "aside";
     case "Rejected":
-      return "resolved";
+      return "aside";
     case "NeedsLink":
-      return "link";
     case "NeedsGroup":
     case "Partial":
     case "Unresolved":
-      return "attention";
+      return "action";
   }
 }
 
@@ -123,4 +123,29 @@ export function presentReconciliationError(err: BankStatementReconciliationError
     case "BankPaymentAlreadyConfirmed":
       return { key: "bank:reconciliation.error.unknown" };
   }
+}
+
+/** Where a label's assignment comes from (#692): saved, set in this import, none, ignored. */
+export type LabelOrigin = "known" | "new" | "todo" | "ignored";
+
+/**
+ * #692, step 2 — each label's origin, the header's counts and the « Continuer »
+ * gate. `savedFundIds` holds each label's fund before any correction; a label
+ * in `unignored` was switched back on and stays « À associer » until a fund is
+ * picked.
+ */
+export function presentLabelOrigins(
+  rows: readonly LabelRow[],
+  savedFundIds: ReadonlyMap<string, string | null>,
+  unignored: readonly string[],
+): { origins: LabelOrigin[]; counts: Record<LabelOrigin, number>; allDecided: boolean } {
+  const origins = rows.map((row): LabelOrigin => {
+    if (unignored.includes(row.label)) return "todo";
+    if (row.isRejected) return "ignored";
+    if (!row.fundId) return "todo";
+    return savedFundIds.get(row.label) === row.fundId ? "known" : "new";
+  });
+  const counts: Record<LabelOrigin, number> = { known: 0, new: 0, todo: 0, ignored: 0 };
+  for (const origin of origins) counts[origin] += 1;
+  return { origins, counts, allDecided: counts.todo === 0 };
 }

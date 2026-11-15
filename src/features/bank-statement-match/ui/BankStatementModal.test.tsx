@@ -75,7 +75,14 @@ const EMPTY_RECONCILIATION: BankStatementReconciliation = {
   lines: [],
   resolved_count: 0,
   needs_correction_count: 0,
-  recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
+  recap: {
+    lines_taken_count: 0,
+    total_amount: 0,
+    partly_paid_lines: [],
+    period_start: null,
+    period_end: null,
+    period_month: null,
+  },
 };
 
 describe("BankStatementModal — inline create-account gate (BAS-011..014)", () => {

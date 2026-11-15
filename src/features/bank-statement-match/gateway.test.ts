@@ -166,7 +166,14 @@ const RECONCILIATION_FIXTURE: BankStatementReconciliation = {
   ],
   resolved_count: 1,
   needs_correction_count: 0,
-  recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
+  recap: {
+    lines_taken_count: 0,
+    total_amount: 0,
+    partly_paid_lines: [],
+    period_start: null,
+    period_end: null,
+    period_month: null,
+  },
 };
 
 describe("bank-statement-match gateway — computeBankStatementReconciliation (BAS-064)", () => {

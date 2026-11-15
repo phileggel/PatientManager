@@ -8,7 +8,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -87,6 +87,14 @@ pub struct BankStatementRecap {
     /// Those lines whose items cover less than their amount, in document
     /// order.
     pub partly_paid_lines: Vec<BankStatementPartlyPaidLine>,
+    /// The first day of the statement's period (ISO date), when the parse
+    /// read it (BAS-020).
+    pub period_start: Option<String>,
+    /// The last day of the statement's period (ISO date), when the parse
+    /// read it.
+    pub period_end: Option<String>,
+    /// `YYYY-MM` when the period covers exactly one calendar month.
+    pub period_month: Option<String>,
 }
 
 /// One line of the recap with an acknowledged remainder (BAS-092).
@@ -348,7 +356,7 @@ pub fn compute_reconciliation(
         .count() as u32;
     let needs_correction_count = reconciliation_lines.len() as u32 - resolved_count;
 
-    let recap = build_recap(&reconciliation_lines);
+    let recap = build_recap(&reconciliation_lines, parse_result.period.as_deref());
     Ok(BankStatementReconciliation {
         lines: reconciliation_lines,
         resolved_count,
@@ -813,7 +821,7 @@ fn rank_candidates(
 /// The recap: the matched lines with a settlement item, their full amount,
 /// and those partly paid — a view of the lines, computed here so the screen
 /// only renders it.
-fn build_recap(lines: &[BankStatementLine]) -> BankStatementRecap {
+fn build_recap(lines: &[BankStatementLine], period: Option<&str>) -> BankStatementRecap {
     // Matched with at least one settlement item: a left-aside line (BAS-123B)
     // has none, a rejected one is not matched.
     let taken: Vec<&BankStatementLine> = lines
@@ -839,11 +847,34 @@ fn build_recap(lines: &[BankStatementLine]) -> BankStatementRecap {
                 })
         })
         .collect();
+    let dates = period.and_then(period_dates);
     BankStatementRecap {
         lines_taken_count: taken.len() as u32,
         total_amount: taken.iter().map(|l| l.credit_line.amount).sum(),
         partly_paid_lines,
+        period_start: dates.map(|(start, _)| start.format("%Y-%m-%d").to_string()),
+        period_end: dates.map(|(_, end)| end.format("%Y-%m-%d").to_string()),
+        period_month: dates.and_then(|(start, end)| one_month(start, end)),
     }
+}
+
+/// The two dates of the parser's period, `du DD/MM/YYYY au DD/MM/YYYY` (BAS-020).
+fn period_dates(period: &str) -> Option<(NaiveDate, NaiveDate)> {
+    let re = regex::Regex::new(r"(\d{2}/\d{2}/\d{4})\D+(\d{2}/\d{2}/\d{4})").ok()?;
+    let caps = re.captures(period)?;
+    let parse = |i: usize| NaiveDate::parse_from_str(caps.get(i)?.as_str(), "%d/%m/%Y").ok();
+    Some((parse(1)?, parse(2)?))
+}
+
+/// `YYYY-MM` when `start..=end` is exactly one calendar month.
+fn one_month(start: NaiveDate, end: NaiveDate) -> Option<String> {
+    let first_of_next = if start.month() == 12 {
+        NaiveDate::from_ymd_opt(start.year() + 1, 1, 1)?
+    } else {
+        NaiveDate::from_ymd_opt(start.year(), start.month() + 1, 1)?
+    };
+    (start.day() == 1 && end.succ_opt() == Some(first_of_next))
+        .then(|| start.format("%Y-%m").to_string())
 }
 
 /// BAS-032 — heuristic fund suggestion for an unmapped label, in priority order:
@@ -3017,5 +3048,52 @@ mod tests {
         let line = &recon.lines[0];
         assert_eq!(line.assigned_group_ids, vec!["grp-a".to_string()]);
         assert!(!line.remainder_acknowledged);
+    }
+
+    // #697 — the recap carries the statement's period, and its month when the
+    // period covers exactly one calendar month.
+    fn recap_with_period(period: Option<&str>) -> BankStatementRecap {
+        let funds = vec![fund("fund-93", "93", "CPAM 93")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &[],
+            groups: &[],
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+        let mut parse_result = statement(vec![line_on("2026-10-10", "CPAM93", 1_000)]);
+        parse_result.period = period.map(str::to_string);
+        compute_reconciliation(&parse_result, &repos, &[])
+            .unwrap()
+            .recap
+    }
+
+    #[test]
+    fn test_recap_period_of_one_whole_month_names_the_month() {
+        let october = recap_with_period(Some("du 01/10/2026 au 31/10/2026"));
+        assert_eq!(october.period_start.as_deref(), Some("2026-10-01"));
+        assert_eq!(october.period_end.as_deref(), Some("2026-10-31"));
+        assert_eq!(october.period_month.as_deref(), Some("2026-10"));
+    }
+
+    #[test]
+    fn test_recap_period_across_two_months_has_dates_but_no_month() {
+        let straddling = recap_with_period(Some("du 15/09/2026 au 14/10/2026"));
+        assert_eq!(straddling.period_start.as_deref(), Some("2026-09-15"));
+        assert_eq!(straddling.period_end.as_deref(), Some("2026-10-14"));
+        assert_eq!(straddling.period_month, None);
+    }
+
+    #[test]
+    fn test_recap_period_of_a_leap_february_names_the_month() {
+        let february = recap_with_period(Some("du 01/02/2028 au 29/02/2028"));
+        assert_eq!(february.period_month.as_deref(), Some("2028-02"));
+    }
+
+    #[test]
+    fn test_recap_without_a_period_has_no_dates() {
+        let unknown = recap_with_period(None);
+        assert_eq!(unknown.period_start, None);
+        assert_eq!(unknown.period_end, None);
+        assert_eq!(unknown.period_month, None);
     }
 }

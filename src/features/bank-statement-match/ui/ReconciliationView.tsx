@@ -13,8 +13,8 @@ import { AssignGroupsModal } from "./AssignGroupsModal";
 import { ErrorStep } from "./ErrorStep";
 import { LabelAssociationScreen } from "./LabelAssociationScreen";
 import { LoadingStep } from "./LoadingStep";
+import { RecapStep } from "./RecapStep";
 import { ReconciliationList } from "./ReconciliationList";
-import { ReconciliationWizard } from "./ReconciliationWizard";
 import { StepBar } from "./StepBar";
 import { useBankStatementReconciliation } from "./useBankStatementReconciliation";
 
@@ -30,13 +30,12 @@ interface ReconciliationViewProps {
 }
 
 /**
- * BAS-120–123 — the two-screen reconciliation flow over one shared draft:
- * screen 1 associates every bank label to a fund (or ignores it, BAS-120–121),
- * screen 2 settles the linked labels' lines (list + dialogs + settlement-only
- * wizard, BAS-122) and validates once every line is decided (BAS-123).
+ * #692 — steps 2 to 4 of the bank statement import over one shared draft:
+ * the labels (each linked to a fund or ignored), the matching (every line,
+ * each opening the « Rapprocher » modal), the recap, which validates.
  *
  * Lives in its own component so the reconciliation hook only mounts once the
- * gate has resolved both the parse result and the bank account (BAS-011–017).
+ * gate has resolved both the parse result and the bank account (BAS-010).
  */
 export function ReconciliationView({
   bankAccountId,
@@ -57,13 +56,12 @@ export function ReconciliationView({
     validate,
   } = useBankStatementReconciliation(bankAccountId, parseResult);
 
-  const [screen, setScreen] = useState<"labels" | "settlement">("labels");
+  const [screen, setScreen] = useState<"labels" | "settlement" | "recap">("labels");
   // #692 — each label's link when the matching step was left for the labels.
   const [linksAtMatching, setLinksAtMatching] = useState<ReadonlyMap<string, string | null> | null>(
     null,
   );
   const [activeLine, setActiveLine] = useState<BankStatementLine | null>(null);
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [createdCount, setCreatedCount] = useState<number | null>(null);
   const procedureWindowDays = getProcedureWindowDays();
 
@@ -77,11 +75,15 @@ export function ReconciliationView({
   if (createdCount !== null) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="text-center py-12 space-y-4">
-          <p className="text-lg font-medium text-m3-on-success-container">
+        {/* #357 — the success text sits on its own green container, as the recap's figures. */}
+        <div
+          id="reconciliation-done"
+          className="space-y-2 rounded-2xl bg-[var(--color-snackbar-success-bg)] px-6 py-10 text-center text-[var(--color-snackbar-success-text)]"
+        >
+          <p className="text-lg font-semibold">
             {t("statement.modal.done", { count: createdCount })}
           </p>
-          <p className="text-m3-on-surface-variant">{t("statement.modal.done_description")}</p>
+          <p className="text-sm">{t("statement.modal.done_description")}</p>
         </div>
         <div className="flex justify-end">
           <Button onClick={onClose} variant="secondary">
@@ -122,16 +124,12 @@ export function ReconciliationView({
     );
   }
 
-  // --- Screen 2 — settlement (BAS-122–123). ---
-  // Only the linked labels' lines are settled here; ignored labels' lines
-  // were decided on screen 1 and never reappear (BAS-122).
-  const visibleLines = reconciliation.lines.filter(
-    (line) => line.fund_id !== null && line.status !== "Rejected",
+  // --- Step 3 — the matching (#692): every line of the statement. ---
+  // The recap opens once every line is decided (matched, left aside or
+  // ignored); zero lines satisfy the gate vacuously.
+  const allLinesDecided = reconciliation.lines.every(
+    (line) => line.status === "Matched" || line.status === "Rejected",
   );
-  const settlementReconciliation = { ...reconciliation, lines: visibleLines };
-  // BAS-123 — every visible line decided (matched, incl. left-aside); zero
-  // lines satisfy the gate vacuously.
-  const allLinesDecided = visibleLines.every((line) => line.status === "Matched");
 
   const handleValidate = async () => {
     const count = await validate();
@@ -164,19 +162,39 @@ export function ReconciliationView({
     return ok;
   };
 
+  // --- Step 4 — the recap (#692). ---
+  if (screen === "recap") {
+    return (
+      <div className="flex flex-col flex-1 gap-6 min-h-0">
+        <StepBar current="recap" />
+        <RecapStep
+          recap={reconciliation.recap}
+          isBusy={isBusy}
+          errorText={correctionErrorText}
+          onCancel={onCancel}
+          onBack={() => {
+            clearError();
+            setScreen("settlement");
+          }}
+          onValidate={() => void handleValidate()}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col flex-1 gap-6 min-h-0">
       <StepBar current="matching" />
       <ReconciliationList
-        reconciliation={settlementReconciliation}
+        reconciliation={reconciliation}
         onApplyCorrection={openLine}
         isBusy={isBusy}
       />
 
       {correctionErrorText && <ErrorStep error={correctionErrorText} />}
 
-      {/* BAS-122A — pinned screen actions. */}
-      <div className="flex items-center justify-between gap-3">
+      {/* The step's actions, as on every step. */}
+      <div className="flex items-center justify-between gap-3 border-t border-m3-outline/20 pt-4">
         <Button id="reconciliation-cancel" variant="outline" onClick={onCancel}>
           {t("label_association.cancel_all")}
         </Button>
@@ -201,26 +219,20 @@ export function ReconciliationView({
             {t("reconciliation.back_to_labels")}
           </Button>
           <Button
-            id="reconciliation-wizard-btn"
-            variant="secondary"
-            disabled={isBusy}
-            onClick={() => setIsWizardOpen(true)}
-          >
-            {t("reconciliation.wizard.open")}
-          </Button>
-          <Button
-            id="reconciliation-validate"
-            onClick={handleValidate}
+            id="reconciliation-to-recap"
             variant="primary"
             disabled={isBusy || !allLinesDecided}
-            loading={isBusy}
+            onClick={() => {
+              clearError();
+              setScreen("recap");
+            }}
           >
-            {t("statement.modal.validate")}
+            {t("reconciliation.to_recap")}
           </Button>
         </div>
       </div>
 
-      {/* Per-line settlement dialog (BAS-062/122B) — label linking lives on screen 1. */}
+      {/* The « Rapprocher » modal (BAS-062) — label linking lives on step 2. */}
       {activeLine !== null && (
         <AssignGroupsModal
           line={activeLine}
@@ -230,26 +242,6 @@ export function ReconciliationView({
           onSubmit={submitAndCloseOnSuccess}
           onCancel={closeDialog}
           procedureWindowDays={procedureWindowDays}
-        />
-      )}
-
-      {isWizardOpen && (
-        <ReconciliationWizard
-          reconciliation={settlementReconciliation}
-          isOpen={true}
-          errorText={correctionErrorText}
-          isBusy={isBusy}
-          onApplyCorrection={(correction) => void applyCorrection(correction)}
-          onErrorDismiss={clearError}
-          procedureWindowDays={procedureWindowDays}
-          onComplete={() => {
-            clearError();
-            setIsWizardOpen(false);
-          }}
-          onAbandon={() => {
-            clearError();
-            setIsWizardOpen(false);
-          }}
         />
       )}
     </div>

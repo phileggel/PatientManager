@@ -79,7 +79,14 @@ function makeReconciliation(lines: BankStatementLine[]) {
     lines,
     resolved_count: 0,
     needs_correction_count: lines.length,
-    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
+    recap: {
+      lines_taken_count: 0,
+      total_amount: 0,
+      partly_paid_lines: [],
+      period_start: null,
+      period_end: null,
+      period_month: null,
+    },
   };
 }
 

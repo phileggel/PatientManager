@@ -121,8 +121,8 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     expect(candidateRow1).not.toBeNull();
     expect(candidateRow2).not.toBeNull();
 
-    // Each row identifies its fund by name (BAS-068)
-    expect(candidateRow1?.textContent).toContain("CPAM Paris");
+    // Each row names its bordereau by date — the line's fund only (BAS-090A)
+    expect(candidateRow1?.textContent).toContain("reconciliation.assign_groups.bordereau");
 
     // The wire order (backend: most recent payment first) renders as-is —
     // no client-side re-sort.
@@ -235,34 +235,23 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
   // BAS-062 override — the seeded assignment can be unchecked and submitted
   // empty (explicit unassign).
-  it("submits empty group_ids after unchecking the seeded assignment (unassign override, BAS-062)", async () => {
+  it("keeps the primary action off once the seeded assignment is unchecked (#697)", async () => {
     const user = userEvent.setup();
-    const onSubmit = vi.fn();
-    // A line that already has an assignment — user opens it to unassign
     const line = makeNeedsGroupLine({
       status: "Matched",
       assigned_group_ids: ["group-1"],
       covered_amount: 150000,
     });
 
-    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    // The current assignment is seeded (BAS-068) — uncheck it to unassign.
     const seeded = document.getElementById("assign-groups-check-group-1") as HTMLInputElement;
     expect(seeded?.checked).toBe(true);
     await user.click(seeded);
 
-    const submitBtn = document.getElementById("assign-groups-submit");
-    expect(submitBtn).not.toBeNull();
-    if (!submitBtn) throw new Error("submit button missing");
-
-    await user.click(submitBtn);
-
-    expect(onSubmit).toHaveBeenCalledWith({
-      type: "AssignGroups",
-      line_id: "line-needs-group",
-      group_ids: [],
-    });
+    expect((document.getElementById("assign-groups-submit") as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   // BAS-090 (#695, owner 2026-11-15) — no cross-fund match: the dialog offers
@@ -304,27 +293,20 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
   });
 
   // BAS-090 — unchecking a selected candidate removes it from the submission.
-  it("deselects a candidate on second click and submits without it", async () => {
+  it("deselects a candidate on second click, leaving nothing to submit", async () => {
     const user = userEvent.setup();
-    const onSubmit = vi.fn();
     const line = makeNeedsGroupLine();
 
-    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
+    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    const check = document.getElementById("assign-groups-check-group-1");
-    if (!check) throw new Error("candidate checkbox missing");
+    const check = document.getElementById("assign-groups-check-group-1") as HTMLInputElement;
     await user.click(check);
     await user.click(check);
 
-    const submitBtn = document.getElementById("assign-groups-submit");
-    if (!submitBtn) throw new Error("submit button missing");
-    await user.click(submitBtn);
-
-    expect(onSubmit).toHaveBeenCalledWith({
-      type: "AssignGroups",
-      line_id: "line-needs-group",
-      group_ids: [],
-    });
+    expect(check.checked).toBe(false);
+    expect((document.getElementById("assign-groups-submit") as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   it("calls onCancel and does not call onSubmit when cancel is clicked", async () => {
@@ -442,16 +424,14 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       if (!fundScope) throw new Error("fund scope control missing");
       await user.click(fundScope);
 
-      const submitBtn = document.getElementById("assign-groups-submit");
-      if (!submitBtn) throw new Error("submit button missing");
-      await user.click(submitBtn);
-
       // Selection made before switching away must not silently survive.
-      expect(onSubmit).toHaveBeenCalledWith({
-        type: "AssignGroups",
-        line_id: "line-needs-group",
-        group_ids: [],
-      });
+      expect(
+        (document.getElementById("assign-groups-check-group-1") as HTMLInputElement).checked,
+      ).toBe(false);
+      expect((document.getElementById("assign-groups-submit") as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+      expect(onSubmit).not.toHaveBeenCalled();
     });
   });
 
@@ -534,82 +514,73 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
   // Dialog actions (2026-07-31 wireframe review) — three-action footer
   // ---------------------------------------------------------------------------
 
-  describe("Dialog actions — three-action footer", () => {
-    // BAS-123A — the gold action is enabled with an EMPTY selection too (it
-    // relabels to "leave aside" and acknowledges the whole amount); it is
-    // disabled only at exact coverage, never merely because nothing is picked.
-    it("enables the gold action with an empty selection, relabelled to leave-aside (BAS-123A)", () => {
-      const line = makeNeedsGroupLine();
-
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
-
-      const withRemainder = document.getElementById(
-        "assign-groups-submit-with-remainder",
-      ) as HTMLButtonElement | null;
-      expect(withRemainder).not.toBeNull();
-      expect(withRemainder?.disabled).toBe(false);
-      expect(withRemainder?.textContent).toContain("reconciliation.assign_groups.leave_aside");
-    });
-
-    it("disables the with-remainder action when the selection fully covers the line amount", async () => {
-      const user = userEvent.setup();
-      const line = makeNeedsGroupLine();
-
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
-
-      // CANDIDATE_EXACT (150000) exactly covers the 150000 line amount — no
-      // remainder, so "with remainder" must stay disabled.
-      const exactCheck = document.getElementById("assign-groups-check-group-1");
-      if (!exactCheck) throw new Error("candidate checkbox missing");
-      await user.click(exactCheck);
-
-      const withRemainder = document.getElementById(
-        "assign-groups-submit-with-remainder",
-      ) as HTMLButtonElement | null;
-      expect(withRemainder?.disabled).toBe(true);
-    });
-
-    it("enables the with-remainder action when the selection is non-empty and leaves a remainder", async () => {
-      const user = userEvent.setup();
-      const line = makeNeedsGroupLine();
-
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
-
-      // CANDIDATE_PARTIAL (80000) is below the 150000 line amount.
-      const partialCheck = document.getElementById("assign-groups-check-group-2");
-      if (!partialCheck) throw new Error("candidate checkbox missing");
-      await user.click(partialCheck);
-
-      const withRemainder = document.getElementById(
-        "assign-groups-submit-with-remainder",
-      ) as HTMLButtonElement | null;
-      expect(withRemainder?.disabled).toBe(false);
-      // Non-empty selection → the "with remainder" label, not "leave aside" (BAS-123A).
-      expect(withRemainder?.textContent).toContain(
-        "reconciliation.assign_groups.submit_with_remainder",
+  describe("#697 — the footer: « Laisser de côté », « Annuler », one filled action", () => {
+    it("keeps the filled action off while nothing is ticked", () => {
+      render(
+        <AssignGroupsModal
+          line={makeNeedsGroupLine()}
+          isOpen={true}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />,
       );
-      expect(withRemainder?.textContent).not.toContain("reconciliation.assign_groups.leave_aside");
+
+      const submit = document.getElementById("assign-groups-submit") as HTMLButtonElement;
+      expect(submit.disabled).toBe(true);
+      expect(submit.textContent).toContain("reconciliation.assign_groups.submit");
     });
 
-    it("submits the group assignment then acknowledges the remainder in one click (BAS-113 dialog actions)", async () => {
+    it("at exact coverage submits the assignment alone, the bar green", async () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
-      const line = makeNeedsGroupLine();
-
       render(
-        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+        <AssignGroupsModal
+          line={makeNeedsGroupLine()}
+          isOpen={true}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+        />,
       );
 
-      const partialCheck = document.getElementById("assign-groups-check-group-2");
-      if (!partialCheck) throw new Error("candidate checkbox missing");
-      await user.click(partialCheck);
+      const exact = document.getElementById("assign-groups-check-group-1");
+      if (!exact) throw new Error("candidate checkbox missing");
+      await user.click(exact);
+      expect(document.getElementById("assign-groups-cover-bar")?.dataset.tone).toBe("exact");
+      expect(document.getElementById("assign-groups-remainder-info")).toBeNull();
 
-      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
-      if (!withRemainder) throw new Error("with-remainder button missing");
-      await user.click(withRemainder);
+      await user.click(document.getElementById("assign-groups-submit") as HTMLElement);
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(onSubmit).toHaveBeenCalledWith({
+        type: "AssignGroups",
+        line_id: "line-needs-group",
+        group_ids: ["group-1"],
+      });
+    });
+
+    it("short of the amount, states the reliquat and submits « avec reliquat »: the assignment, then the acknowledgment", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <AssignGroupsModal
+          line={makeNeedsGroupLine()}
+          isOpen={true}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      const partial = document.getElementById("assign-groups-check-group-2");
+      if (!partial) throw new Error("candidate checkbox missing");
+      await user.click(partial);
+      expect(document.getElementById("assign-groups-cover-bar")?.dataset.tone).toBe("short");
+      expect(document.getElementById("assign-groups-remainder-info")).not.toBeNull();
+      const submit = document.getElementById("assign-groups-submit") as HTMLButtonElement;
+      expect(submit.textContent).toContain("reconciliation.assign_groups.submit_with_remainder");
+
+      await user.click(submit);
 
       await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
-
       const calls = onSubmit.mock.calls.map((call) => call[0] as BankStatementCorrection);
       expect(calls[0]).toEqual({
         type: "AssignGroups",
@@ -619,71 +590,84 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       expect(calls[1]).toEqual({ type: "AcknowledgeRemainder", line_id: "line-needs-group" });
     });
 
-    it("does not acknowledge the remainder when the assignment correction is rejected (BAS-064)", async () => {
+    it("above the amount, says so in red and keeps the action off (BAS-094)", async () => {
       const user = userEvent.setup();
-      // The host resolves false when the correction was rejected — the
-      // composition must bail instead of acknowledging against the unchanged
-      // prior draft.
-      const onSubmit = vi.fn().mockResolvedValue(false);
-      const line = makeNeedsGroupLine();
-
       render(
-        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+        <AssignGroupsModal
+          line={makeNeedsGroupLine()}
+          isOpen={true}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />,
       );
 
-      const partialCheck = document.getElementById("assign-groups-check-group-2");
-      if (!partialCheck) throw new Error("candidate checkbox missing");
-      await user.click(partialCheck);
+      await user.click(document.getElementById("assign-groups-check-group-1") as HTMLElement);
+      await user.click(document.getElementById("assign-groups-check-group-2") as HTMLElement);
 
-      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
-      if (!withRemainder) throw new Error("with-remainder button missing");
-      await user.click(withRemainder);
-
-      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-      expect(onSubmit.mock.calls[0]?.[0]).toEqual({
-        type: "AssignGroups",
-        line_id: "line-needs-group",
-        group_ids: ["group-2"],
-      });
+      expect(document.getElementById("assign-groups-cover-bar")?.dataset.tone).toBe("over");
+      expect(document.getElementById("assign-groups-overflow-info")).not.toBeNull();
+      expect(document.getElementById("assign-groups-remainder-info")).toBeNull();
+      expect((document.getElementById("assign-groups-submit") as HTMLButtonElement).disabled).toBe(
+        true,
+      );
     });
 
-    it("submits the procedure assignment then acknowledges the remainder in one click (BAS-113 dialog actions)", async () => {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-      const line = makeNeedsGroupLine({
-        candidate_procedures: [PROCEDURE_CANDIDATE_1, PROCEDURE_CANDIDATE_2],
-      });
-
+    it("says when the fund has no open payment group (#357)", () => {
       render(
-        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
+        <AssignGroupsModal
+          line={makeNeedsGroupLine({ candidate_groups: [] })}
+          isOpen={true}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />,
       );
 
-      const procScope = document.getElementById("assign-groups-scope-procedures");
-      if (!procScope) throw new Error("procedure scope control missing");
-      await user.click(procScope);
+      expect(document.getElementById("assign-groups-groups-empty")).not.toBeNull();
+    });
 
-      const check1 = document.getElementById("assign-groups-check-proc-proc-1");
-      if (!check1) throw new Error("procedure checkbox missing");
-      await user.click(check1);
+    it("does not acknowledge the remainder when the assignment is rejected (BAS-064)", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockResolvedValue(false);
+      render(
+        <AssignGroupsModal
+          line={makeNeedsGroupLine()}
+          isOpen={true}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+        />,
+      );
 
-      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
-      if (!withRemainder) throw new Error("with-remainder button missing");
-      await user.click(withRemainder);
+      await user.click(document.getElementById("assign-groups-check-group-2") as HTMLElement);
+      await user.click(document.getElementById("assign-groups-submit") as HTMLElement);
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    });
+
+    it("leaves the line aside: an empty assignment of the current scope, then the acknowledgment (BAS-123B)", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <AssignGroupsModal
+          line={makeNeedsGroupLine()}
+          isOpen={true}
+          onSubmit={onSubmit}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      await user.click(document.getElementById("assign-groups-leave-aside") as HTMLElement);
 
       await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
-
       const calls = onSubmit.mock.calls.map((call) => call[0] as BankStatementCorrection);
       expect(calls[0]).toEqual({
-        type: "AssignProcedures",
+        type: "AssignGroups",
         line_id: "line-needs-group",
-        procedure_ids: ["proc-1"],
+        group_ids: [],
       });
       expect(calls[1]).toEqual({ type: "AcknowledgeRemainder", line_id: "line-needs-group" });
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // BAS-117 — procedure-path scope cuts (negative assertions)
   // ---------------------------------------------------------------------------
 
   describe("BAS-117 — procedure-path scope cuts", () => {
@@ -745,69 +729,6 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
   // BAS-123A — leaving a line aside (empty-selection gold action)
   // ---------------------------------------------------------------------------
 
-  describe("BAS-123A — leaving a line aside", () => {
-    it("submits the empty assignment then acknowledges the remainder when the gold action is clicked with nothing selected", async () => {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-      const line = makeNeedsGroupLine();
-
-      render(
-        <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
-      );
-
-      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
-      if (!withRemainder) throw new Error("gold action button missing");
-      await user.click(withRemainder);
-
-      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
-
-      const calls = onSubmit.mock.calls.map((call) => call[0] as BankStatementCorrection);
-      expect(calls[0]).toEqual({
-        type: "AssignGroups",
-        line_id: "line-needs-group",
-        group_ids: [],
-      });
-      expect(calls[1]).toEqual({ type: "AcknowledgeRemainder", line_id: "line-needs-group" });
-    });
-
-    it("disables the gold action only at exact coverage (non-empty selection)", async () => {
-      const user = userEvent.setup();
-      const line = makeNeedsGroupLine();
-
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
-
-      // CANDIDATE_EXACT (150000) exactly covers the 150000 line amount.
-      const exactCheck = document.getElementById("assign-groups-check-group-1");
-      if (!exactCheck) throw new Error("candidate checkbox missing");
-      await user.click(exactCheck);
-
-      const withRemainder = document.getElementById(
-        "assign-groups-submit-with-remainder",
-      ) as HTMLButtonElement | null;
-      expect(withRemainder?.disabled).toBe(true);
-    });
-
-    it("relabels the gold action from leave-aside back to with-remainder as soon as a candidate is selected", async () => {
-      const user = userEvent.setup();
-      const line = makeNeedsGroupLine();
-
-      render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
-
-      const withRemainder = document.getElementById("assign-groups-submit-with-remainder");
-      expect(withRemainder?.textContent).toContain("reconciliation.assign_groups.leave_aside");
-
-      const partialCheck = document.getElementById("assign-groups-check-group-2");
-      if (!partialCheck) throw new Error("candidate checkbox missing");
-      await user.click(partialCheck);
-
-      expect(document.getElementById("assign-groups-submit-with-remainder")?.textContent).toContain(
-        "reconciliation.assign_groups.submit_with_remainder",
-      );
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // BAS-118/118A — display window in the procedure scope
   // ---------------------------------------------------------------------------
 
   describe("BAS-118/118A — procedure display window", () => {

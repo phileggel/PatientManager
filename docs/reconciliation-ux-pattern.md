@@ -42,8 +42,8 @@ Every reconciliation flow MUST follow these six rules.
    — never bit-by-bit / one-card-at-a-time. The user sees the full scope before
    acting. _(2026-08-03 — a flow MAY split the list across sequential dedicated
    screens when the document carries two distinct decision kinds; each screen
-   still shows its full scope at once. BAS does: labels on screen 1, their
-   lines on screen 2, BAS-120/122.)_
+   still shows its full scope at once. BAS does: its labels on one step, every
+   line on the next, then a recap, #692.)_
 2. **Status per line.** Each row shows its identity columns plus a **status**:
    `OK`, or `correction needed` labelled with the correction _type_.
 3. **Exception-first emphasis.** The lines needing action must stand out. This
@@ -53,10 +53,11 @@ Every reconciliation flow MUST follow these six rules.
    toggle to hide resolved rows. All-resolved rows give scope confidence without
    burying the actionable ones.
 
-   > **BAS (bank-statement) chose emphasis-over-ordering** (BAS-060/069): rows
+   > **BAS (bank-statement) chose emphasis-over-ordering** (BAS-060, #692): rows
    > stay in statement document order so the user can cross-reference the paper
-   > statement, and correction-needed lines pop via a gold status badge plus the
-   > hide-resolved filter. Document order overrides float-to-top for that flow.
+   > statement, and the lines to match pop via an orange status tag plus the
+   > hide-decided filter; its count names the lines to match only (owner,
+   > 2026-11-15). Document order overrides float-to-top for that flow.
 
 4. **Per-line correction.** Clicking a correction-needed row opens a
    **type-specific modal scoped to that single line**. These modals differ per
@@ -165,4 +166,4 @@ These are deliberately left to each feature's spec:
 - **Uncovered amount** — lightweight **remainder annotation** (no new aggregate,
   ships fast) vs a first-class **aid-payment entity**. _(BAS chose **remainder
   annotation**, BAS-092.)_
-- **Batch** — auto-apply vs guided walkthrough (per [§ Batch semantics](#batch-semantics)). _(BAS chose **guided walkthrough**, settlement-only since the label screen split off — BAS-100–103, BAS-116/120.)_
+- **Batch** — auto-apply vs guided walkthrough (per [§ Batch semantics](#batch-semantics)). _(BAS chose the **list only** (owner, 2026-11-15, #692): each line opens its own dialog; its guided walkthrough is gone.)_

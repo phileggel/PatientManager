@@ -8,9 +8,7 @@ import { Switch } from "@/ui/components/switch/Switch";
 import { Tag, type TagTone } from "@/ui/components/tag/Tag";
 import { useFormatters } from "@/ui/format/formatters";
 import { deriveLabelRows, type LabelRow, labelSlug } from "../shared/labelRows";
-
-/** Where a label's assignment comes from (#692): saved, set in this import, none, ignored. */
-type LabelOrigin = "known" | "new" | "todo" | "ignored";
+import { type LabelOrigin, presentLabelOrigins } from "../shared/reconciliationPresenter";
 
 const ORIGIN_TONE: Record<LabelOrigin, TagTone> = {
   known: "done",
@@ -55,18 +53,11 @@ export function LabelAssociationScreen({
   const { formatCurrency } = useFormatters();
   const funds = useCacheStore((state) => state.funds);
   const rows = deriveLabelRows(reconciliation.lines);
-  const savedRows = new Map(
-    deriveLabelRows(initialReconciliation?.lines ?? []).map((row) => [row.label, row]),
+  const savedFundIds = new Map(
+    deriveLabelRows(initialReconciliation?.lines ?? []).map((row) => [row.label, row.fundId]),
   );
   // An ignored label switched back on stays « À associer » until a fund is picked.
   const [unignored, setUnignored] = useState<string[]>([]);
-
-  const originOf = (row: LabelRow): LabelOrigin => {
-    if (unignored.includes(row.label)) return "todo";
-    if (row.isRejected) return "ignored";
-    if (!row.fundId) return "todo";
-    return savedRows.get(row.label)?.fundId === row.fundId ? "known" : "new";
-  };
 
   const link = (row: LabelRow, fundId: string) => {
     setUnignored((current) => current.filter((label) => label !== row.label));
@@ -90,9 +81,7 @@ export function LabelAssociationScreen({
     setUnignored((current) => [...current, row.label]);
   };
 
-  const origins = rows.map((row) => originOf(row));
-  const count = (origin: LabelOrigin) => origins.filter((o) => o === origin).length;
-  const allDecided = origins.every((origin) => origin !== "todo");
+  const { origins, counts, allDecided } = presentLabelOrigins(rows, savedFundIds, unignored);
 
   return (
     <div className="flex flex-col flex-1 gap-3 min-h-0">
@@ -101,16 +90,16 @@ export function LabelAssociationScreen({
           {t("label_association.title")}
         </h2>
         <span id="label-assoc-counter" className="text-xs text-m3-on-surface-variant">
-          {t("label_association.counter.known", { count: count("known") })} ·{" "}
-          {t("label_association.counter.new", { count: count("new") })} ·{" "}
+          {t("label_association.counter.known", { count: counts.known })} ·{" "}
+          {t("label_association.counter.new", { count: counts.new })} ·{" "}
           <span
             className={
-              count("todo") > 0 ? "font-semibold text-[var(--color-snackbar-warning-text)]" : ""
+              counts.todo > 0 ? "font-semibold text-[var(--color-snackbar-warning-text)]" : ""
             }
           >
-            {t("label_association.counter.todo", { count: count("todo") })}
+            {t("label_association.counter.todo", { count: counts.todo })}
           </span>{" "}
-          · {t("label_association.counter.ignored", { count: count("ignored") })}
+          · {t("label_association.counter.ignored", { count: counts.ignored })}
         </span>
       </div>
 

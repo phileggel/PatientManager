@@ -26,14 +26,13 @@
     "back_to_matching": "Back to the matching ›"
   },
   "reconciliation": {
-    "summary": "{{resolved}} resolved, {{needsCorrection}} to correct",
-    "hide_resolved": "Hide resolved lines",
+    "hide_resolved": "Hide the decided lines",
     "status": {
       "matched": "Matched",
       "needs_link": "Needs link",
       "needs_group": "To reconcile",
       "partial": "Partial",
-      "rejected": "Rejected",
+      "rejected": "Ignored",
       "unresolved": "Unresolved",
       "left_aside": "Left aside"
     },
@@ -46,33 +45,23 @@
       "unknown": "An unexpected error occurred."
     },
     "assign_groups": {
-      "title": "Reconcile \"{{label}}\"",
-      "balance": "Covered {{covered}} of {{total}}",
-      "scope_fund": "This fund",
-      "scope_procedures": "Fund procedures",
+      "title": "Match the transfer",
+      "scope_fund": "Payment groups",
+      "scope_procedures": "Procedures",
       "no_procedures": "No open procedures for this fund.",
       "cancel": "Cancel",
       "submit": "Reconcile",
       "submit_with_remainder": "Reconcile with remainder",
       "leave_aside": "Leave aside",
       "window_empty": "No open procedure newer than {{days}} days for this fund.",
-      "show_older": "Show older procedures",
-      "exact_amount": "exact amount"
-    },
-    "remainder": {
-      "amount": "Uncovered remainder: {{amount}}"
-    },
-    "wizard": {
-      "open": "Guided correction",
-      "title": "Guided correction",
-      "abandon": "Close",
-      "done": "Done",
-      "done_body": "All lines are resolved.",
-      "step_label": "Line: {{label}}",
-      "apply": "Apply",
-      "skip": "Skip",
-      "phase_assign_group": "Fund groups",
-      "phase_assign_procedure": "Fund procedures"
+      "show_older": "Show the procedures older than {{days}} days",
+      "exact_amount": "Exact amount",
+      "bordereau": "Payment group of {{date}}",
+      "covered": "Covered",
+      "covered_of": "{{covered}} of {{total}}",
+      "remainder_note": "Uncovered remainder: {{amount}}. It will not be saved.",
+      "overflow_note": "The selection exceeds the transfer by {{amount}}. Untick an item.",
+      "no_groups": "No open payment group for this fund. Try the procedures."
     },
     "col": {
       "date": "Date",
@@ -86,7 +75,10 @@
       "labels": "Labels",
       "matching": "Matching",
       "recap": "Recap"
-    }
+    },
+    "to_match": "{{count}} to match",
+    "double_click_hint": "double-click a line to match it",
+    "to_recap": "Recap ›"
   },
   "statement": {
     "title": "Bank Reconciliation",
@@ -353,5 +345,22 @@
       "fund_gone": "This fund no longer exists.",
       "unknown": "An unexpected error occurred."
     }
+  },
+  "recap": {
+    "month": "Statement month",
+    "period": "Period covered",
+    "lines_taken": "Lines taken into account",
+    "total": "Total amount",
+    "anomalies_title": "Anomalies — partly paid",
+    "col": {
+      "date": "Date",
+      "label": "Transfer",
+      "amount": "Amount",
+      "covered": "Matched",
+      "remainder": "Remainder"
+    },
+    "no_anomaly": "No anomaly: every line is fully covered.",
+    "note": "A remainder is not saved. Nothing is written before « Validate the reconciliation ».",
+    "back": "‹ Matching"
   }
 }

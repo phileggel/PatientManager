@@ -155,15 +155,22 @@ describe("Bank statement reconciliation — full flow from a statement PDF", () 
     await next.click();
     await $("#reconciliation-list").waitForExist({ timeout: 10000 });
 
-    // Validate the settlement: a bank transfer exists.
+    // The matching lists every line; « Récapitulatif › » is enabled once every
+    // line is decided: the linked label's line matched the seeded group on its
+    // own, the two others are ignored.
+    const toRecap = await $("#reconciliation-to-recap");
+    await toRecap.waitForEnabled({ timeout: 10000 });
+    await toRecap.click();
+
+    // The recap counts the one line taken into account, then validates.
+    const linesTaken = await $("#recap-lines-taken");
+    await linesTaken.waitForExist({ timeout: 10000 });
+    assert.equal(await linesTaken.getText(), "1", "the recap counts the matched line");
     const validate = await $("#reconciliation-validate");
-    // Enabled once every line is decided: the linked label's line matched the
-    // seeded group on its own, the two others are ignored.
     await validate.waitForEnabled({ timeout: 10000 });
     await validate.click();
 
-    // The settlement screen gives way to the done summary once the validation
-    // went through.
+    // The recap gives way to the done summary once the validation went through.
     await $("#reconciliation-validate").waitForExist({ reverse: true, timeout: 15000 });
 
     await browser.waitUntil(
