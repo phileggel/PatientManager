@@ -26,14 +26,13 @@
     "back_to_matching": "Retour au rapprochement ›"
   },
   "reconciliation": {
-    "summary": "{{resolved}} résolue(s), {{needsCorrection}} à corriger",
-    "hide_resolved": "Masquer les lignes résolues",
+    "hide_resolved": "Masquer les lignes décidées",
     "status": {
       "matched": "Rapprochée",
       "needs_link": "À associer",
       "needs_group": "À rapprocher",
       "partial": "Partielle",
-      "rejected": "Rejetée",
+      "rejected": "Ignorée",
       "unresolved": "Non résolue",
       "left_aside": "Laissée de côté"
     },
@@ -46,33 +45,23 @@
       "unknown": "Une erreur inattendue s'est produite."
     },
     "assign_groups": {
-      "title": "Rapprocher « {{label}} »",
-      "balance": "Couvert {{covered}} sur {{total}}",
-      "scope_fund": "Cette caisse",
-      "scope_procedures": "Actes de la caisse",
+      "title": "Rapprocher le virement",
+      "scope_fund": "Groupes de paiement",
+      "scope_procedures": "Actes",
       "no_procedures": "Aucun acte ouvert pour cette caisse.",
       "cancel": "Annuler",
       "submit": "Rapprocher",
       "submit_with_remainder": "Rapprocher avec reliquat",
       "leave_aside": "Laisser de côté",
       "window_empty": "Aucun acte ouvert de moins de {{days}} jours pour cette caisse.",
-      "show_older": "Afficher les actes plus anciens",
-      "exact_amount": "montant exact"
-    },
-    "remainder": {
-      "amount": "Reliquat non couvert : {{amount}}"
-    },
-    "wizard": {
-      "open": "Correction guidée",
-      "title": "Correction guidée",
-      "abandon": "Fermer",
-      "done": "Terminer",
-      "done_body": "Toutes les lignes sont résolues.",
-      "step_label": "Ligne : {{label}}",
-      "apply": "Appliquer",
-      "skip": "Passer",
-      "phase_assign_group": "Groupes de la caisse",
-      "phase_assign_procedure": "Actes de la caisse"
+      "show_older": "Afficher les actes de plus de {{days}} jours",
+      "exact_amount": "Montant exact",
+      "bordereau": "Bordereau du {{date}}",
+      "covered": "Couvert",
+      "covered_of": "{{covered}} sur {{total}}",
+      "remainder_note": "Reliquat non couvert : {{amount}}. Il ne sera pas enregistré.",
+      "overflow_note": "La sélection dépasse le virement de {{amount}}. Retirez un élément.",
+      "no_groups": "Aucun bordereau ouvert pour cette caisse. Essayez les actes."
     },
     "col": {
       "date": "Date",
@@ -86,7 +75,10 @@
       "labels": "Libellés",
       "matching": "Rapprochement",
       "recap": "Récapitulatif"
-    }
+    },
+    "to_match": "{{count}} à rapprocher",
+    "double_click_hint": "double-cliquez une ligne pour la rapprocher",
+    "to_recap": "Récapitulatif ›"
   },
   "statement": {
     "title": "Rapprochement Bancaire",
@@ -353,5 +345,22 @@
       "fund_gone": "Cette caisse n'existe plus.",
       "unknown": "Une erreur inattendue s'est produite."
     }
+  },
+  "recap": {
+    "month": "Mois du relevé",
+    "period": "Période couverte",
+    "lines_taken": "Lignes prises en compte",
+    "total": "Montant total",
+    "anomalies_title": "Anomalies — payées partiellement",
+    "col": {
+      "date": "Date",
+      "label": "Virement",
+      "amount": "Montant",
+      "covered": "Rapproché",
+      "remainder": "Reliquat"
+    },
+    "no_anomaly": "Aucune anomalie : toutes les lignes sont couvertes en entier.",
+    "note": "Un reliquat n'est pas enregistré. Rien n'est écrit avant « Valider le rapprochement ».",
+    "back": "‹ Rapprochement"
   }
 }

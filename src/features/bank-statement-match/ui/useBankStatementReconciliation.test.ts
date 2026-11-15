@@ -58,7 +58,14 @@ function makeReconciliation(
     lines: [],
     resolved_count: 0,
     needs_correction_count: 2,
-    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
+    recap: {
+      lines_taken_count: 0,
+      total_amount: 0,
+      partly_paid_lines: [],
+      period_start: null,
+      period_end: null,
+      period_month: null,
+    },
     ...overrides,
   };
 }

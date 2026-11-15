@@ -103,7 +103,14 @@ function makeReconciliation(
     resolved_count: lines.filter((l) => l.status === "Matched" || l.status === "Rejected").length,
     needs_correction_count: lines.filter((l) => l.status !== "Matched" && l.status !== "Rejected")
       .length,
-    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
+    recap: {
+      lines_taken_count: 0,
+      total_amount: 0,
+      partly_paid_lines: [],
+      period_start: null,
+      period_end: null,
+      period_month: null,
+    },
     ...overrides,
   };
 }
@@ -153,6 +160,15 @@ async function goToSettlement(user: ReturnType<typeof userEvent.setup>) {
   await user.click(document.getElementById("label-assoc-continue")!);
   await waitFor(() => {
     expect(document.getElementById("reconciliation-list")).not.toBeNull();
+  });
+}
+
+/** From the matching, clicks « Récapitulatif › » once it is enabled. */
+async function goToRecap(user: ReturnType<typeof userEvent.setup>) {
+  await goToSettlement(user);
+  await user.click(document.getElementById("reconciliation-to-recap")!);
+  await waitFor(() => {
+    expect(document.getElementById("recap-figures")).not.toBeNull();
   });
 }
 
@@ -257,7 +273,7 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     );
   });
 
-  it("shows only linked labels' lines on the settlement screen — a rejected label's line never renders there (BAS-122)", async () => {
+  it("lists every line of the statement; an ignored label's line shows but does not open (#697)", async () => {
     const user = userEvent.setup();
     mockCompute.mockResolvedValue({
       success: true,
@@ -268,7 +284,10 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     await goToSettlement(user);
 
     expect(document.getElementById("reconciliation-line-row-line-matched")).not.toBeNull();
-    expect(document.getElementById("reconciliation-line-row-line-rejected")).toBeNull();
+    const rejected = document.getElementById("reconciliation-line-row-line-rejected");
+    if (!rejected) throw new Error("rejected row missing");
+    await user.dblClick(rejected);
+    expect(document.getElementById("assign-groups-modal")).toBeNull();
   });
 
   it("returns to the label screen via 'Retour aux libellés' with the draft intact (BAS-102/120D)", async () => {
@@ -310,53 +329,46 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
 // BAS-123 — validate gate
 // ---------------------------------------------------------------------------
 
-describe("ReconciliationView — validate gate (BAS-123)", () => {
+describe("ReconciliationView — « Récapitulatif › » waits for every line (BAS-123)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useCacheStore.setState({ funds: MOCK_FUNDS });
   });
 
-  it("disables Valider while a visible line is not Matched", async () => {
+  const toRecap = () =>
+    document.getElementById("reconciliation-to-recap") as HTMLButtonElement | null;
+
+  it("is off while a line is to match", async () => {
     const user = userEvent.setup();
     mockCompute.mockResolvedValue({ success: true, data: makeReconciliation([NEEDS_GROUP_LINE]) });
 
     renderView();
     await goToSettlement(user);
 
-    const validateBtn = document.getElementById(
-      "reconciliation-validate",
-    ) as HTMLButtonElement | null;
-    expect(validateBtn).not.toBeNull();
-    expect(validateBtn?.disabled).toBe(true);
+    expect(toRecap()?.disabled).toBe(true);
   });
 
-  it("enables Valider once every visible line is Matched", async () => {
+  it("is on once every line is matched or ignored", async () => {
     const user = userEvent.setup();
-    mockCompute.mockResolvedValue({ success: true, data: makeReconciliation([MATCHED_LINE]) });
+    mockCompute.mockResolvedValue({
+      success: true,
+      data: makeReconciliation([MATCHED_LINE, REJECTED_LINE]),
+    });
 
     renderView();
     await goToSettlement(user);
 
-    const validateBtn = document.getElementById(
-      "reconciliation-validate",
-    ) as HTMLButtonElement | null;
-    expect(validateBtn?.disabled).toBe(false);
+    expect(toRecap()?.disabled).toBe(false);
   });
 
-  it("vacuously satisfies the gate (Valider enabled) when the settlement screen has zero visible lines", async () => {
+  it("is on when every label is ignored", async () => {
     const user = userEvent.setup();
-    // A single, entirely rejected label — decided (so Continuer works) but
-    // contributes zero lines to the settlement screen.
     mockCompute.mockResolvedValue({ success: true, data: makeReconciliation([REJECTED_LINE]) });
 
     renderView();
     await goToSettlement(user);
 
-    expect(document.getElementById("reconciliation-line-row-line-rejected")).toBeNull();
-    const validateBtn = document.getElementById(
-      "reconciliation-validate",
-    ) as HTMLButtonElement | null;
-    expect(validateBtn?.disabled).toBe(false);
+    expect(toRecap()?.disabled).toBe(false);
   });
 });
 
@@ -454,65 +466,80 @@ describe("ReconciliationView — modal routing on the settlement screen (BAS-062
 });
 
 // ---------------------------------------------------------------------------
-// Wizard button → ReconciliationWizard (BAS-100–103, settlement only)
+// Step 4 — the recap (#697)
 // ---------------------------------------------------------------------------
 
-describe("ReconciliationView — wizard flow on the settlement screen (BAS-100–103)", () => {
+describe("ReconciliationView — the recap (#697)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useCacheStore.setState({ funds: MOCK_FUNDS });
   });
 
-  it("opens ReconciliationWizard when the wizard button is clicked", async () => {
+  it("shows the month, the lines taken and the total; back returns to the matching", async () => {
     const user = userEvent.setup();
-    mockCompute.mockResolvedValue({ success: true, data: makeReconciliation([NEEDS_GROUP_LINE]) });
-
-    renderView();
-    await goToSettlement(user);
-
-    const wizardBtn = document.getElementById("reconciliation-wizard-btn");
-    if (!wizardBtn) throw new Error("wizard button missing");
-    await user.click(wizardBtn);
-
-    expect(document.getElementById("wizard-current-step")).not.toBeNull();
-  });
-
-  it("closes the wizard when the abandon button is clicked", async () => {
-    const user = userEvent.setup();
-    mockCompute.mockResolvedValue({ success: true, data: makeReconciliation([NEEDS_GROUP_LINE]) });
-
-    renderView();
-    await goToSettlement(user);
-
-    await user.click(document.getElementById("reconciliation-wizard-btn")!);
-    expect(document.getElementById("wizard-current-step")).not.toBeNull();
-
-    const abandonBtn = document.getElementById("wizard-abandon");
-    if (!abandonBtn) throw new Error("wizard abandon button missing");
-    await user.click(abandonBtn);
-
-    await waitFor(() => {
-      expect(document.getElementById("wizard-current-step")).toBeNull();
+    mockCompute.mockResolvedValue({
+      success: true,
+      data: makeReconciliation([MATCHED_LINE], {
+        recap: {
+          lines_taken_count: 1,
+          total_amount: 150000,
+          partly_paid_lines: [],
+          period_start: "2026-10-01",
+          period_end: "2026-10-31",
+          period_month: "2026-10",
+        },
+      }),
     });
-  });
-
-  it("closes the wizard on complete without calling validate (BAS-103 — no auto-validate)", async () => {
-    const user = userEvent.setup();
-    mockCompute.mockResolvedValue({ success: true, data: makeReconciliation([MATCHED_LINE]) });
 
     renderView();
-    await goToSettlement(user);
+    await goToRecap(user);
 
-    await user.click(document.getElementById("reconciliation-wizard-btn")!);
-
-    const doneBtn = document.getElementById("wizard-done");
-    if (!doneBtn) throw new Error("wizard done button missing");
-    await user.click(doneBtn);
-
-    await waitFor(() => {
-      expect(document.getElementById("wizard-done")).toBeNull();
-    });
+    expect(document.getElementById("bank-statement-step-recap")?.getAttribute("aria-current")).toBe(
+      "step",
+    );
+    expect(document.getElementById("recap-lines-taken")?.textContent).toBe("1");
+    expect(document.getElementById("recap-period")?.textContent).toMatch(/2026/);
+    expect(document.getElementById("recap-anomalies-empty")).not.toBeNull();
     expect(mockValidate).not.toHaveBeenCalled();
+
+    await user.click(document.getElementById("recap-back")!);
+    expect(document.getElementById("reconciliation-list")).not.toBeNull();
+  });
+
+  it("shows the period when it is not a whole month, and a partly paid line with its reliquat", async () => {
+    const user = userEvent.setup();
+    mockCompute.mockResolvedValue({
+      success: true,
+      data: makeReconciliation([MATCHED_LINE], {
+        recap: {
+          lines_taken_count: 1,
+          total_amount: 150000,
+          partly_paid_lines: [
+            {
+              line_id: "line-matched",
+              credit_line: MATCHED_LINE.credit_line,
+              fund_id: "fund-1",
+              covered_amount: 100000,
+              remainder_amount: 50000,
+            },
+          ],
+          period_start: "2026-09-15",
+          period_end: "2026-10-14",
+          period_month: null,
+        },
+      }),
+    });
+
+    renderView();
+    await goToRecap(user);
+
+    // Not a whole month: the period's two dates instead (#692).
+    expect(document.getElementById("recap-period")?.textContent).toMatch(
+      /15\/09\/2026.*14\/10\/2026/,
+    );
+    const row = document.getElementById("recap-anomaly-line-matched");
+    expect(row?.textContent).toContain("CPAM 75");
+    expect(document.getElementById("recap-anomalies-empty")).toBeNull();
   });
 });
 
@@ -532,7 +559,7 @@ describe("ReconciliationView — validate flow (BAS-093)", () => {
     mockValidate.mockResolvedValue({ success: true, data: 5 });
 
     renderView();
-    await goToSettlement(user);
+    await goToRecap(user);
 
     const validateBtn = document.getElementById("reconciliation-validate");
     if (!validateBtn) throw new Error("validate button missing");
@@ -541,12 +568,11 @@ describe("ReconciliationView — validate flow (BAS-093)", () => {
     expect(mockValidate).toHaveBeenCalledWith(BANK_ACCOUNT_ID, PARSE_RESULT, []);
 
     await waitFor(() => {
-      expect(document.getElementById("reconciliation-list")).toBeNull();
+      expect(document.getElementById("recap-figures")).toBeNull();
     });
-    const doneText = Array.from(document.querySelectorAll("p")).find((p) =>
-      p.textContent?.includes("statement.modal.done"),
+    expect(document.getElementById("reconciliation-done")?.textContent).toContain(
+      "statement.modal.done",
     );
-    expect(doneText).not.toBeNull();
   });
 
   it("calls onClose from the done/summary close button", async () => {
@@ -556,12 +582,12 @@ describe("ReconciliationView — validate flow (BAS-093)", () => {
     mockValidate.mockResolvedValue({ success: true, data: 3 });
 
     renderView(onClose);
-    await goToSettlement(user);
+    await goToRecap(user);
 
     await user.click(document.getElementById("reconciliation-validate")!);
 
     await waitFor(() => {
-      expect(document.getElementById("reconciliation-list")).toBeNull();
+      expect(document.getElementById("recap-figures")).toBeNull();
     });
 
     const closeBtn = Array.from(document.querySelectorAll("button")).find((b) =>
@@ -574,18 +600,18 @@ describe("ReconciliationView — validate flow (BAS-093)", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("validate returning an error does NOT transition to the done state and keeps the settlement screen", async () => {
+  it("validate returning an error does NOT transition to the done state and keeps the recap", async () => {
     const user = userEvent.setup();
     mockCompute.mockResolvedValue({ success: true, data: makeReconciliation([MATCHED_LINE]) });
     mockValidate.mockResolvedValue({ success: false, error: { code: "DatabaseError" } });
 
     renderView();
-    await goToSettlement(user);
+    await goToRecap(user);
 
     await user.click(document.getElementById("reconciliation-validate")!);
 
     await waitFor(() => {
-      expect(document.getElementById("reconciliation-list")).not.toBeNull();
+      expect(document.getElementById("recap-error")).not.toBeNull();
     });
     const doneText = Array.from(document.querySelectorAll("p")).find((p) =>
       p.textContent?.includes("statement.modal.done"),
@@ -604,7 +630,7 @@ describe("ReconciliationView — isBusy disables buttons (BAS-064)", () => {
     useCacheStore.setState({ funds: MOCK_FUNDS });
   });
 
-  it("disables Valider and Retour aux libellés while isBusy=true", async () => {
+  it("disables « Récapitulatif › » and the way back while a correction runs", async () => {
     const user = userEvent.setup();
     let resolveSecond!: (v: { success: true; data: BankStatementReconciliation }) => void;
 
@@ -626,13 +652,10 @@ describe("ReconciliationView — isBusy disables buttons (BAS-064)", () => {
     await user.click(document.getElementById("assign-groups-submit")!);
 
     await waitFor(() => {
-      const validateBtn = document.getElementById(
-        "reconciliation-validate",
-      ) as HTMLButtonElement | null;
       const backBtn = document.getElementById(
         "reconciliation-back-to-labels",
       ) as HTMLButtonElement | null;
-      expect(validateBtn?.disabled || backBtn?.disabled).toBe(true);
+      expect(backBtn?.disabled).toBe(true);
     });
 
     resolveSecond({ success: true, data: makeReconciliation([MATCHED_LINE]) });

@@ -2,7 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import i18n from "@/i18n/config";
-import { formatCurrency, formatShortDate, useFormatters } from "./formatters";
+import { formatCurrency, formatMonth, formatShortDate, useFormatters } from "./formatters";
 
 describe("formatShortDate", () => {
   it("renders fr-FR as dd/mm/yyyy", () => {
@@ -81,6 +81,18 @@ describe("formatCurrency", () => {
     // 1,234,567 euros in thousandths
     expect(formatCurrency(1_234_567_000, "en-GB")).toBe("€1,234,567.00");
     expect(formatCurrency(1_234_567_000, "fr-FR")).toMatch(/^1\s234\s567,00\s€$/);
+  });
+});
+
+describe("formatMonth", () => {
+  it("names the month and its year, capitalised", () => {
+    expect(formatMonth("2026-10", "fr-FR")).toBe("Octobre 2026");
+    expect(formatMonth("2026-10", "en-GB")).toBe("October 2026");
+  });
+
+  it("returns what is not a month as is", () => {
+    expect(formatMonth("2026-13", "fr-FR")).toBe("2026-13");
+    expect(formatMonth("october", "fr-FR")).toBe("october");
   });
 });
 

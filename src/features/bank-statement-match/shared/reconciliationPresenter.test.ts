@@ -19,7 +19,8 @@ import type {
 } from "@/bindings";
 
 import {
-  lineStatusTone,
+  lineTagTone,
+  presentLabelOrigins,
   presentLineBadge,
   presentLineStatus,
   presentReconciliationError,
@@ -65,30 +66,27 @@ describe("presentLineStatus — BAS-061", () => {
 });
 
 // ---------------------------------------------------------------------------
-// lineStatusTone — badge tone per status (BAS-061)
+// lineTagTone — the import's colour meaning (#692)
 // ---------------------------------------------------------------------------
 
-describe("lineStatusTone — BAS-061 badge tone", () => {
-  const resolved: BankStatementLineStatus[] = ["Matched", "Rejected"];
-  const attention: BankStatementLineStatus[] = ["NeedsGroup", "Partial", "Unresolved"];
-
-  for (const status of resolved) {
-    it(`maps ${status} to "resolved"`, () => {
-      expect(lineStatusTone(status)).toBe("resolved");
-    });
-  }
-
-  for (const status of attention) {
-    it(`maps ${status} to "attention"`, () => {
-      expect(lineStatusTone(status)).toBe("attention");
-    });
-  }
-
-  // Fund-unknown must be distinguishable from transaction-missing (field
-  // report 2026-07-30) — NeedsLink gets its own tone.
-  it('maps NeedsLink to "link"', () => {
-    expect(lineStatusTone("NeedsLink")).toBe("link");
+describe("lineTagTone — done, needs action, set aside (#697)", () => {
+  it("a line matched with a settlement item is done", () => {
+    expect(lineTagTone(makeLine({ status: "Matched", assigned_group_ids: ["g1"] }))).toBe("done");
   });
+
+  it("a left-aside line and a rejected one are set aside", () => {
+    expect(lineTagTone(makeLine({ status: "Matched", remainder_acknowledged: true }))).toBe(
+      "aside",
+    );
+    expect(lineTagTone(makeLine({ status: "Rejected" }))).toBe("aside");
+  });
+
+  const action: BankStatementLineStatus[] = ["NeedsLink", "NeedsGroup", "Partial", "Unresolved"];
+  for (const status of action) {
+    it(`${status} needs action`, () => {
+      expect(lineTagTone(makeLine({ status }))).toBe("action");
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -227,5 +225,50 @@ describe("presentLineBadge — BAS-123C", () => {
       const line = makeLine({ status, remainder_acknowledged: false });
       expect(presentLineBadge(line)).toBe(presentLineStatus(status));
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// presentLabelOrigins — step 2's tags, counts and gate (#692)
+// ---------------------------------------------------------------------------
+
+describe("presentLabelOrigins — step 2 (#697)", () => {
+  const row = (label: string, fundId: string | null, isRejected = false) => ({
+    label,
+    count: 1,
+    totalAmount: 1000,
+    fundId,
+    isRejected,
+    suggestedFundId: null,
+    suggestedFundName: null,
+  });
+  const saved = new Map<string, string | null>([
+    ["KNOWN", "fund-1"],
+    ["NEW", null],
+  ]);
+
+  it("tags a saved link known, a link set now new, none to link, a rejection ignored", () => {
+    const { origins, counts, allDecided } = presentLabelOrigins(
+      [row("KNOWN", "fund-1"), row("NEW", "fund-2"), row("TODO", null), row("IGNORED", null, true)],
+      saved,
+      [],
+    );
+
+    expect(origins).toEqual(["known", "new", "todo", "ignored"]);
+    expect(counts).toEqual({ known: 1, new: 1, todo: 1, ignored: 1 });
+    expect(allDecided).toBe(false);
+  });
+
+  it("a label switched back on is to link until a fund is picked", () => {
+    const { origins, allDecided } = presentLabelOrigins([row("IGNORED", null, true)], saved, [
+      "IGNORED",
+    ]);
+
+    expect(origins).toEqual(["todo"]);
+    expect(allDecided).toBe(false);
+  });
+
+  it("every label decided opens the gate", () => {
+    expect(presentLabelOrigins([row("KNOWN", "fund-1")], saved, []).allDecided).toBe(true);
   });
 });

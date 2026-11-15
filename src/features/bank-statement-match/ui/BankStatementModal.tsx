@@ -20,9 +20,9 @@ interface BankStatementModalProps {
  * Host for the bank-statement reconciliation flow.
  *
  * Phase 1 (gate): parse the PDF + resolve the IBAN, inline-creating the bank
- * account when the IBAN is unknown (BAS-011–017).
+ * account when the IBAN is unknown (BAS-010).
  * Phase 2 (ready): hand over to `ReconciliationView`, which drives the
- * document-order list, correction modals, wizard, and validate (BAS-060–103).
+ * labels, the matching and the recap (#692).
  *
  * #696 — the modal keeps one height through its steps, and once work was done
  * every way out (the close cross, Escape, a click outside, « Annuler ») asks

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { BankStatementProcedureCandidate } from "@/bindings";
+import { Tag } from "@/ui/components/tag/Tag";
 import { useFormatters } from "@/ui/format/formatters";
 
 interface ProcedureCandidateListProps {
@@ -25,7 +26,7 @@ export function ProcedureCandidateList({
   const { t } = useTranslation("bank");
   const { formatCurrency, formatDate } = useFormatters();
 
-  // BAS-111 — the scope tab is reachable whenever the line is linked, even
+  // The scope tab is reachable whenever the line is linked, even
   // with zero open procedures; a bare list would read as a rendering bug.
   if (candidates.length === 0) {
     return (
@@ -41,11 +42,11 @@ export function ProcedureCandidateList({
         <li
           key={candidate.procedure_id}
           id={`${idPrefix}-candidate-proc-${candidate.procedure_id}`}
-          className="rounded-lg border border-m3-outline/20"
+          className={`rounded-lg ${selected.includes(candidate.procedure_id) ? "bg-m3-secondary-container" : "bg-m3-surface-container-low"}`}
         >
           <label
             htmlFor={`${idPrefix}-check-proc-${candidate.procedure_id}`}
-            className="flex items-center gap-3 px-3 py-2 cursor-pointer"
+            className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm"
           >
             <input
               id={`${idPrefix}-check-proc-${candidate.procedure_id}`}
@@ -53,19 +54,17 @@ export function ProcedureCandidateList({
               checked={selected.includes(candidate.procedure_id)}
               onChange={() => onToggle(candidate.procedure_id)}
             />
-            <span className="text-sm text-m3-on-surface">{candidate.patient_name}</span>
-            <span className="text-sm text-m3-on-surface-variant">
+            <span className="tabular-nums text-m3-on-surface-variant">
               {formatDate(candidate.procedure_date)}
             </span>
+            <span className="text-m3-on-surface">{candidate.patient_name}</span>
+            <span className="ml-auto" />
             {candidate.is_exact_amount && (
-              <span
-                id={`${idPrefix}-exact-proc-${candidate.procedure_id}`}
-                className="text-xs font-medium text-m3-primary"
-              >
+              <Tag id={`${idPrefix}-exact-proc-${candidate.procedure_id}`} tone="done">
                 {t("reconciliation.assign_groups.exact_amount")}
-              </span>
+              </Tag>
             )}
-            <span className="ml-auto text-sm font-medium text-m3-on-surface">
+            <span className="tabular-nums text-m3-on-surface">
               {formatCurrency(candidate.billed_amount)}
             </span>
           </label>

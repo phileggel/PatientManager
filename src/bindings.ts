@@ -1365,7 +1365,15 @@ total_amount: number;
  * Those lines whose items cover less than their amount, in document
  * order.
  */
-partly_paid_lines: BankStatementPartlyPaidLine[] }
+partly_paid_lines: BankStatementPartlyPaidLine[]; 
+/**
+ * The statement's period (ISO dates), when the parse read it (BAS-020).
+ */
+period_start: string | null; period_end: string | null; 
+/**
+ * `YYYY-MM` when the period covers exactly one calendar month.
+ */
+period_month: string | null }
 /**
  * The recomputed reconciliation state: every statement line with its status
  * (BAS-061), candidate proposals, and running coverage totals.

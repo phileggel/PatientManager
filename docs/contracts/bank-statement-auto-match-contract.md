@@ -242,11 +242,14 @@ struct BankStatementReconciliation {
     recap: BankStatementRecap,   // the screen's recap — a view of the lines, no business rule
 }
 
-// The recap: a view of the draft's lines for the screen before validate (owner, 2026-11-15).
+// The recap: a view of the draft's lines and the statement's period for the screen before validate (owner, 2026-11-15).
 struct BankStatementRecap {
     lines_taken_count: u32,      // matched lines with ≥1 settlement item, auto-matched included (not left aside, not rejected)
     total_amount: i64,           // Σ the full credit amounts of those lines, remainders included
     partly_paid_lines: Vec<BankStatementPartlyPaidLine>, // those covered below their amount, document order
+    period_start: Option<String>, // ISO date — the statement's period as parsed (BAS-020), when read
+    period_end: Option<String>,
+    period_month: Option<String>, // "YYYY-MM" when the period runs from a month's 1st to its last day; otherwise None and the screen shows the period
 }
 
 // A recap line whose items cover less than its amount (acknowledged remainder, BAS-092).
@@ -331,3 +334,4 @@ struct BankStatementProcedureCandidate {
 - 2026-11-14 — #643: the spec holds business rules only; the rule references follow (BAC-020 for the account created for an unknown IBAN, BAS-022, BAS-030–032, BAS-036, BAS-041A with #683, BAS-112–113, BAS-117; BAS-069 is vacant, its counters' removal is #359). No signature, type or error change.
 - 2026-11-14 — #640: `validate_bank_statement_reconciliation` can answer `BankPaymentAlreadyConfirmed` (BSM-037), a defensive guard; a group already linked answers `DatabaseError` at its link (BSM-038). The born group is born `Active`, then settled, as BAS-115 says; `PaymentGroupNotFound` is listed.
 - 2026-11-15 — #695 (the four steps, #692): `BankStatementLine.broadened_candidates` removed and `GroupNotEligible` refuses a group of another fund (BAS-068, BAS-090A — no cross-fund match); corrections replace in order, none refused for what it replaces (BAS-064A); a link to another fund, or a rejection, starts the label's lines again (BAS-066B), the same fund changes nothing (BAS-066C); `BankStatementReconciliation.recap` added (`BankStatementRecap`, `BankStatementPartlyPaidLine` — a view of the lines for the screen, no spec rule). BAS-065 (revert one correction) and BAS-062B are vacant.
+- 2026-11-15 — #697: `BankStatementRecap` gains `period_start`, `period_end` and `period_month`, for the recap's month or period covered; no rule change.

@@ -2,26 +2,23 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BankStatementLine, BankStatementReconciliation } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
+import { Tag } from "@/ui/components/tag/Tag";
 import { useFormatters } from "@/ui/format/formatters";
-import { lineStatusTone, presentLineBadge } from "../shared/reconciliationPresenter";
+import { lineTagTone, presentLineBadge } from "../shared/reconciliationPresenter";
 
 interface ReconciliationListProps {
   reconciliation: BankStatementReconciliation;
+  /** Opens a line's « Rapprocher » modal. */
   onApplyCorrection: (line: BankStatementLine) => void;
   isBusy: boolean;
 }
 
 /**
- * BAS-060/061/069 — the draft reconciliation list: every credit line in document
- * order as a table row (date · fund · amount · status), with a running summary and
- * a wizard launcher.
- *
- * The status renders as a badge in three tones: `link` (primary) for the
- * fund-unknown state, gold (`attention`) for the three transaction-missing
- * states, subdued for resolved lines (Matched / Rejected); unlinked raw bank
- * labels render muted+italic. Double-clicking any row opens it for correction (BAS-062) — including
- * Matched rows, which can be overridden. Interaction is suppressed while a recompute
- * is in flight (BAS-064 busy state).
+ * #692, step 3 — every line of the statement in document order (BAS-060): date,
+ * fund, amount, a status tag of one width in the import's colour meaning. An
+ * ignored label's line is greyed out and does not open. A line opens by
+ * double-click or Enter. « Masquer les lignes décidées » leaves only the lines
+ * to match; the list is the step's only scrollable region.
  */
 export function ReconciliationList({
   reconciliation,
@@ -31,103 +28,97 @@ export function ReconciliationList({
   const { t } = useTranslation("bank");
   const { formatCurrency, formatDate } = useFormatters();
   const funds = useCacheStore((s) => s.funds);
-  // BAS-069 — optional filter hiding resolved (Matched / Rejected) rows; the
-  // underlying document order of the shown rows is untouched.
-  const [hideResolved, setHideResolved] = useState(false);
+  const [hideDecided, setHideDecided] = useState(false);
 
-  const visibleLines = hideResolved
-    ? reconciliation.lines.filter((line) => lineStatusTone(line.status) !== "resolved")
-    : reconciliation.lines;
+  const toMatch = reconciliation.lines.filter((line) => lineTagTone(line) === "action");
+  const visibleLines = hideDecided ? toMatch : reconciliation.lines;
 
-  // BAS-122 — the summary is computed over the lines actually shown, never
-  // from the wire's whole-document counters (unconsumed since the two-screen
-  // split; the settlement screen passes only the linked labels' lines).
-  const resolvedCount = reconciliation.lines.filter(
-    (line) => lineStatusTone(line.status) === "resolved",
-  ).length;
-  const needsCorrectionCount = reconciliation.lines.length - resolvedCount;
-
-  // Resolved fund name once linked; the raw bank label while still needs-link
-  // (rendered muted+italic so it cannot be mistaken for a fund name).
-  const fundCell = (line: BankStatementLine) =>
-    line.fund_id ? (
-      <span className="font-medium text-m3-on-surface">
-        {funds.find((f) => f.id === line.fund_id)?.name ?? line.fund_id}
-      </span>
-    ) : (
-      <span className="italic text-m3-on-surface-variant">{line.credit_line.label}</span>
-    );
+  const open = (line: BankStatementLine) => {
+    if (isBusy || line.status === "Rejected") return;
+    onApplyCorrection(line);
+  };
 
   return (
     <div id="reconciliation-list" className="flex flex-col flex-1 min-h-0">
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <output id="reconciliation-summary" className="text-sm text-m3-on-surface-variant">
-          {t("reconciliation.summary", {
-            resolved: resolvedCount,
-            needsCorrection: needsCorrectionCount,
-          })}
+          {t("reconciliation.to_match", { count: toMatch.length })} ·{" "}
+          {t("reconciliation.double_click_hint")}
         </output>
         <label
           htmlFor="reconciliation-hide-resolved"
-          className="flex items-center gap-2 text-sm text-m3-on-surface-variant cursor-pointer"
+          className="flex cursor-pointer items-center gap-2 text-sm text-m3-on-surface-variant"
         >
           <input
             id="reconciliation-hide-resolved"
             type="checkbox"
-            checked={hideResolved}
-            onChange={(e) => setHideResolved(e.target.checked)}
+            checked={hideDecided}
+            onChange={(e) => setHideDecided(e.target.checked)}
           />
           {t("reconciliation.hide_resolved")}
         </label>
       </div>
 
-      {/* BAS-119/122A — the line list is the screen's only scrollable region; it
-          takes what the fixed-height modal leaves (#696). */}
-      <div id="reconciliation-list-scrollzone" className="flex-1 min-h-0 overflow-y-auto">
-        <table className="w-full text-sm border-collapse">
+      <div
+        id="reconciliation-list-scrollzone"
+        className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-m3-outline/15"
+      >
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="text-xs text-m3-on-surface-variant">
-              <th className="text-left font-medium px-4 py-2">{t("reconciliation.col.date")}</th>
-              <th className="text-left font-medium px-4 py-2">{t("reconciliation.col.fund")}</th>
-              <th className="text-right font-medium px-4 py-2">{t("reconciliation.col.amount")}</th>
-              <th className="text-right font-medium px-4 py-2">{t("reconciliation.col.status")}</th>
+              {(["date", "fund", "amount", "status"] as const).map((column, index) => (
+                <th
+                  key={column}
+                  className={`sticky top-0 bg-m3-surface-container-lowest px-4 py-2 font-medium ${index >= 2 ? "text-right" : "text-left"}`}
+                >
+                  {t(`reconciliation.col.${column}`)}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {visibleLines.map((line) => {
-              const tone = lineStatusTone(line.status);
-              // Three visually distinct badge families: fund unknown (link, primary),
-              // transaction missing (attention, gold), resolved (subdued).
-              const badgeClass =
-                tone === "link"
-                  ? "bg-m3-primary-container text-m3-on-primary-container"
-                  : tone === "attention"
-                    ? "bg-m3-tertiary-container text-m3-on-tertiary-container"
-                    : "bg-m3-surface-container-high text-m3-on-surface-variant";
+              const rejected = line.status === "Rejected";
+              const fundName = line.fund_id ? funds.find((f) => f.id === line.fund_id)?.name : null;
               return (
                 <tr
                   key={line.line_id}
                   id={`reconciliation-line-row-${line.line_id}`}
-                  className="cursor-pointer border-b border-m3-outline/15 hover:bg-m3-surface-container-low"
-                  onDoubleClick={() => {
-                    if (isBusy) return;
-                    onApplyCorrection(line);
+                  tabIndex={rejected ? -1 : 0}
+                  aria-disabled={rejected || undefined}
+                  className={`border-b border-m3-outline/15 ${
+                    rejected
+                      ? "opacity-50"
+                      : "cursor-pointer hover:bg-m3-surface-container-high focus:bg-m3-surface-container-high focus:outline-none"
+                  }`}
+                  onDoubleClick={() => open(line)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") open(line);
                   }}
                 >
-                  <td className="px-4 py-3 text-m3-on-surface-variant tabular-nums whitespace-nowrap">
+                  <td className="whitespace-nowrap px-4 py-3 tabular-nums text-m3-on-surface-variant">
                     {formatDate(line.credit_line.date)}
                   </td>
-                  <td className="px-4 py-3">{fundCell(line)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-m3-on-surface">
+                  <td className="px-4 py-3">
+                    {fundName ? (
+                      <span className="font-medium text-m3-on-surface">{fundName}</span>
+                    ) : (
+                      <span className="italic text-m3-on-surface-variant">
+                        {line.credit_line.label}
+                      </span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-m3-on-surface">
                     {formatCurrency(line.credit_line.amount)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span
+                    <Tag
                       id={`reconciliation-line-status-${line.line_id}`}
-                      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}
+                      tone={lineTagTone(line)}
+                      className="w-34"
                     >
                       {t(presentLineBadge(line))}
-                    </span>
+                    </Tag>
                   </td>
                 </tr>
               );

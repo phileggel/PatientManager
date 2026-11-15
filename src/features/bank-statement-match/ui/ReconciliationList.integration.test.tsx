@@ -66,7 +66,14 @@ function makeReconciliation(
     lines,
     resolved_count: resolvedCount,
     needs_correction_count: needsCorrectionCount,
-    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
+    recap: {
+      lines_taken_count: 0,
+      total_amount: 0,
+      partly_paid_lines: [],
+      period_start: null,
+      period_end: null,
+      period_month: null,
+    },
   };
 }
 
@@ -201,12 +208,16 @@ describe("ReconciliationList — per-line status (BAS-061)", () => {
     expect(statusEl).not.toBeNull();
   });
 
-  // Field report 2026-07-30 — "fund unknown" must be visually distinct from
-  // "transaction missing": NeedsLink badge uses the primary-container family,
-  // NeedsGroup keeps the gold attention family, and the unlinked raw bank
-  // label renders italic so it cannot pass for a fund name.
-  it("distinguishes NeedsLink (fund unknown) from NeedsGroup (transaction missing)", () => {
-    const reconciliation = makeReconciliation([NEEDS_LINK_LINE, NEEDS_GROUP_LINE], 0, 2);
+  // #692 — the import's colour meaning: a line to match is orange, a matched
+  // one green, an ignored label's line grey and greyed out; an unlinked line
+  // shows its raw label in italics so it cannot pass for a fund name.
+  it("tags each line by the import's colour meaning, the ignored line greyed out (#697)", () => {
+    const rejected = makeLine({ line_id: "line-rejected", status: "Rejected" });
+    const reconciliation = makeReconciliation(
+      [MATCHED_LINE, NEEDS_LINK_LINE, NEEDS_GROUP_LINE, rejected],
+      1,
+      2,
+    );
 
     render(
       <ReconciliationList
@@ -216,19 +227,19 @@ describe("ReconciliationList — per-line status (BAS-061)", () => {
       />,
     );
 
-    const linkBadge = document.getElementById(
-      `reconciliation-line-status-${NEEDS_LINK_LINE.line_id}`,
+    const tag = (id: string) =>
+      document.getElementById(`reconciliation-line-status-${id}`)?.className ?? "";
+    expect(tag(MATCHED_LINE.line_id)).toContain("--color-snackbar-success-bg");
+    expect(tag(NEEDS_GROUP_LINE.line_id)).toContain("bg-m3-warning-container");
+    expect(tag("line-rejected")).toContain("bg-m3-surface-variant");
+    expect(document.getElementById("reconciliation-line-row-line-rejected")?.className).toContain(
+      "opacity-50",
     );
-    const groupBadge = document.getElementById(
-      `reconciliation-line-status-${NEEDS_GROUP_LINE.line_id}`,
-    );
-    expect(linkBadge?.className).toContain("bg-m3-primary-container");
-    expect(groupBadge?.className).toContain("bg-m3-tertiary-container");
 
-    // Unlinked raw label is styled muted+italic.
     const linkRow = document.getElementById(`reconciliation-line-row-${NEEDS_LINK_LINE.line_id}`);
-    const rawLabel = linkRow?.querySelector("span.italic");
-    expect(rawLabel?.textContent).toBe(NEEDS_LINK_LINE.credit_line.label);
+    expect(linkRow?.querySelector("span.italic")?.textContent).toBe(
+      NEEDS_LINK_LINE.credit_line.label,
+    );
   });
 });
 
@@ -257,21 +268,22 @@ describe("ReconciliationList — summary count (BAS-069)", () => {
     expect(summary).not.toBeNull();
   });
 
-  it("summary reflects 2 resolved, 0 needs-correction when all lines matched", () => {
-    const allMatched = makeReconciliation(
-      [MATCHED_LINE, makeLine({ line_id: "line-x", status: "Matched" })],
+  it("counts only the lines left to match (#697)", () => {
+    const reconciliation = makeReconciliation(
+      [MATCHED_LINE, NEEDS_GROUP_LINE, NEEDS_LINK_LINE],
+      1,
       2,
-      0,
     );
 
     render(
-      <ReconciliationList reconciliation={allMatched} onApplyCorrection={vi.fn()} isBusy={false} />,
+      <ReconciliationList
+        reconciliation={reconciliation}
+        onApplyCorrection={vi.fn()}
+        isBusy={false}
+      />,
     );
 
-    const summary = document.getElementById("reconciliation-summary");
-    expect(summary).not.toBeNull();
-    // The summary must include the resolved count somewhere in its subtree
-    expect(summary?.textContent).toMatch(/2/);
+    expect(document.getElementById("reconciliation-summary")?.textContent).toMatch(/2/);
   });
 });
 

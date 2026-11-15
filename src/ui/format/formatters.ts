@@ -54,6 +54,19 @@ export function formatCurrency(thousandths: number, locale: string): string {
 }
 
 /**
+ * A `YYYY-MM` month as its capitalised name and year in the locale
+ * ("Octobre 2026", "October 2026"); the input as is when it is not one.
+ */
+export function formatMonth(isoMonth: string, locale: string): string {
+  const [y, m] = isoMonth.split("-").map(Number);
+  if (!y || !m || m > 12) return isoMonth;
+  const text = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(
+    new Date(y, m - 1, 1),
+  );
+  return text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
+}
+
+/**
  * Hook providing locale-aware formatters for currency, dates and numbers.
  * Re-renders automatically when the i18n language changes.
  */
@@ -65,6 +78,7 @@ export function useFormatters() {
     formatCurrency: (thousandths: number) => formatCurrency(thousandths, intlLocale),
     formatDate: (isoDate: string) => (isoDate ? formatShortDate(isoDate, intlLocale) : ""),
     formatNumber: (n: number) => new Intl.NumberFormat(intlLocale).format(n),
+    formatMonth: (isoMonth: string) => formatMonth(isoMonth, intlLocale),
     locale: intlLocale,
   };
 }
