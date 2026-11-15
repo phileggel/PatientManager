@@ -65,7 +65,6 @@ function makeNeedsGroupLine(
         is_exact_amount: true,
       },
     ],
-    broadened_candidates: [],
     candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
@@ -88,7 +87,6 @@ function makeProcedureOnlyLine(
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [],
-    broadened_candidates: [],
     candidate_procedures: [
       {
         procedure_id: "proc-1",
@@ -125,7 +123,6 @@ function makeProcedureAssignedLine(id: string): BankStatementLine {
         is_exact_amount: true,
       },
     ],
-    broadened_candidates: [],
     candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
@@ -138,6 +135,7 @@ function makeReconciliation(lines: BankStatementLine[]): BankStatementReconcilia
     lines,
     resolved_count: resolved,
     needs_correction_count: lines.length - resolved,
+    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
   };
 }
 
@@ -344,7 +342,6 @@ describe("ReconciliationWizard — BAS-116 settlement-only", () => {
       covered_amount: 150000,
       remainder_acknowledged: false,
       candidate_groups: [],
-      broadened_candidates: [],
       candidate_procedures: [],
       suggested_fund_id: null,
       suggested_fund_name: null,

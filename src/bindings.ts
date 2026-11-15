@@ -545,7 +545,8 @@ async resolveBankAccountFromIban(iban: string) : Promise<Result<BankAccount | nu
  * BAS-064 — compute the ephemeral bank-statement reconciliation.
  * 
  * Pure read-only: no DB writes. The reconciliation is never persisted; the
- * frontend re-calls on every correction and every revert (BAS-065).
+ * frontend re-calls it with the corrections made so far; the engine drops the
+ * superseded ones (BAS-064A).
  */
 async computeBankStatementReconciliation(bankAccountId: string, parseResult: BankStatementParseResult, corrections: BankStatementCorrection[]) : Promise<Result<BankStatementReconciliation, BankStatementReconciliationError>> {
     try {
@@ -1184,8 +1185,7 @@ export type BankManualMatchTask =
  */
 export type BankStatementCandidate = { group_id: string; fund_id: string; 
 /**
- * Resolved fund name so the candidate row is identifiable, in particular
- * in the broadened (fund-agnostic) view (BAS-068).
+ * Resolved fund name so the candidate row is identifiable (BAS-068).
  */
 fund_name: string; payment_date: string; total_amount: number; 
 /**
@@ -1195,7 +1195,8 @@ fund_name: string; payment_date: string; total_amount: number;
 is_exact_amount: boolean }
 /**
  * A user correction, replayed in order by `compute_reconciliation` / validate.
- * Reverting = remove from the list and recompute (BAS-065).
+ * The list is given in the order the corrections were made; the engine drops
+ * the superseded ones itself (BAS-064A).
  */
 export type BankStatementCorrection = 
 /**
@@ -1262,15 +1263,10 @@ covered_amount: number;
  */
 remainder_acknowledged: boolean; 
 /**
- * BAS-068 — ranked candidate groups for needs-group / partial,
- * filtered to the line's fund (the default view); not date-bounded.
+ * BAS-068 — ranked candidate groups for needs-group / partial, of the
+ * line's fund only (BAS-090); not date-bounded.
  */
 candidate_groups: BankStatementCandidate[]; 
-/**
- * BAS-068 — ranked candidate groups across ALL funds (not locked or
- * consumed, any age); shown when the user broadens the search.
- */
-broadened_candidates: BankStatementCandidate[]; 
 /**
  * BAS-112 — the linked fund's open procedures, oldest first; empty while
  * needs-link (the pool is scoped to the linked fund).
@@ -1333,6 +1329,10 @@ total_credits: number;
  */
 unparsed_count: number }
 /**
+ * One line of the recap with an acknowledged remainder (BAS-092).
+ */
+export type BankStatementPartlyPaidLine = { line_id: string; credit_line: BankStatementCreditLine; fund_id: string; covered_amount: number; remainder_amount: number }
+/**
  * BAS-112 — one open-procedure candidate for a linked line's procedure scope.
  */
 export type BankStatementProcedureCandidate = { procedure_id: string; 
@@ -1350,6 +1350,23 @@ billed_amount: number;
  */
 is_exact_amount: boolean }
 /**
+ * The recap of the draft — a view of its lines (owner, 2026-11-15, #695).
+ */
+export type BankStatementRecap = { 
+/**
+ * Matched lines with at least one settlement item (not left aside).
+ */
+lines_taken_count: number; 
+/**
+ * Σ the full amounts of those lines, remainders included.
+ */
+total_amount: number; 
+/**
+ * Those lines whose items cover less than their amount, in document
+ * order.
+ */
+partly_paid_lines: BankStatementPartlyPaidLine[] }
+/**
  * The recomputed reconciliation state: every statement line with its status
  * (BAS-061), candidate proposals, and running coverage totals.
  */
@@ -1365,7 +1382,12 @@ resolved_count: number;
 /**
  * BAS-069 — count of lines still needing correction.
  */
-needs_correction_count: number }
+needs_correction_count: number; 
+/**
+ * The recap the screen shows before validate: a view of the lines, no
+ * business rule of its own (owner, 2026-11-15); see the contract.
+ */
+recap: BankStatementRecap }
 /**
  * Composite error for the bank-statement reconciliation use case.
  * 
@@ -1421,9 +1443,8 @@ export type BankStatementReconciliationTask =
  */
 { code: "AssignmentOverflow" } | 
 /**
- * BAS-090 — a group is not assignable to the target line (locked/settled,
- * or the line's label is not linked yet). The fund criterion binds
- * auto-match only; manual cross-fund assignment is allowed.
+ * BAS-090 / BAS-090A — a group is not assignable to the target line:
+ * locked/settled, of another fund than the line's, or the line's label is not linked yet.
  * The correction is rejected.
  */
 { code: "GroupNotEligible" } | 

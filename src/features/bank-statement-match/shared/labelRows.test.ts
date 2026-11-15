@@ -26,7 +26,6 @@ function makeLine(overrides: Partial<BankStatementLine> = {}): BankStatementLine
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [],
-    broadened_candidates: [],
     candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,

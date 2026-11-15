@@ -62,7 +62,6 @@ function makeLine(overrides: Partial<BankStatementLine> = {}): BankStatementLine
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [],
-    broadened_candidates: [],
     candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
@@ -75,6 +74,7 @@ function makeReconciliation(lines: BankStatementLine[]) {
     lines,
     resolved_count: 0,
     needs_correction_count: lines.length,
+    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
   };
 }
 

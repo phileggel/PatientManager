@@ -63,6 +63,7 @@ function makeReconciliation(
     lines: [],
     resolved_count: 0,
     needs_correction_count: 2,
+    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
     ...overrides,
   };
 }
@@ -457,7 +458,6 @@ describe("useBankStatementReconciliation — correction-list compaction (BAS-113
       covered_amount: 60000,
       remainder_acknowledged: false,
       candidate_groups: [],
-      broadened_candidates: [],
       candidate_procedures: [],
       suggested_fund_id: null,
       suggested_fund_name: null,

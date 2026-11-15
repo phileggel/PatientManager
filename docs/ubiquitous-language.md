@@ -8,6 +8,7 @@ The authoritative dictionary of domain terms for this project.
 - The agent MUST NOT invent or assume domain terms — propose and wait for confirmation.
 - Terms marked `pending` are proposals awaiting user validation.
 - Once confirmed, the term MUST be used consistently everywhere (code, comments, specs, UI).
+- A term is a name the specs' rules and the code share. A name no spec rule uses — one screen's view of the data, as the bank import's recap — is not a term (owner, 2026-11-15).
 
 ---
 
@@ -295,7 +296,7 @@ The eight-character code (`XXXX-XXXX`) written in a diagnostic report and shown 
 The in-progress, ephemeral reconciliation of one imported bank statement: the set of
 bank-statement lines, each carrying a match status plus any pending corrections. Computed
 by the backend as a pure function of the parsed statement and an ordered list of corrections
-(never persisted), and re-computed on every correction or revert. Posted to the backend on
+(never persisted), and re-computed with the corrections made so far. Posted to the backend on
 validate, which commits the resolved lines into `BankEntry` records.
 
 > Status: confirmed

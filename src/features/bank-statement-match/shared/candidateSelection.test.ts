@@ -2,7 +2,7 @@
  * Unit tests for shared/candidateSelection.ts::coveredAmount (BAS-091/113).
  *
  * `coveredAmount` sums selected candidate amounts against a line. Historically
- * groups-only (Σ selected candidate_groups/broadened_candidates total_amount);
+ * groups-only (Σ selected candidate_groups total_amount);
  * BAS-113 makes it settlement-item-aware — when the procedure scope selection
  * is active it must instead sum candidate_procedures billed_amount for the
  * selected procedure ids (BAS-091/113 balance semantics reused verbatim).
@@ -36,7 +36,6 @@ function makeLine(overrides: Partial<BankStatementLine> = {}): BankStatementLine
         is_exact_amount: false,
       },
     ],
-    broadened_candidates: [],
     candidate_procedures: [
       {
         procedure_id: "proc-1",

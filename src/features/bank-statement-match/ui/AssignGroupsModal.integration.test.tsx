@@ -95,7 +95,6 @@ function makeNeedsGroupLine(overrides: Partial<BankStatementLine> = {}): BankSta
     covered_amount: 0,
     remainder_acknowledged: false,
     candidate_groups: [CANDIDATE_EXACT, CANDIDATE_PARTIAL],
-    broadened_candidates: [],
     candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
@@ -266,88 +265,20 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     });
   });
 
-  // BAS-068/111 — the "all funds" scope swaps the fund-filtered set for the
-  // fund-agnostic superset, revealing a candidate from a different fund not in
-  // the default ("this fund") scope. The former standalone broaden button is
-  // now the second of the three explicit scopes (BAS-111).
-  it("reveals a different-fund candidate when the all-funds scope is selected (BAS-111)", async () => {
-    const user = userEvent.setup();
-    const OTHER_FUND_CANDIDATE: BankStatementCandidate = {
-      group_id: "group-other-fund",
-      fund_id: "fund-2",
-      fund_name: "Mutuelle Générale",
-      payment_date: "2026-04-07",
-      total_amount: 150000,
-      is_exact_amount: true,
-    };
-    const line = makeNeedsGroupLine({
-      candidate_groups: [CANDIDATE_EXACT],
-      broadened_candidates: [CANDIDATE_EXACT, OTHER_FUND_CANDIDATE],
-    });
+  // BAS-090 (#695, owner 2026-11-15) — no cross-fund match: the dialog offers
+  // the line's fund only, with no all-funds scope.
+  it("offers no all-funds scope (BAS-090)", () => {
+    render(
+      <AssignGroupsModal
+        line={makeNeedsGroupLine()}
+        isOpen={true}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
 
-    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
-
-    // Default ("this fund") scope: the other-fund candidate is NOT shown.
-    expect(document.getElementById("assign-groups-candidate-group-other-fund")).toBeNull();
-
-    const allFundsScope = document.getElementById("assign-groups-scope-all");
-    expect(allFundsScope).not.toBeNull();
-    if (!allFundsScope) throw new Error("all-funds scope control missing");
-
-    await user.click(allFundsScope);
-
-    // "All funds" scope: the other-fund candidate now appears.
-    expect(document.getElementById("assign-groups-candidate-group-other-fund")).not.toBeNull();
-
-    // Switching back to "this fund" restores the fund-filtered set.
-    const fundScope = document.getElementById("assign-groups-scope-fund");
-    if (!fundScope) throw new Error("fund scope control missing");
-    await user.click(fundScope);
-    expect(document.getElementById("assign-groups-candidate-group-other-fund")).toBeNull();
-  });
-
-  // BAS-111 — switching scope ALWAYS clears the visible selection (never
-  // silently spans scopes), regardless of whether the new scope is a superset.
-  it("clears the selection when switching from the all-funds scope back to this fund (BAS-111)", async () => {
-    const user = userEvent.setup();
-    const onSubmit = vi.fn();
-    const OTHER_FUND_CANDIDATE: BankStatementCandidate = {
-      group_id: "group-other-fund",
-      fund_id: "fund-2",
-      fund_name: "Mutuelle Générale",
-      payment_date: "2026-04-07",
-      total_amount: 150000,
-      is_exact_amount: true,
-    };
-    const line = makeNeedsGroupLine({
-      candidate_groups: [CANDIDATE_EXACT],
-      broadened_candidates: [CANDIDATE_EXACT, OTHER_FUND_CANDIDATE],
-    });
-
-    render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
-
-    const allFundsScope = document.getElementById("assign-groups-scope-all");
-    if (!allFundsScope) throw new Error("all-funds scope control missing");
-
-    // Switch to all-funds, select the other-fund candidate, then switch back.
-    await user.click(allFundsScope);
-    const otherFundCheck = document.getElementById("assign-groups-check-group-other-fund");
-    if (!otherFundCheck) throw new Error("broadened candidate checkbox missing");
-    await user.click(otherFundCheck);
-
-    const fundScope = document.getElementById("assign-groups-scope-fund");
-    if (!fundScope) throw new Error("fund scope control missing");
-    await user.click(fundScope);
-
-    const submitBtn = document.getElementById("assign-groups-submit");
-    if (!submitBtn) throw new Error("submit button missing");
-    await user.click(submitBtn);
-
-    expect(onSubmit).toHaveBeenCalledWith({
-      type: "AssignGroups",
-      line_id: "line-needs-group",
-      group_ids: [],
-    });
+    expect(document.getElementById("assign-groups-scope-fund")).not.toBeNull();
+    expect(document.getElementById("assign-groups-scope-all")).toBeNull();
   });
 
   // BAS-068 — the selection is seeded with the line's current assignment so
@@ -419,13 +350,12 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
   // ---------------------------------------------------------------------------
 
   describe("BAS-111 — search scopes", () => {
-    it("offers all three scopes for a linked line with group AND procedure candidates", () => {
+    it("offers both scopes for a linked line with group AND procedure candidates", () => {
       const line = makeNeedsGroupLine({ candidate_procedures: [PROCEDURE_CANDIDATE_1] });
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
       expect(document.getElementById("assign-groups-scope-fund")).not.toBeNull();
-      expect(document.getElementById("assign-groups-scope-all")).not.toBeNull();
       expect(document.getElementById("assign-groups-scope-procedures")).not.toBeNull();
     });
 
