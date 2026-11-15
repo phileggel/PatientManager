@@ -45,10 +45,8 @@ function needsCorrection(line: BankStatementLine): boolean {
  * needed to finish partial procedure work, so re-presenting it would loop;
  * they stay correctable from the list dialog.
  */
-// reviewer-frontend FP: the guard intentionally checks the fund-scoped
-// candidate_groups only — broadened_candidates holds near-universal cross-fund
-// matches, so including them would put the group selector back over
-// procedure-only lines, defeating BAS-116.
+// The guard checks the line's fund's candidate_groups (BAS-090): an empty set
+// keeps the group selector off procedure-only lines (BAS-116).
 function buildQueue(
   lines: BankStatementLine[],
   windowDays: number,

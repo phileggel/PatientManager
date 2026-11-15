@@ -26,7 +26,8 @@ use crate::use_cases::bank_statement_reconciliation::{
 // =============================================================================
 
 /// A user correction, replayed in order by `compute_reconciliation` / validate.
-/// Reverting = remove from the list and recompute (BAS-065).
+/// The list is given in the order the corrections were made; the engine drops
+/// the superseded ones itself (BAS-064A).
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(deny_unknown_fields)]
 #[serde(tag = "type")]
@@ -71,6 +72,31 @@ pub struct BankStatementReconciliation {
     pub resolved_count: u32,
     /// BAS-069 — count of lines still needing correction.
     pub needs_correction_count: u32,
+    /// The recap the screen shows before validate: a view of the lines, no
+    /// business rule of its own (owner, 2026-11-15); see the contract.
+    pub recap: BankStatementRecap,
+}
+
+/// The recap of the draft — a view of its lines (owner, 2026-11-15, #695).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BankStatementRecap {
+    /// Matched lines with at least one settlement item (not left aside).
+    pub lines_taken_count: u32,
+    /// Σ the full amounts of those lines, remainders included.
+    pub total_amount: i64,
+    /// Those lines whose items cover less than their amount, in document
+    /// order.
+    pub partly_paid_lines: Vec<BankStatementPartlyPaidLine>,
+}
+
+/// One line of the recap with an acknowledged remainder (BAS-092).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BankStatementPartlyPaidLine {
+    pub line_id: String,
+    pub credit_line: BankStatementCreditLine,
+    pub fund_id: String,
+    pub covered_amount: i64,
+    pub remainder_amount: i64,
 }
 
 /// One bank credit line within the reconciliation.
@@ -92,12 +118,9 @@ pub struct BankStatementLine {
     pub covered_amount: i64,
     /// BAS-092 — true when the user acknowledged the remainder.
     pub remainder_acknowledged: bool,
-    /// BAS-068 — ranked candidate groups for needs-group / partial,
-    /// filtered to the line's fund (the default view); not date-bounded.
+    /// BAS-068 — ranked candidate groups for needs-group / partial, of the
+    /// line's fund only (BAS-090); not date-bounded.
     pub candidate_groups: Vec<BankStatementCandidate>,
-    /// BAS-068 — ranked candidate groups across ALL funds (not locked or
-    /// consumed, any age); shown when the user broadens the search.
-    pub broadened_candidates: Vec<BankStatementCandidate>,
     /// BAS-112 — the linked fund's open procedures, oldest first; empty while
     /// needs-link (the pool is scoped to the linked fund).
     pub candidate_procedures: Vec<BankStatementProcedureCandidate>,
@@ -128,8 +151,7 @@ pub enum BankStatementLineStatus {
 pub struct BankStatementCandidate {
     pub group_id: String,
     pub fund_id: String,
-    /// Resolved fund name so the candidate row is identifiable, in particular
-    /// in the broadened (fund-agnostic) view (BAS-068).
+    /// Resolved fund name so the candidate row is identifiable (BAS-068).
     pub fund_name: String,
     pub payment_date: String,
     pub total_amount: i64,
@@ -247,9 +269,11 @@ pub fn compute_reconciliation(
     // --- 2. Initial auto-match (BAS-050–054). ---
     auto_match(&mut lines, repos.groups, &mut consumed);
 
-    // --- 3. Replay corrections in order (BAS-064), after the BAS-113
-    //        correction-list cascade removed superseded entries. ---
-    for correction in effective_corrections(corrections) {
+    // --- 3. Replay corrections in order (BAS-064): each one replaces what an
+    //        earlier one set on its line or label (BAS-064A), so a replaced
+    //        correction never comes back and none is refused for what it
+    //        replaces. ---
+    for correction in corrections {
         match correction {
             BankStatementCorrection::LinkFund {
                 bank_label,
@@ -270,7 +294,14 @@ pub fn compute_reconciliation(
                 );
             }
             BankStatementCorrection::AssignGroups { line_id, group_ids } => {
-                apply_assign_groups(&mut lines, repos.groups, &mut consumed, line_id, group_ids)?;
+                apply_assign_groups(
+                    &mut lines,
+                    repos.groups,
+                    &mut consumed,
+                    &mut consumed_procedures,
+                    line_id,
+                    group_ids,
+                )?;
             }
             BankStatementCorrection::AssignProcedures {
                 line_id,
@@ -317,43 +348,13 @@ pub fn compute_reconciliation(
         .count() as u32;
     let needs_correction_count = reconciliation_lines.len() as u32 - resolved_count;
 
+    let recap = build_recap(&reconciliation_lines);
     Ok(BankStatementReconciliation {
         lines: reconciliation_lines,
         resolved_count,
         needs_correction_count,
+        recap,
     })
-}
-
-/// BAS-113 — the correction-list cascade, applied before the replay: an
-/// assignment correction supersedes, for its line, any earlier assignment of
-/// the OTHER kind (group/procedure mutual exclusion — a cascade, never an
-/// error) and any earlier `AcknowledgeRemainder` (its implied size changed).
-/// An acknowledgment placed AFTER the line's last assignment sticks — that is
-/// the « Rapprocher avec reliquat » composition (BAS-092).
-fn effective_corrections(corrections: &[BankStatementCorrection]) -> Vec<&BankStatementCorrection> {
-    let superseded_by = |c: &BankStatementCorrection, later: &BankStatementCorrection| -> bool {
-        use BankStatementCorrection::{AcknowledgeRemainder, AssignGroups, AssignProcedures};
-        match (c, later) {
-            (AssignGroups { line_id, .. }, AssignProcedures { line_id: l, .. })
-            | (AssignProcedures { line_id, .. }, AssignGroups { line_id: l, .. })
-            | (
-                AcknowledgeRemainder { line_id },
-                AssignGroups { line_id: l, .. } | AssignProcedures { line_id: l, .. },
-            ) => l == line_id,
-            _ => false,
-        }
-    };
-    corrections
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            !corrections
-                .iter()
-                .skip(i + 1)
-                .any(|later| superseded_by(c, later))
-        })
-        .map(|(_, c)| c)
-        .collect()
 }
 
 /// BAS-050–054 — auto-match resolved (fund-known, not rejected, unassigned)
@@ -440,18 +441,20 @@ fn apply_link_fund(
         }
         match assignment {
             FundAssignment::Fund { fund_id } => {
-                // BAS-066 amendment — re-linking to a DIFFERENT fund drops any
-                // procedure assignment made under the old fund (it would be
-                // wrong-fund ineligible under the new link); the procedures
-                // return to the open pool, and the correction that assigned them
-                // no longer holds the auto-match back (BAS-062A).
+                // BAS-066B (owner, 2026-11-15) — linking to a DIFFERENT fund
+                // starts the line again: its groups (auto-matched or assigned)
+                // and procedures return to their pools, its acknowledgment and
+                // its hold go (BAS-062A); the auto-match below re-runs under the
+                // new fund. The same fund changes nothing.
                 if line.fund_id.as_ref() != Some(fund_id) {
-                    if !line.assigned_procedure_ids.is_empty() {
-                        line.auto_match_overridden = false;
+                    for gid in line.assigned_group_ids.drain(..) {
+                        consumed.remove(&gid);
                     }
                     for pid in line.assigned_procedure_ids.drain(..) {
                         consumed_procedures.remove(&pid);
                     }
+                    line.auto_match_overridden = false;
+                    line.remainder_acknowledged = false;
                 }
                 line.fund_id = Some(fund_id.clone());
                 line.rejected = false;
@@ -484,6 +487,7 @@ fn apply_assign_groups(
     lines: &mut [WorkingLine],
     groups: &[FundPaymentGroup],
     consumed: &mut HashSet<String>,
+    consumed_procedures: &mut HashSet<String>,
     line_id: &str,
     group_ids: &[String],
 ) -> Result<(), BankStatementReconciliationError> {
@@ -509,10 +513,10 @@ fn apply_assign_groups(
             .find(|g| &g.id == gid)
             .ok_or(BankStatementReconciliationTask::GroupNotEligible)?;
 
-        // BAS-090 eligibility: not locked / settled. The fund criterion binds
-        // auto-match only — a manual assignment may cross funds (the broadened
-        // view is the human override for an imperfect label mapping).
-        if group.is_locked {
+        // BAS-090 / BAS-090A eligibility: of the line's fund (owner, 2026-11-15
+        // — no cross-fund match; a wrong label is linked again, BAS-066B), and
+        // not locked / settled.
+        if group.is_locked || line.fund_id.as_deref() != Some(group.fund_id.as_str()) {
             return Err(BankStatementReconciliationTask::GroupNotEligible.into());
         }
 
@@ -532,17 +536,21 @@ fn apply_assign_groups(
         return Err(BankStatementReconciliationTask::AssignmentOverflow.into());
     }
 
-    // Commit: release the line's previous groups, then claim the new set.
-    // A prior remainder acknowledgment was already removed by the BAS-113
-    // correction-list cascade (`effective_corrections`), never at replay time.
+    // Commit (BAS-064A): the new set replaces the line's earlier settlement
+    // items of BOTH kinds (BAS-113 mutual exclusion) and its acknowledged
+    // remainder, whose implied size changed (BAS-092).
     for gid in line.assigned_group_ids.drain(..) {
         consumed.remove(&gid);
+    }
+    for pid in line.assigned_procedure_ids.drain(..) {
+        consumed_procedures.remove(&pid);
     }
     for gid in group_ids {
         consumed.insert(gid.clone());
     }
     line.assigned_group_ids = group_ids.to_vec();
     line.auto_match_overridden = true;
+    line.remainder_acknowledged = false;
 
     Ok(())
 }
@@ -603,9 +611,9 @@ fn apply_assign_procedures(
         return Err(BankStatementReconciliationTask::AssignmentOverflow.into());
     }
 
-    // Commit: release the line's previous settlement items of BOTH kinds —
-    // the group release covers the auto-match, which the correction-list
-    // cascade cannot see — then claim the new set.
+    // Commit (BAS-064A): the new set replaces the line's earlier settlement
+    // items of BOTH kinds — an auto-matched group included (BAS-113) — and its
+    // acknowledged remainder (BAS-092).
     for gid in line.assigned_group_ids.drain(..) {
         consumed_groups.remove(&gid);
     }
@@ -617,6 +625,7 @@ fn apply_assign_procedures(
     }
     line.assigned_procedure_ids = procedure_ids.to_vec();
     line.auto_match_overridden = true;
+    line.remainder_acknowledged = false;
 
     Ok(())
 }
@@ -677,10 +686,6 @@ fn finalize_line(
         .cloned()
         .collect();
     let candidate_groups = candidate_groups(wl, groups, funds, &consumed_by_others, line_amount);
-    // BAS-068 — broadened set: same eligibility as candidate_groups, but across
-    // all funds (no fund filter). Superset shown when the user broadens the search.
-    let broadened_candidates =
-        broadened_candidates(groups, funds, &consumed_by_others, line_amount);
     // BAS-112 — the linked fund's open procedures, repo order preserved
     // (oldest first, id tiebreak); minus those consumed by OTHER lines. Not
     // ceiling-filtered: the billed amount is what it is, and the exact flag +
@@ -735,7 +740,6 @@ fn finalize_line(
         covered_amount,
         remainder_acknowledged: wl.remainder_acknowledged,
         candidate_groups,
-        broadened_candidates,
         candidate_procedures,
         suggested_fund_id: wl.suggested_fund_id.clone(),
         suggested_fund_name: wl.suggested_fund_name.clone(),
@@ -759,18 +763,6 @@ fn candidate_groups(
     rank_candidates(groups, funds, consumed, amount_ceiling, |g| {
         g.fund_id == fund_id
     })
-}
-
-/// BAS-068 — the broadened set: identical eligibility and ordering to
-/// `candidate_groups` but WITHOUT the fund filter (all funds), shown when the
-/// user broadens the search beyond the line's fund.
-fn broadened_candidates(
-    groups: &[FundPaymentGroup],
-    funds: &[Fund],
-    consumed: &HashSet<String>,
-    amount_ceiling: i64,
-) -> Vec<BankStatementCandidate> {
-    rank_candidates(groups, funds, consumed, amount_ceiling, |_| true)
 }
 
 /// Shared eligibility filter + ordering for candidate proposals (BAS-068). A
@@ -816,6 +808,42 @@ fn rank_candidates(
     candidates.sort_by(|a, b| b.payment_date.cmp(&a.payment_date));
 
     candidates
+}
+
+/// The recap: the matched lines with a settlement item, their full amount,
+/// and those partly paid — a view of the lines, computed here so the screen
+/// only renders it.
+fn build_recap(lines: &[BankStatementLine]) -> BankStatementRecap {
+    // Matched with at least one settlement item: a left-aside line (BAS-123B)
+    // has none, a rejected one is not matched.
+    let taken: Vec<&BankStatementLine> = lines
+        .iter()
+        .filter(|l| {
+            l.status == BankStatementLineStatus::Matched
+                && (!l.assigned_group_ids.is_empty() || !l.assigned_procedure_ids.is_empty())
+        })
+        .collect();
+    let partly_paid_lines = taken
+        .iter()
+        .filter(|l| l.covered_amount < l.credit_line.amount)
+        // A matched line always has a fund (BAS-061), so nothing is dropped here.
+        .filter_map(|l| {
+            l.fund_id
+                .as_ref()
+                .map(|fund_id| BankStatementPartlyPaidLine {
+                    line_id: l.line_id.clone(),
+                    credit_line: l.credit_line.clone(),
+                    fund_id: fund_id.clone(),
+                    covered_amount: l.covered_amount,
+                    remainder_amount: l.credit_line.amount - l.covered_amount,
+                })
+        })
+        .collect();
+    BankStatementRecap {
+        lines_taken_count: taken.len() as u32,
+        total_amount: taken.iter().map(|l| l.credit_line.amount).sum(),
+        partly_paid_lines,
+    }
 }
 
 /// BAS-032 — heuristic fund suggestion for an unmapped label, in priority order:
@@ -1255,15 +1283,17 @@ mod tests {
         assert!(line.assigned_group_ids.is_empty());
     }
 
+    // BAS-066 (owner, 2026-11-15) — a link to a different fund starts the line
+    // again: the hold ends and the auto-match runs under the new fund.
     #[test]
-    fn bas_062a_relinking_a_different_fund_keeps_the_line_unassigned() {
+    fn bas_066b_relinking_a_different_fund_ends_an_unassign_hold() {
         let line = after_corrections(&[unassign(), link("CPAM93", "fund-77")]);
-        assert!(line.assigned_group_ids.is_empty());
-        assert_eq!(line.status, BankStatementLineStatus::NeedsGroup);
+        assert_eq!(line.assigned_group_ids, vec!["grp-77".to_string()]);
+        assert_eq!(line.status, BankStatementLineStatus::Matched);
     }
 
     #[test]
-    fn bas_062a_a_line_left_aside_gets_no_transfer_after_a_relink_to_a_different_fund() {
+    fn bas_066b_a_line_left_aside_starts_again_after_a_relink_to_a_different_fund() {
         let line = after_corrections(&[
             unassign(),
             BankStatementCorrection::AcknowledgeRemainder {
@@ -1271,13 +1301,12 @@ mod tests {
             },
             link("CPAM93", "fund-77"),
         ]);
-        assert!(line.assigned_group_ids.is_empty());
-        assert_eq!(line.covered_amount, 0);
-        assert!(line.remainder_acknowledged);
+        assert_eq!(line.assigned_group_ids, vec!["grp-77".to_string()]);
+        assert!(!line.remainder_acknowledged);
     }
 
     #[test]
-    fn bas_062a_a_line_left_aside_by_procedure_scope_holds_after_a_relink() {
+    fn bas_066b_a_line_left_aside_by_procedure_scope_starts_again_after_a_relink() {
         let line = after_corrections(&[
             BankStatementCorrection::AssignProcedures {
                 line_id: "line-0".to_string(),
@@ -1288,8 +1317,8 @@ mod tests {
             },
             link("CPAM93", "fund-77"),
         ]);
-        assert!(line.assigned_group_ids.is_empty());
-        assert!(line.remainder_acknowledged);
+        assert_eq!(line.assigned_group_ids, vec!["grp-77".to_string()]);
+        assert!(!line.remainder_acknowledged);
     }
 
     #[test]
@@ -1349,7 +1378,7 @@ mod tests {
     }
 
     #[test]
-    fn bas_065_reverting_the_unassign_restores_the_auto_match() {
+    fn bas_064_without_the_unassign_the_auto_match_is_back() {
         let line = after_corrections(&[link("MGEN", "fund-mgen")]);
         assert_eq!(line.assigned_group_ids, vec!["grp-93".to_string()]);
     }
@@ -1403,54 +1432,6 @@ mod tests {
         );
         assert_eq!(recon.lines[1].status, BankStatementLineStatus::Matched);
         assert!(recon.lines[0].assigned_group_ids.is_empty());
-    }
-
-    // BAS-090 — a broadened (cross-fund) candidate is assignable: the fund
-    // criterion binds auto-match only, so the manual override must succeed and
-    // fully cover the line.
-    #[test]
-    fn cross_fund_manual_assignment_is_accepted() {
-        let parse_result = BankStatementParseResult {
-            iban: None,
-            period: None,
-            credit_lines: vec![BankStatementCreditLine {
-                date: "2026-01-15".to_string(),
-                label: "CPAM93".to_string(),
-                amount: 100_000,
-            }],
-            total_credits: 100_000,
-            unparsed_count: 0,
-        };
-        // Line linked to fund-93; the only matching group belongs to fund-75.
-        let mappings = vec![BankFundLabelMapping {
-            id: "map-1".to_string(),
-            bank_account_id: "acc-1".to_string(),
-            bank_label: "CPAM93".to_string(),
-            fund_id: Some("fund-93".to_string()),
-        }];
-        let groups = vec![group("grp-75", "fund-75", "2026-01-15", 100_000)];
-        let funds = vec![
-            fund("fund-93", "93", "CPAM Seine-Saint-Denis"),
-            fund("fund-75", "75", "CPAM Paris"),
-        ];
-        let repos = BankStatementReconciliationRepos {
-            mappings: &mappings,
-            groups: &groups,
-            funds: &funds,
-            open_procedures: no_open_procedures(),
-        };
-        let corrections = vec![BankStatementCorrection::AssignGroups {
-            line_id: "line-0".to_string(),
-            group_ids: vec!["grp-75".to_string()],
-        }];
-
-        let recon = compute_reconciliation(&parse_result, &repos, &corrections)
-            .expect("cross-fund manual assignment must be accepted (amended BAS-090)");
-        assert_eq!(recon.lines[0].status, BankStatementLineStatus::Matched);
-        assert_eq!(
-            recon.lines[0].assigned_group_ids,
-            vec!["grp-75".to_string()]
-        );
     }
 
     // BAS-068 — a partially-assigned line's candidate lists include its own
@@ -1508,10 +1489,10 @@ mod tests {
         assert_eq!(ids, vec!["grp-40", "grp-60"]);
     }
 
-    // BAS-068 — broadened_candidates surfaces an eligible group from a DIFFERENT
-    // fund that the fund-filtered candidate_groups set excludes.
+    // BAS-068 / BAS-090 (owner, 2026-11-15) — no group of another fund is
+    // proposed to a line.
     #[test]
-    fn broadened_candidates_include_other_fund_group() {
+    fn candidates_exclude_a_group_of_another_fund() {
         let parse_result = BankStatementParseResult {
             iban: None,
             period: None,
@@ -1523,8 +1504,6 @@ mod tests {
             total_credits: 100_000,
             unparsed_count: 0,
         };
-        // Line is linked to fund-93 via a saved mapping, but the only eligible
-        // group belongs to fund-75.
         let mappings = vec![BankFundLabelMapping {
             id: "map-1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -1544,14 +1523,7 @@ mod tests {
         };
 
         let recon = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
-        let line = &recon.lines[0];
-        // Fund-filtered view excludes the fund-75 group.
-        assert!(line.candidate_groups.is_empty());
-        // Broadened view surfaces it, identified by its fund name (BAS-068).
-        assert_eq!(line.broadened_candidates.len(), 1);
-        assert_eq!(line.broadened_candidates[0].group_id, "grp-75");
-        assert_eq!(line.broadened_candidates[0].fund_id, "fund-75");
-        assert_eq!(line.broadened_candidates[0].fund_name, "CPAM Paris");
+        assert!(recon.lines[0].candidate_groups.is_empty());
     }
 
     // =========================================================================
@@ -2052,10 +2024,9 @@ mod tests {
         );
     }
 
-    // BAS-065/113 — reverting the correction that caused an exclusion cascade
-    // (dropping it from the correction list and recomputing) must restore the
-    // pre-exclusion state (here: the original auto-match), never resurrect the
-    // correction that the cascade removed.
+    // BAS-064/113 — the draft is a pure function of the correction list: the
+    // list without the correction that caused an exclusion cascade gives back
+    // the pre-exclusion state (here: the original auto-match).
     #[test]
     fn exclusion_revert_restores_pre_exclusion_auto_match_state() {
         let mappings = vec![BankFundLabelMapping {
@@ -2112,7 +2083,7 @@ mod tests {
         let reverted = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
         assert_eq!(
             reverted.lines[0].assigned_group_ids, before.lines[0].assigned_group_ids,
-            "revert must restore the auto-match, never the removed correction (BAS-065/113)"
+            "without the correction, the auto-match is back (BAS-064/113)"
         );
         assert_eq!(reverted.lines[0].status, BankStatementLineStatus::Matched);
     }
@@ -2543,5 +2514,508 @@ mod tests {
             line.remainder_acknowledged,
             "the acknowledgment itself still applies — the guard is status-only"
         );
+    }
+
+    // =========================================================================
+    // #695 — the four steps (#692): a changed link starts its lines again,
+    // no cross-fund match, the engine trims its own corrections, the recap.
+    // =========================================================================
+
+    fn line_on(date: &str, label: &str, amount: i64) -> BankStatementCreditLine {
+        BankStatementCreditLine {
+            date: date.to_string(),
+            label: label.to_string(),
+            amount,
+        }
+    }
+
+    fn statement(lines: Vec<BankStatementCreditLine>) -> BankStatementParseResult {
+        let total_credits = lines.iter().map(|l| l.amount).sum();
+        BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: lines,
+            total_credits,
+            unparsed_count: 0,
+        }
+    }
+
+    fn mapping(label: &str, fund_id: Option<&str>) -> BankFundLabelMapping {
+        BankFundLabelMapping {
+            id: format!("map-{label}"),
+            bank_account_id: "acc-1".to_string(),
+            bank_label: label.to_string(),
+            fund_id: fund_id.map(str::to_string),
+        }
+    }
+
+    fn assign_groups(line_id: &str, group_ids: &[&str]) -> BankStatementCorrection {
+        BankStatementCorrection::AssignGroups {
+            line_id: line_id.to_string(),
+            group_ids: group_ids.iter().map(|g| g.to_string()).collect(),
+        }
+    }
+
+    fn acknowledge(line_id: &str) -> BankStatementCorrection {
+        BankStatementCorrection::AcknowledgeRemainder {
+            line_id: line_id.to_string(),
+        }
+    }
+
+    // BAS-090 (owner, 2026-11-15) — a group of another fund is refused, and the
+    // draft is unchanged.
+    #[test]
+    fn test_695_bas_090a_group_of_another_fund_is_refused() {
+        let parse_result = statement(vec![line_on("2026-01-15", "CPAM93", 100_000)]);
+        let mappings = vec![mapping("CPAM93", Some("fund-93"))];
+        let groups = vec![group("grp-75", "fund-75", "2026-01-15", 100_000)];
+        let funds = vec![
+            fund("fund-93", "93", "CPAM 93"),
+            fund("fund-75", "75", "CPAM Paris"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let err = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[assign_groups("line-0", &["grp-75"])],
+        )
+        .expect_err("a group of another fund must be refused");
+        assert!(matches!(
+            err,
+            BankStatementReconciliationError::Task(
+                BankStatementReconciliationTask::GroupNotEligible
+            )
+        ));
+    }
+
+    // BAS-066 (owner, 2026-11-15) — linking a label to a different fund drops
+    // the lines' assigned groups, returns them to the pool and re-runs the
+    // auto-match under the new fund.
+    #[test]
+    fn test_695_bas_066b_relink_to_another_fund_drops_assigned_groups() {
+        let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
+        let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
+        let groups = vec![
+            group("grp-a", "fund-a", "2026-01-10", 60_000),
+            group("grp-b", "fund-b", "2026-01-14", 100_000),
+        ];
+        let funds = vec![
+            fund("fund-a", "1", "Mutuelle A"),
+            fund("fund-b", "2", "Mutuelle B"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-0", &["grp-a"]),
+                link("VIR MUT", "fund-b"),
+            ],
+        )
+        .expect("a changed link is never refused for what it drops");
+        let line = &recon.lines[0];
+        assert_eq!(line.fund_id.as_deref(), Some("fund-b"));
+        assert_eq!(
+            line.assigned_group_ids,
+            vec!["grp-b".to_string()],
+            "auto-match under the new fund"
+        );
+        assert_eq!(line.status, BankStatementLineStatus::Matched);
+    }
+
+    // BAS-066 / BAS-062A — a changed link ends the hold of a left-aside line:
+    // its empty assignment and its acknowledgment are dropped.
+    #[test]
+    fn test_695_bas_066b_relink_drops_left_aside_and_ends_the_hold() {
+        let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
+        let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
+        let groups = vec![group("grp-b", "fund-b", "2026-01-14", 100_000)];
+        let funds = vec![
+            fund("fund-a", "1", "Mutuelle A"),
+            fund("fund-b", "2", "Mutuelle B"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-0", &[]),
+                acknowledge("line-0"),
+                link("VIR MUT", "fund-b"),
+            ],
+        )
+        .unwrap();
+        let line = &recon.lines[0];
+        assert!(
+            !line.remainder_acknowledged,
+            "the acknowledgment is dropped"
+        );
+        assert_eq!(
+            line.assigned_group_ids,
+            vec!["grp-b".to_string()],
+            "the hold ended"
+        );
+    }
+
+    // BAS-066 — linking a label to the fund it already has changes nothing.
+    #[test]
+    fn test_695_bas_066c_link_to_the_same_fund_keeps_the_settlement() {
+        let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
+        let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
+        let groups = vec![group("grp-a", "fund-a", "2026-01-10", 60_000)];
+        let funds = vec![fund("fund-a", "1", "Mutuelle A")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-0", &["grp-a"]),
+                acknowledge("line-0"),
+                link("VIR MUT", "fund-a"),
+            ],
+        )
+        .unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(line.assigned_group_ids, vec!["grp-a".to_string()]);
+        assert!(line.remainder_acknowledged);
+        assert_eq!(line.status, BankStatementLineStatus::Matched);
+    }
+
+    // BAS-066 — the other labels' lines keep their settlement.
+    #[test]
+    fn test_695_bas_066b_relink_leaves_other_labels_alone() {
+        let parse_result = statement(vec![
+            line_on("2026-01-15", "VIR MUT", 100_000),
+            line_on("2026-01-16", "CPAM93", 50_000),
+        ]);
+        let mappings = vec![
+            mapping("VIR MUT", Some("fund-a")),
+            mapping("CPAM93", Some("fund-93")),
+        ];
+        let groups = vec![
+            group("grp-a", "fund-a", "2026-01-10", 60_000),
+            group("grp-93", "fund-93", "2026-01-01", 30_000),
+        ];
+        let funds = vec![
+            fund("fund-a", "1", "Mutuelle A"),
+            fund("fund-b", "2", "Mutuelle B"),
+            fund("fund-93", "93", "CPAM 93"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-0", &["grp-a"]),
+                assign_groups("line-1", &["grp-93"]),
+                link("VIR MUT", "fund-b"),
+            ],
+        )
+        .unwrap();
+        assert!(recon.lines[0].assigned_group_ids.is_empty());
+        assert_eq!(
+            recon.lines[1].assigned_group_ids,
+            vec!["grp-93".to_string()]
+        );
+    }
+
+    // BAS-064A — a correction dropped by a changed link never comes back, even
+    // when the label is linked back to its first fund.
+    #[test]
+    fn test_695_bas_064a_dropped_correction_never_comes_back() {
+        let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
+        let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
+        let groups = vec![group("grp-a", "fund-a", "2026-01-10", 60_000)];
+        let funds = vec![
+            fund("fund-a", "1", "Mutuelle A"),
+            fund("fund-b", "2", "Mutuelle B"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-0", &["grp-a"]),
+                link("VIR MUT", "fund-b"),
+                link("VIR MUT", "fund-a"),
+            ],
+        )
+        .unwrap();
+        let line = &recon.lines[0];
+        assert!(
+            line.assigned_group_ids.is_empty(),
+            "the dropped assignment stays dropped"
+        );
+        assert_eq!(line.status, BankStatementLineStatus::NeedsGroup);
+    }
+
+    // BAS-062C / BAS-066 — marking the label rejected drops the settlement;
+    // a later link of that label re-attempts the auto-match.
+    #[test]
+    fn test_695_bas_062c_rejection_then_link_reattempts_the_auto_match() {
+        let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
+        let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
+        let groups = vec![
+            group("grp-a", "fund-a", "2026-01-10", 60_000),
+            group("grp-a2", "fund-a", "2026-01-14", 100_000),
+        ];
+        let funds = vec![fund("fund-a", "1", "Mutuelle A")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-0", &["grp-a"]),
+                BankStatementCorrection::LinkFund {
+                    bank_label: "VIR MUT".to_string(),
+                    assignment: FundAssignment::Rejected,
+                },
+                link("VIR MUT", "fund-a"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            recon.lines[0].assigned_group_ids,
+            vec!["grp-a2".to_string()]
+        );
+    }
+
+    // The recap (#695): the matched lines with a settlement item, their full
+    // amount, and the lines partly paid. A left-aside line and a rejected one
+    // are not counted.
+    #[test]
+    fn test_695_recap() {
+        let parse_result = statement(vec![
+            line_on("2026-01-15", "CPAM93", 100_000), // auto-matched
+            line_on("2026-01-16", "CPAM93", 80_000),  // partly paid
+            line_on("2026-01-17", "CPAM93", 20_000),  // left aside
+            line_on("2026-01-18", "LOYER", 75_000),   // rejected
+        ]);
+        let mappings = vec![mapping("CPAM93", Some("fund-93")), mapping("LOYER", None)];
+        let groups = vec![
+            group("grp-full", "fund-93", "2026-01-14", 100_000),
+            group("grp-part", "fund-93", "2026-01-02", 50_000),
+        ];
+        let funds = vec![fund("fund-93", "93", "CPAM 93")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-1", &["grp-part"]),
+                acknowledge("line-1"),
+                assign_groups("line-2", &[]),
+                acknowledge("line-2"),
+            ],
+        )
+        .unwrap();
+        let recap = &recon.recap;
+        assert_eq!(recap.lines_taken_count, 2);
+        assert_eq!(
+            recap.total_amount, 180_000,
+            "the full amounts, remainder included"
+        );
+        assert_eq!(recap.partly_paid_lines.len(), 1);
+        let partly = &recap.partly_paid_lines[0];
+        assert_eq!(partly.line_id, "line-1");
+        assert_eq!(partly.credit_line.amount, 80_000);
+        assert_eq!(partly.covered_amount, 50_000);
+        assert_eq!(partly.remainder_amount, 30_000);
+        assert_eq!(partly.fund_id, "fund-93");
+    }
+
+    // BAS-066B (spec check, #695) — a changed link is never refused for what
+    // it drops: an unassign on its line, then that group taken by another
+    // line, then the label linked to another fund.
+    #[test]
+    fn test_695_bas_066b_changed_link_after_the_group_moved_is_not_refused() {
+        let parse_result = statement(vec![
+            line_on("2026-01-15", "X", 100_000),
+            line_on("2026-03-01", "Y", 100_000),
+        ]);
+        let mappings = vec![mapping("X", Some("fund-a")), mapping("Y", Some("fund-a"))];
+        let groups = vec![group("grp-a", "fund-a", "2026-01-15", 100_000)];
+        let funds = vec![
+            fund("fund-a", "1", "Mutuelle A"),
+            fund("fund-b", "2", "Mutuelle B"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-0", &[]),
+                assign_groups("line-1", &["grp-a"]),
+                link("X", "fund-b"),
+            ],
+        )
+        .expect("a changed link is never refused for what it drops");
+        assert_eq!(recon.lines[0].fund_id.as_deref(), Some("fund-b"));
+        assert_eq!(recon.lines[1].assigned_group_ids, vec!["grp-a".to_string()]);
+    }
+
+    // BAS-113 / BAS-064A (spec check, #695) — an assignment of one kind that
+    // replaces the other is never refused: the auto-matched group released by
+    // a procedure assignment, taken by another line, then the first line
+    // assigned another group.
+    #[test]
+    fn test_695_bas_113_replacing_assignment_after_the_group_moved_is_not_refused() {
+        let parse_result = statement(vec![
+            line_on("2026-01-15", "X", 100_000),
+            line_on("2026-03-01", "Y", 100_000),
+        ]);
+        let mappings = vec![mapping("X", Some("fund-a")), mapping("Y", Some("fund-a"))];
+        let groups = vec![
+            group("grp-a", "fund-a", "2026-01-15", 100_000),
+            group("grp-c", "fund-a", "2026-01-02", 40_000),
+        ];
+        let funds = vec![fund("fund-a", "1", "Mutuelle A")];
+        let open_procedures = one_fund_open_procedures(
+            "fund-a",
+            vec![open_procedure(
+                "proc-1",
+                "2026-01-01",
+                100_000,
+                "Jean Dupont",
+            )],
+        );
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: &open_procedures,
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                BankStatementCorrection::AssignProcedures {
+                    line_id: "line-0".to_string(),
+                    procedure_ids: vec!["proc-1".to_string()],
+                },
+                assign_groups("line-1", &["grp-a"]),
+                assign_groups("line-0", &["grp-c"]),
+            ],
+        )
+        .expect("a replacing assignment is never refused for what it replaces");
+        assert_eq!(recon.lines[0].assigned_group_ids, vec!["grp-c".to_string()]);
+        assert!(recon.lines[0].assigned_procedure_ids.is_empty());
+        assert_eq!(recon.lines[1].assigned_group_ids, vec!["grp-a".to_string()]);
+    }
+
+    // BAS-067 / BAS-066B — a group released by a changed link can be assigned
+    // to another line.
+    #[test]
+    fn test_695_bas_067_group_released_by_a_changed_link_goes_to_another_line() {
+        let parse_result = statement(vec![
+            line_on("2026-01-15", "X", 100_000),
+            line_on("2026-03-01", "Y", 100_000),
+        ]);
+        let mappings = vec![mapping("X", Some("fund-a")), mapping("Y", Some("fund-a"))];
+        let groups = vec![group("grp-a", "fund-a", "2026-01-15", 100_000)];
+        let funds = vec![
+            fund("fund-a", "1", "Mutuelle A"),
+            fund("fund-b", "2", "Mutuelle B"),
+        ];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[link("X", "fund-b"), assign_groups("line-1", &["grp-a"])],
+        )
+        .expect("the released group is free for another line");
+        assert!(recon.lines[0].assigned_group_ids.is_empty());
+        assert_eq!(recon.lines[1].assigned_group_ids, vec!["grp-a".to_string()]);
+    }
+
+    // BAS-066B — a first link of a label that had no fund counts as a change:
+    // an empty assignment and an acknowledgment made while it was unlinked are
+    // dropped, and the auto-match runs.
+    #[test]
+    fn test_695_bas_066b_first_link_of_an_unassigned_label_starts_its_lines() {
+        let parse_result = statement(vec![line_on("2026-01-15", "NEW", 100_000)]);
+        let groups = vec![group("grp-a", "fund-a", "2026-01-14", 100_000)];
+        let funds = vec![fund("fund-a", "1", "Mutuelle A")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &[],
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[
+                assign_groups("line-0", &[]),
+                acknowledge("line-0"),
+                link("NEW", "fund-a"),
+            ],
+        )
+        .unwrap();
+        let line = &recon.lines[0];
+        assert_eq!(line.assigned_group_ids, vec!["grp-a".to_string()]);
+        assert!(!line.remainder_acknowledged);
     }
 }

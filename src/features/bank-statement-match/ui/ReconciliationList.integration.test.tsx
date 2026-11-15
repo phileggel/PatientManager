@@ -50,7 +50,6 @@ function makeLine(overrides: Partial<BankStatementLine>): BankStatementLine {
     covered_amount: 150000,
     remainder_acknowledged: false,
     candidate_groups: [],
-    broadened_candidates: [],
     candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
@@ -63,7 +62,12 @@ function makeReconciliation(
   resolvedCount: number,
   needsCorrectionCount: number,
 ): BankStatementReconciliation {
-  return { lines, resolved_count: resolvedCount, needs_correction_count: needsCorrectionCount };
+  return {
+    lines,
+    resolved_count: resolvedCount,
+    needs_correction_count: needsCorrectionCount,
+    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
+  };
 }
 
 // Funds resolve linked lines' fund_id → name (fund-1 → "CPAM 75", fund-2 → "MGEN").

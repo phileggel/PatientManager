@@ -87,7 +87,6 @@ function makeLine(overrides: Partial<BankStatementLine>): BankStatementLine {
     covered_amount: 150000,
     remainder_acknowledged: false,
     candidate_groups: [],
-    broadened_candidates: [],
     candidate_procedures: [],
     suggested_fund_id: null,
     suggested_fund_name: null,
@@ -104,6 +103,7 @@ function makeReconciliation(
     resolved_count: lines.filter((l) => l.status === "Matched" || l.status === "Rejected").length,
     needs_correction_count: lines.filter((l) => l.status !== "Matched" && l.status !== "Rejected")
       .length,
+    recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
     ...overrides,
   };
 }

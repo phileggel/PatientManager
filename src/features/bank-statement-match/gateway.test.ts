@@ -159,7 +159,6 @@ const RECONCILIATION_FIXTURE: BankStatementReconciliation = {
       covered_amount: 150000,
       remainder_acknowledged: false,
       candidate_groups: [],
-      broadened_candidates: [],
       candidate_procedures: [],
       suggested_fund_id: null,
       suggested_fund_name: null,
@@ -167,6 +166,7 @@ const RECONCILIATION_FIXTURE: BankStatementReconciliation = {
   ],
   resolved_count: 1,
   needs_correction_count: 0,
+  recap: { lines_taken_count: 0, total_amount: 0, partly_paid_lines: [] },
 };
 
 describe("bank-statement-match gateway — computeBankStatementReconciliation (BAS-064)", () => {

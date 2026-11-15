@@ -10,8 +10,8 @@ import { GroupCandidateRows } from "./CandidateList";
 import { LineContextHeader } from "./LineContextHeader";
 import { ProcedureCandidateList } from "./ProcedureCandidateList";
 
-/** BAS-111 — the three search scopes of the assign dialog. */
-type AssignScope = "fund" | "all" | "procedures";
+/** BAS-111 — the search scopes of the assign dialog: the line's fund only (BAS-090). */
+type AssignScope = "fund" | "procedures";
 
 interface AssignGroupsModalProps {
   line: BankStatementLine;
@@ -38,8 +38,8 @@ interface AssignGroupsModalProps {
  * BAS-068/090/091/094/111/113 — assign 1..N settlement items to a line.
  *
  * One explicit scope selector drives the candidate source: groups of the
- * line's fund (default), groups across all funds, or the fund's open
- * procedures (BAS-111 — offered only for a linked line). Switching scope
+ * line's fund (default) or the fund's open procedures (BAS-111 — offered only
+ * for a linked line); never another fund (BAS-090). Switching scope
  * always clears the selection; group and procedure selections never mix
  * (BAS-113). If the selection would overflow the line amount (BAS-094) the
  * submit actions are disabled. Submitting an empty group selection is a valid
@@ -171,10 +171,9 @@ export function AssignGroupsModal({
 
         <LineContextHeader id="assign-groups-context" creditLine={line.credit_line} />
 
-        {/* BAS-111 — one explicit scope selector for the three search scopes. */}
+        {/* BAS-111 — one explicit scope selector; groups and procedures of the line's fund. */}
         <div className="flex items-center gap-1 self-start rounded-xl border border-m3-outline/30 p-1">
           {scopeButton("fund", "reconciliation.assign_groups.scope_fund")}
-          {scopeButton("all", "reconciliation.assign_groups.scope_all")}
           {canUseProcedures &&
             scopeButton("procedures", "reconciliation.assign_groups.scope_procedures")}
         </div>
@@ -219,7 +218,7 @@ export function AssignGroupsModal({
             )
           ) : (
             <GroupCandidateRows
-              candidates={scope === "all" ? line.broadened_candidates : line.candidate_groups}
+              candidates={line.candidate_groups}
               idPrefix="assign-groups"
               selected={selectedGroupIds}
               onToggle={toggleGroup}

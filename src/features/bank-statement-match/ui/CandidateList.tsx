@@ -76,9 +76,8 @@ interface CandidateListProps {
 
 /**
  * BAS-068/090/091/116 — the wizard group step's candidate selector (wire
- * order: most recent payment first) with live balance, over the fund-scoped
- * set only — the broadened/scope switching is dialog-only (BAS-116; the
- * former standalone broaden toggle was superseded by the BAS-111 scopes).
+ * order: most recent payment first) with live balance, over the line's fund's
+ * groups (BAS-090); the scope switching is dialog-only (BAS-111, BAS-116).
  * Selection state is controlled by the host.
  */
 export function CandidateList({ line, idPrefix, selected, onSelectionChange }: CandidateListProps) {

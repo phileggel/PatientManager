@@ -46,9 +46,8 @@ pub enum BankStatementReconciliationTask {
     #[error("Assigned groups total exceeds the line amount")]
     AssignmentOverflow,
 
-    /// BAS-090 — a group is not assignable to the target line (locked/settled,
-    /// or the line's label is not linked yet). The fund criterion binds
-    /// auto-match only; manual cross-fund assignment is allowed.
+    /// BAS-090 / BAS-090A — a group is not assignable to the target line:
+    /// locked/settled, of another fund than the line's, or the line's label is not linked yet.
     /// The correction is rejected.
     #[error("Group is not eligible for this line")]
     GroupNotEligible,

@@ -35,7 +35,8 @@ pub async fn resolve_bank_account_from_iban(
 /// BAS-064 — compute the ephemeral bank-statement reconciliation.
 ///
 /// Pure read-only: no DB writes. The reconciliation is never persisted; the
-/// frontend re-calls on every correction and every revert (BAS-065).
+/// frontend re-calls it with the corrections made so far; the engine drops the
+/// superseded ones (BAS-064A).
 #[tauri::command]
 #[specta::specta]
 pub async fn compute_bank_statement_reconciliation(

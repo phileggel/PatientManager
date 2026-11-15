@@ -1850,7 +1850,7 @@ mod tests {
             .compute_reconciliation("acc-1", &parse_result, &corrections_with_unassign)
             .await;
 
-        // Revert: recompute with empty corrections list — must equal reconciliation_before.
+        // The same statement without the correction — must equal reconciliation_before.
         let reconciliation_reverted = orchestrator
             .compute_reconciliation("acc-1", &parse_result, &[])
             .await
@@ -1862,7 +1862,7 @@ mod tests {
         );
         assert_eq!(
             reconciliation_before.lines[0].status, reconciliation_reverted.lines[0].status,
-            "after reverting a correction, the reconciliation must equal the pre-correction state (BAS-065)"
+            "without the correction, the reconciliation equals the pre-correction state (BAS-064)"
         );
     }
 

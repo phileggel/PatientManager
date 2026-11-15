@@ -1,7 +1,7 @@
 # Contract — Bank Statement Auto-Match
 
 > Domain: bank-statement-auto-match
-> Last updated by: `bank-statement-manual-match` spec, BSM-037 (#640), 2026-11-14
+> Last updated by: `bank-statement-auto-match` spec — BAS-064A, BAS-066B–C, BAS-090A (#695), 2026-11-15
 
 > Wire errors are the composite `BankStatementReconciliationError` (untagged union of `BankError`, `FundError`, and the use-case `BankStatementReconciliationTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
@@ -81,17 +81,17 @@ Final step. For each confirmed match, creates one `BankEntry` (R19), updates all
 
 ### `get_bank_statement_reconciliation_config` — R11 — **SUPERSEDED**
 
-Superseded by the draft-UX rework (BAS-060–102): broadening moved server-side (`broadened_candidates` on each line), so no frontend consumer of the config remains. The command was never implemented. _(Marked 2026-07-30 — spec-checker found it listed active with zero implementation.)_
+Superseded by the draft-UX rework (BAS-060–102): broadening moved server-side, then went with the cross-fund match (#695), so no frontend consumer of the config remains. The command was never implemented. _(Marked 2026-07-30 — spec-checker found it listed active with zero implementation.)_
 
 ---
 
 ### `compute_bank_statement_reconciliation` — BAS-030–032, BAS-036, BAS-041D, BAS-060–068, BAS-090–092, BAS-094, BAS-112–113, BAS-117
 
-The reconciliation engine. Computes the full bank-statement reconciliation as a pure function of the parsed statement plus an ordered list of correction commands. A saved label whose fund is gone is not a known label, so it is asked again (BAS-041D). Reads live unsettled `FundPaymentGroup`s, saved label mappings, and — for linked lines — the fund's **open procedures with patient display names** (BAS-112 predicate: line's fund, `payment_status == Created`, in no active fund-payment-group line, positive billed amount; ordered oldest procedure date first, id tiebreak). Applies heuristic suggestions, runs the auto-match (BAS-050–054), then **replays every correction in order** — link-fund cascade incl. procedure-assignment drop on re-link (BAS-066), group assignment with consumption (BAS-067, BAS-090), procedure assignment with consumption and per-line group/procedure mutual exclusion resolved by correction-list removal (BAS-113 — the exclusion is a cascade, never an error), remainder acknowledgment (BAS-092; applying either assignment kind resets a previously acknowledged remainder — its implied size changed, BAS-113; a zero-item acknowledgment resolves the line as left aside, BAS-123B) — re-deriving each line's status, candidate groups, and candidate procedures. Read-only: no DB writes; the reconciliation is never persisted (ephemeral, BAS-064). The frontend re-calls this on every correction and every revert (BAS-065 = drop a command and recompute).
+The reconciliation engine. Computes the full bank-statement reconciliation as a pure function of the parsed statement plus an ordered list of correction commands. A saved label whose fund is gone is not a known label, so it is asked again (BAS-041D). Reads live unsettled `FundPaymentGroup`s, saved label mappings, and — for linked lines — the fund's **open procedures with patient display names** (BAS-112 predicate: line's fund, `payment_status == Created`, in no active fund-payment-group line, positive billed amount; ordered oldest procedure date first, id tiebreak). Applies heuristic suggestions, runs the auto-match (BAS-050–054), then **replays the corrections in order**, each replacing what an earlier one set (BAS-064A) — link-fund cascade (BAS-066): a link to another fund, or a rejection, starts the label's lines again, their groups and procedures released and the auto-match re-run, never refused for what it drops (BAS-066B); a link to the same fund changes nothing (BAS-066C); group assignment with consumption, the line's fund only (BAS-067, BAS-090, BAS-090A), procedure assignment with consumption and per-line group/procedure mutual exclusion — one kind replaces the other, never an error (BAS-113), remainder acknowledgment (BAS-092; applying either assignment kind resets a previously acknowledged remainder — its implied size changed, BAS-113; a zero-item acknowledgment resolves the line as left aside, BAS-123B) — re-deriving each line's status, candidate groups, and candidate procedures, and the recap — a view of the lines for the screen, no business rule of its own (owner, 2026-11-15). Read-only: no DB writes; the reconciliation is never persisted (ephemeral, BAS-064). The frontend re-calls this with the corrections made so far, in order.
 
 - **Args:** `bank_account_id: String, parse_result: BankStatementParseResult, corrections: Vec<BankStatementCorrection>`
 - **Returns:** `BankStatementReconciliation`
-- **Errors:** `AssignmentOverflow` (BAS-094 — assigned items exceed the line amount, either kind), `GroupNotEligible` (BAS-090 — group unknown or failing lock/settled criteria, or the line not linked to a fund, BAS-064), `GroupAlreadyConsumed` (BAS-067 — group assigned to another line), `ProcedureNotEligible` (BAS-113 — procedure unknown, soft-deleted, not open, or not of the line's fund; subsumes not-found, no separate `ProcedureNotFound`; or the line not linked to a fund, BAS-064), `ProcedureAlreadyConsumed` (BAS-113 — procedure assigned to another line), `LineNotFound`, `FundNotFound`, `DatabaseError`
+- **Errors:** `AssignmentOverflow` (BAS-094 — assigned items exceed the line amount, either kind), `GroupNotEligible` (BAS-090, BAS-090A — group unknown, of another fund than the line's, or failing lock/settled criteria, or the line not linked to a fund, BAS-064), `GroupAlreadyConsumed` (BAS-067 — group assigned to another line), `ProcedureNotEligible` (BAS-113 — procedure unknown, soft-deleted, not open, or not of the line's fund; subsumes not-found, no separate `ProcedureNotFound`; or the line not linked to a fund, BAS-064), `ProcedureAlreadyConsumed` (BAS-113 — procedure assigned to another line), `LineNotFound`, `FundNotFound`, `DatabaseError`
 
 ---
 
@@ -218,8 +218,8 @@ struct BankStatementReconciliationConfig {
 
 // BAS-060–068, BAS-090–094, BAS-112–113: reconciliation model — all of the following are ephemeral (never persisted)
 
-// One user correction, replayed in order by compute_bank_statement_reconciliation / validate.
-// Reverting a correction = removing it from the list and recomputing (BAS-065).
+// One user correction, replayed in order by compute_bank_statement_reconciliation / validate;
+// each replaces what an earlier one set on its line or label (BAS-064A).
 enum BankStatementCorrection {
     LinkFund { bank_label: String, assignment: FundAssignment }, // BAS-066, BAS-030
     AssignGroups { line_id: String, group_ids: Vec<String> },    // 1..N groups; empty = unassign/override auto-match (BAS-062, BAS-090)
@@ -239,6 +239,23 @@ struct BankStatementReconciliation {
     lines: Vec<BankStatementLine>,
     resolved_count: u32,        // whole-document totals, no consumer: the screen counts its visible lines;
     needs_correction_count: u32, // removal deferred to the next wire change (#359)
+    recap: BankStatementRecap,   // the screen's recap — a view of the lines, no business rule
+}
+
+// The recap: a view of the draft's lines for the screen before validate (owner, 2026-11-15).
+struct BankStatementRecap {
+    lines_taken_count: u32,      // matched lines with ≥1 settlement item, auto-matched included (not left aside, not rejected)
+    total_amount: i64,           // Σ the full credit amounts of those lines, remainders included
+    partly_paid_lines: Vec<BankStatementPartlyPaidLine>, // those covered below their amount, document order
+}
+
+// A recap line whose items cover less than its amount (acknowledged remainder, BAS-092).
+struct BankStatementPartlyPaidLine {
+    line_id: String,
+    credit_line: BankStatementCreditLine,
+    fund_id: String,
+    covered_amount: i64,
+    remainder_amount: i64,       // credit amount − covered amount (BAS-092)
 }
 
 // One bank credit line within the reconciliation, in document order (BAS-060).
@@ -251,8 +268,7 @@ struct BankStatementLine {
     assigned_procedure_ids: Vec<String>, // BAS-113 — 0..N; exclusive with assigned_group_ids
     covered_amount: i64,        // BAS-091 — Σ assigned group amounts OR Σ assigned procedure billed amounts
     remainder_acknowledged: bool,     // BAS-092
-    candidate_groups: Vec<BankStatementCandidate>, // BAS-068 — proposals for needs-group/partial, fund-filtered (default view), most recent first
-    broadened_candidates: Vec<BankStatementCandidate>, // BAS-068 — same proposals across ALL funds; shown on "broaden"
+    candidate_groups: Vec<BankStatementCandidate>, // BAS-068 — proposals for needs-group/partial, of the line's fund only (BAS-090A), most recent first
     candidate_procedures: Vec<BankStatementProcedureCandidate>, // BAS-112 — the linked fund's open procedures, oldest first; empty while needs-link
     suggested_fund_id: Option<String>,     // BAS-032 — heuristic, never the label's assignment (BAS-036)
     suggested_fund_name: Option<String>,
@@ -272,7 +288,7 @@ enum BankStatementLineStatus {
 struct BankStatementCandidate {
     group_id: String,
     fund_id: String,
-    fund_name: String,          // resolved for display — identifies the row in the broadened (cross-fund) view
+    fund_name: String,          // resolved for display
     payment_date: String,
     total_amount: i64,
     is_exact_amount: bool,      // group total == line amount (the recomposition basis, BAS-068)
@@ -314,3 +330,4 @@ struct BankStatementProcedureCandidate {
 - 2026-11-08 — `validate_bank_statement_reconciliation`: a technical account is refused as unknown too (BAC-055A, #518); no signature change.
 - 2026-11-14 — #643: the spec holds business rules only; the rule references follow (BAC-020 for the account created for an unknown IBAN, BAS-022, BAS-030–032, BAS-036, BAS-041A with #683, BAS-112–113, BAS-117; BAS-069 is vacant, its counters' removal is #359). No signature, type or error change.
 - 2026-11-14 — #640: `validate_bank_statement_reconciliation` can answer `BankPaymentAlreadyConfirmed` (BSM-037), a defensive guard; a group already linked answers `DatabaseError` at its link (BSM-038). The born group is born `Active`, then settled, as BAS-115 says; `PaymentGroupNotFound` is listed.
+- 2026-11-15 — #695 (the four steps, #692): `BankStatementLine.broadened_candidates` removed and `GroupNotEligible` refuses a group of another fund (BAS-068, BAS-090A — no cross-fund match); corrections replace in order, none refused for what it replaces (BAS-064A); a link to another fund, or a rejection, starts the label's lines again (BAS-066B), the same fund changes nothing (BAS-066C); `BankStatementReconciliation.recap` added (`BankStatementRecap`, `BankStatementPartlyPaidLine` — a view of the lines for the screen, no spec rule). BAS-065 (revert one correction) and BAS-062B are vacant.
