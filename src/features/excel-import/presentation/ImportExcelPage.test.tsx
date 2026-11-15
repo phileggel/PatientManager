@@ -228,3 +228,78 @@ describe("ImportExcelPage", () => {
     expect(Array.isArray(sheetsArg)).toBe(true);
   });
 });
+
+describe("ImportExcelPage — a failed import (#621)", () => {
+  async function confirmMapping() {
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /continue/i })).toBeInTheDocument(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => expect(screen.queryByText("Map Procedure Types")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+  }
+
+  it("shows the failure in the mapping modal, and confirming again imports the same parse", async () => {
+    mockExecuteExcelImport
+      .mockResolvedValueOnce({ success: false, error: { code: "ImportFailed" } })
+      .mockResolvedValueOnce({ success: true, data: importExecutionResult });
+
+    render(<ImportExcelPage {...defaultProps} />);
+    await confirmMapping();
+
+    await waitFor(() =>
+      expect(document.getElementById("excel-import-mapping-failure")).not.toBeNull(),
+    );
+    expect(
+      document
+        .getElementById("excel-mapping-procedure-types-modal")
+        ?.contains(document.getElementById("excel-import-mapping-failure")),
+    ).toBe(true);
+
+    await userEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+
+    await waitFor(() => expect(mockExecuteExcelImport).toHaveBeenCalledTimes(2));
+    expect(mockParseExcelFile).toHaveBeenCalledOnce();
+    expect(mockExecuteExcelImport.mock.calls[1]?.[0]).toBe(
+      mockExecuteExcelImport.mock.calls[0]?.[0],
+    );
+  });
+
+  it("keeps the user's own choices after a failure", async () => {
+    mockExecuteExcelImport.mockResolvedValueOnce({
+      success: false,
+      error: { code: "ImportFailed" },
+    });
+
+    render(<ImportExcelPage {...defaultProps} />);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /continue/i })).toBeInTheDocument(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await waitFor(() => expect(screen.queryByText("Map Procedure Types")).toBeInTheDocument());
+    const select = (await screen.findAllByRole("combobox"))[0] as HTMLSelectElement;
+    await userEvent.selectOptions(select, "type-2");
+    await userEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+
+    await waitFor(() =>
+      expect(document.getElementById("excel-import-mapping-failure")).not.toBeNull(),
+    );
+    expect(((await screen.findAllByRole("combobox"))[0] as HTMLSelectElement).value).toBe("type-2");
+  });
+
+  it("names a type deleted since the mapping (EXI-151)", async () => {
+    mockExecuteExcelImport.mockResolvedValueOnce({
+      success: false,
+      error: { code: "ProcedureTypeNotFound", procedure_type_id: "type-1" },
+    });
+
+    render(<ImportExcelPage {...defaultProps} />);
+    await confirmMapping();
+
+    await waitFor(() =>
+      expect(document.getElementById("excel-import-mapping-failure")?.textContent).toContain(
+        "Consultation",
+      ),
+    );
+  });
+});
