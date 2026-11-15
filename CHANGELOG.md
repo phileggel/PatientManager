@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0] - 2026-11-15
+
+### Added
+
+- bank import lists every line, matches it in a modal, then recaps
+- bank import labels get an ignore switch and a searchable fund
+- the bank import keeps one height and asks before dropping work
+- a bank line is matched only with its own fund's payments
+
+### Fixed
+
+- the procedure form pre-fills today's date and the latest values
+- a failed Excel import says so in its mapping window
+- the Excel import reports every row it leaves out
+
 ## [0.28.0] - 2026-11-08
 
 ### Added
