@@ -1,23 +1,29 @@
 {
   "label_association": {
-    "title": "Associer chaque libellé bancaire à une caisse",
+    "title": "Associer chaque libellé de ce relevé à une caisse",
     "line_count": "{{count}} ligne(s)",
-    "select_placeholder": "-- Sélectionner une caisse --",
-    "select_aria": "Caisse pour le libellé {{label}}",
+    "field_label": "Caisse pour le libellé {{label}}",
+    "search_placeholder": "Rechercher une caisse",
     "suggestion": "Suggestion : {{name}}",
     "chip": {
-      "linked": "Associé",
+      "known": "Reconnu",
+      "new": "Nouveau lien",
       "todo": "À associer",
       "ignored": "Ignoré"
     },
     "ignore": "Ignorer",
-    "restore": "Rétablir",
-    "confirm_drop": "Les sélections en cours sur ces lignes seront perdues.",
-    "confirm": "Confirmer",
-    "confirm_cancel": "Annuler",
-    "progress": "{{decided}} / {{total}} libellés décidés",
-    "cancel": "Annuler",
-    "continue": "Continuer"
+    "ignored_note": "Ignoré : ses lignes ne seront pas rapprochées, et ce libellé sera ignoré aux prochains imports.",
+    "changed_note_one": "Lien modifié : sa ligne repartira à zéro au rapprochement. Les autres lignes gardent leur rapprochement.",
+    "changed_note_other": "Lien modifié : ses {{count}} lignes repartiront à zéro au rapprochement. Les autres lignes gardent leur rapprochement.",
+    "counter": {
+      "known": "{{count}} reconnu(s)",
+      "new": "{{count}} nouveau(x)",
+      "todo": "{{count}} à associer",
+      "ignored": "{{count}} ignoré(s)"
+    },
+    "cancel_all": "Tout annuler",
+    "continue": "Continuer ›",
+    "back_to_matching": "Retour au rapprochement ›"
   },
   "reconciliation": {
     "summary": "{{resolved}} résolue(s), {{needsCorrection}} à corriger",
@@ -56,20 +62,6 @@
     "remainder": {
       "amount": "Reliquat non couvert : {{amount}}"
     },
-    "applied_corrections": {
-      "title": "Corrections appliquées",
-      "revert": "Annuler",
-      "revert_aria": "Annuler cette correction"
-    },
-    "correction": {
-      "link_fund": "« {{label}} » associé à une caisse",
-      "link_fund_rejected": "« {{label}} » marqué comme non-caisse",
-      "assign_groups": "{{count}} groupe(s) affecté(s) à la ligne {{line}}",
-      "unassign_groups": "Ligne {{line}} désaffectée",
-      "assign_procedures": "{{count}} acte(s) affecté(s) à la ligne {{line}}",
-      "unassign_procedures": "Actes désaffectés de la ligne {{line}}",
-      "acknowledge_remainder": "Reliquat accepté sur la ligne {{line}}"
-    },
     "wizard": {
       "open": "Correction guidée",
       "title": "Correction guidée",
@@ -88,7 +80,13 @@
       "amount": "Montant",
       "status": "Statut"
     },
-    "back_to_labels": "‹ Retour aux libellés"
+    "back_to_labels": "‹ Retour aux libellés",
+    "steps": {
+      "import": "Import",
+      "labels": "Libellés",
+      "matching": "Rapprochement",
+      "recap": "Récapitulatif"
+    }
   },
   "statement": {
     "title": "Rapprochement Bancaire",

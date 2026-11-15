@@ -5,15 +5,11 @@
  * file, not inline in the `.tsx` screen component.
  *
  * `deriveLabelRows` groups the reconciliation's lines by `credit_line.label`,
- * ordered by first occurrence (BAS-120); `allLabelsDecided` implements the
- * BAS-121 gate; `lastLinkFundCorrectionIndex` locates the in-session
- * correction a "Rétablir" click should revert (BAS-120C).
- *
- * These tests fail until shared/labelRows.ts is created.
+ * ordered by first occurrence (BAS-120).
  */
 import { describe, expect, it } from "vitest";
-import type { BankStatementCorrection, BankStatementLine } from "@/bindings";
-import { allLabelsDecided, deriveLabelRows, lastLinkFundCorrectionIndex } from "./labelRows";
+import type { BankStatementLine } from "@/bindings";
+import { deriveLabelRows } from "./labelRows";
 
 function makeLine(overrides: Partial<BankStatementLine> = {}): BankStatementLine {
   return {
@@ -112,128 +108,5 @@ describe("deriveLabelRows — BAS-120", () => {
     expect(rows[0]?.fundId).toBeNull();
     expect(rows[0]?.suggestedFundId).toBe("fund-2");
     expect(rows[0]?.suggestedFundName).toBe("Mutuelle Générale");
-  });
-
-  it("flags hasAssignedItems when any line of the label carries assigned groups", () => {
-    const lines = [
-      makeLine({
-        line_id: "l1",
-        status: "Matched",
-        fund_id: "fund-1",
-        assigned_group_ids: ["group-1"],
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 },
-      }),
-      makeLine({
-        line_id: "l2",
-        status: "NeedsGroup",
-        fund_id: "fund-1",
-        credit_line: { date: "2026-04-11", label: "CPAM75", amount: 500 },
-      }),
-    ];
-
-    const rows = deriveLabelRows(lines);
-
-    expect(rows[0]?.hasAssignedItems).toBe(true);
-  });
-
-  it("flags hasAssignedItems when any line of the label carries assigned procedures", () => {
-    const lines = [
-      makeLine({
-        line_id: "l1",
-        status: "Partial",
-        fund_id: "fund-1",
-        assigned_procedure_ids: ["proc-1"],
-        credit_line: { date: "2026-04-10", label: "RATP", amount: 1000 },
-      }),
-    ];
-
-    const rows = deriveLabelRows(lines);
-
-    expect(rows[0]?.hasAssignedItems).toBe(true);
-  });
-
-  it("does not flag hasAssignedItems when no line of the label carries settlement items", () => {
-    const lines = [
-      makeLine({
-        line_id: "l1",
-        status: "NeedsGroup",
-        fund_id: "fund-1",
-        credit_line: { date: "2026-04-10", label: "CPAM75", amount: 1000 },
-      }),
-    ];
-
-    const rows = deriveLabelRows(lines);
-
-    expect(rows[0]?.hasAssignedItems).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// allLabelsDecided — BAS-121 gate
-// ---------------------------------------------------------------------------
-
-describe("allLabelsDecided — BAS-121", () => {
-  it("is false when at least one label is neither linked nor ignored", () => {
-    const lines = [
-      makeLine({ line_id: "l1", status: "Matched", fund_id: "fund-1" }),
-      makeLine({
-        line_id: "l2",
-        status: "NeedsLink",
-        fund_id: null,
-        credit_line: { date: "2026-04-11", label: "MGEN", amount: 500 },
-      }),
-    ];
-
-    expect(allLabelsDecided(deriveLabelRows(lines))).toBe(false);
-  });
-
-  it("is true when every label is linked or ignored", () => {
-    const lines = [
-      makeLine({ line_id: "l1", status: "Matched", fund_id: "fund-1" }),
-      makeLine({
-        line_id: "l2",
-        status: "Rejected",
-        fund_id: null,
-        credit_line: { date: "2026-04-11", label: "MGEN", amount: 500 },
-      }),
-    ];
-
-    expect(allLabelsDecided(deriveLabelRows(lines))).toBe(true);
-  });
-
-  it("is vacuously true for zero labels", () => {
-    expect(allLabelsDecided(deriveLabelRows([]))).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// lastLinkFundCorrectionIndex — BAS-120C Rétablir target
-// ---------------------------------------------------------------------------
-
-describe("lastLinkFundCorrectionIndex — BAS-120C", () => {
-  it("returns null when no correction targets the label (saved mapping/rejection)", () => {
-    const corrections: BankStatementCorrection[] = [
-      { type: "LinkFund", bank_label: "CPAM75", assignment: { type: "Rejected" } },
-    ];
-
-    expect(lastLinkFundCorrectionIndex(corrections, "MGEN")).toBeNull();
-  });
-
-  it("returns the index of the matching LinkFund correction", () => {
-    const corrections: BankStatementCorrection[] = [
-      { type: "AssignGroups", line_id: "line-1", group_ids: [] },
-      { type: "LinkFund", bank_label: "MGEN", assignment: { type: "Rejected" } },
-    ];
-
-    expect(lastLinkFundCorrectionIndex(corrections, "MGEN")).toBe(1);
-  });
-
-  it("returns the LAST matching index when the label was re-linked more than once", () => {
-    const corrections: BankStatementCorrection[] = [
-      { type: "LinkFund", bank_label: "MGEN", assignment: { type: "Fund", fund_id: "fund-1" } },
-      { type: "LinkFund", bank_label: "MGEN", assignment: { type: "Rejected" } },
-    ];
-
-    expect(lastLinkFundCorrectionIndex(corrections, "MGEN")).toBe(1);
   });
 });

@@ -13,99 +13,10 @@ import {
 
 const TAG = "[useBankStatementReconciliation]";
 
-type AssignmentCorrection = Extract<
-  BankStatementCorrection,
-  { type: "AssignGroups" } | { type: "AssignProcedures" }
->;
-
-function isAssignment(c: BankStatementCorrection): c is AssignmentCorrection {
-  return c.type === "AssignGroups" || c.type === "AssignProcedures";
-}
-
-/** The line ids currently carrying `label` — the scope of a LinkFund cascade. */
-function lineIdsForLabel(
-  reconciliation: BankStatementReconciliation | null,
-  label: string,
-): Set<string> {
-  return new Set(
-    (reconciliation?.lines ?? [])
-      .filter((l) => l.credit_line.label === label)
-      .map((l) => l.line_id),
-  );
-}
-
-function assignsProcedures(
-  c: BankStatementCorrection,
-): c is Extract<BankStatementCorrection, { type: "AssignProcedures" }> {
-  return c.type === "AssignProcedures" && c.procedure_ids.length > 0;
-}
-
-/**
- * BAS-113/092/066 — compact the STORED correction list before appending
- * `incoming`. The engine's pre-replay filter mirrors these removals
- * server-side, but only stored-list compaction keeps REVERTS safe: a
- * superseded entry left in the list would resurrect when a later correction
- * is reverted (BAS-065 = drop one entry and recompute).
- *
- * - An assignment supersedes any prior assignment of the OTHER kind for its
- *   line (BAS-113 mutual exclusion — same-kind reassignment keeps BAS-062
- *   replace-on-replay semantics) and any prior acknowledgment for its line
- *   (BAS-092 — its implied size changed).
- * - A LinkFund that changes a label's fund (or rejects the label) drops the
- *   AssignProcedures corrections staged under the old fund (BAS-066 —
- *   procedures never cross funds). An empty one assigns nothing and stays: the
- *   correction still holds the line (BAS-062B).
- */
-function compactForApply(
-  list: BankStatementCorrection[],
-  incoming: BankStatementCorrection,
-  reconciliation: BankStatementReconciliation | null,
-): BankStatementCorrection[] {
-  if (isAssignment(incoming)) {
-    const otherKind = incoming.type === "AssignGroups" ? "AssignProcedures" : "AssignGroups";
-    return list.filter(
-      (c) =>
-        !(
-          (c.type === otherKind || c.type === "AcknowledgeRemainder") &&
-          c.line_id === incoming.line_id
-        ),
-    );
-  }
-  if (incoming.type === "LinkFund") {
-    const affected = lineIdsForLabel(reconciliation, incoming.bank_label);
-    const fundChangedFor = (lineId: string): boolean => {
-      if (incoming.assignment.type === "Rejected") return true;
-      const line = reconciliation?.lines.find((l) => l.line_id === lineId);
-      return line?.fund_id !== incoming.assignment.fund_id;
-    };
-    return list.filter(
-      (c) => !(assignsProcedures(c) && affected.has(c.line_id) && fundChangedFor(c.line_id)),
-    );
-  }
-  return list;
-}
-
-/**
- * BAS-065/066 — remove the reverted entry; reverting a LinkFund additionally
- * drops the dependent AssignProcedures corrections for lines of that label
- * (their procedures would be wrong-fund ineligible once the link is gone).
- */
-function compactForRevert(
-  list: BankStatementCorrection[],
-  index: number,
-  reconciliation: BankStatementReconciliation | null,
-): BankStatementCorrection[] {
-  const removed = list[index];
-  let next = list.filter((_, i) => i !== index);
-  if (removed?.type === "LinkFund") {
-    const affected = lineIdsForLabel(reconciliation, removed.bank_label);
-    next = next.filter((c) => !(assignsProcedures(c) && affected.has(c.line_id)));
-  }
-  return next;
-}
-
 export interface UseBankStatementReconciliationReturn {
   reconciliation: BankStatementReconciliation | null;
+  /** The draft before any correction: the saved links (« Reconnu », #697). */
+  initialReconciliation: BankStatementReconciliation | null;
   corrections: BankStatementCorrection[];
   isBusy: boolean;
   error: BankStatementReconciliationError | null;
@@ -113,19 +24,18 @@ export interface UseBankStatementReconciliationReturn {
   applyCorrection: (correction: BankStatementCorrection) => Promise<boolean>;
   /** Drop the last rejection message — hosts call it when a dialog is dismissed or changes line. */
   clearError: () => void;
-  revertCorrection: (index: number) => Promise<void>;
   validate: () => Promise<number | null>;
 }
 
 /**
- * Owns the corrections list and the recomputed draft reconciliation (BAS-062/064/065).
+ * Owns the corrections list and the recomputed draft reconciliation (BAS-062/064).
  *
- * - On mount: compute with an empty corrections list.
- * - `applyCorrection`: append, recompute; the correction is only committed and
- *   the draft only advanced when compute succeeds (BAS-064 — a failing
- *   correction leaves the prior draft intact).
- * - `revertCorrection`: drop the i-th correction and recompute (BAS-065); no-op
- *   for an out-of-range index.
+ * - On mount: compute with an empty corrections list; that first draft is kept
+ *   as `initialReconciliation` (the saved links, #697).
+ * - `applyCorrection`: append as made, recompute — the engine replays them in
+ *   order, each replacing what an earlier one set (BAS-064A); the correction is
+ *   only committed and the draft only advanced when compute succeeds (BAS-064 —
+ *   a failing correction leaves the prior draft intact).
  * - `validate`: commit server-side; returns the created BankEntry count or null.
  */
 export function useBankStatementReconciliation(
@@ -133,16 +43,16 @@ export function useBankStatementReconciliation(
   parseResult: BankStatementParseResult,
 ): UseBankStatementReconciliationReturn {
   const [reconciliation, setReconciliation] = useState<BankStatementReconciliation | null>(null);
+  const [initialReconciliation, setInitialReconciliation] =
+    useState<BankStatementReconciliation | null>(null);
   const [corrections, setCorrections] = useState<BankStatementCorrection[]>([]);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<BankStatementReconciliationError | null>(null);
 
-  // Mirror the committed corrections + latest draft in refs so callbacks read
-  // the latest state without re-binding on every change.
+  // Mirror the committed corrections in a ref so callbacks read the latest
+  // list without re-binding on every change.
   const correctionsRef = useRef<BankStatementCorrection[]>([]);
   correctionsRef.current = corrections;
-  const reconciliationRef = useRef<BankStatementReconciliation | null>(null);
-  reconciliationRef.current = reconciliation;
 
   const recompute = useCallback(
     async (nextCorrections: BankStatementCorrection[]): Promise<boolean> => {
@@ -160,6 +70,9 @@ export function useBankStatementReconciliation(
           return false;
         }
         setReconciliation(result.data);
+        if (nextCorrections.length === 0) {
+          setInitialReconciliation((current) => current ?? result.data);
+        }
         return true;
       } finally {
         setIsBusy(false);
@@ -175,10 +88,7 @@ export function useBankStatementReconciliation(
 
   const applyCorrection = useCallback(
     async (correction: BankStatementCorrection): Promise<boolean> => {
-      const next = [
-        ...compactForApply(correctionsRef.current, correction, reconciliationRef.current),
-        correction,
-      ];
+      const next = [...correctionsRef.current, correction];
       const ok = await recompute(next);
       if (ok) {
         // Update the ref eagerly so an awaited follow-up correction in the
@@ -188,20 +98,6 @@ export function useBankStatementReconciliation(
         setCorrections(next);
       }
       return ok;
-    },
-    [recompute],
-  );
-
-  const revertCorrection = useCallback(
-    async (index: number) => {
-      const current = correctionsRef.current;
-      if (index < 0 || index >= current.length) return;
-      const next = compactForRevert(current, index, reconciliationRef.current);
-      const ok = await recompute(next);
-      if (ok) {
-        correctionsRef.current = next;
-        setCorrections(next);
-      }
     },
     [recompute],
   );
@@ -230,12 +126,12 @@ export function useBankStatementReconciliation(
 
   return {
     reconciliation,
+    initialReconciliation,
     corrections,
     isBusy,
     error,
     applyCorrection,
     clearError,
-    revertCorrection,
     validate,
   };
 }

@@ -19,7 +19,6 @@ import os from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { clearE2eOverrides, setE2eOverrides } from "../helpers/e2e";
-import { setReactSelectValue } from "../helpers/seed";
 import { tauriInvoke } from "../helpers/tauri-invoke";
 
 const FIXTURE = fileURLToPath(
@@ -58,7 +57,7 @@ describe("Bank statement reconciliation — full flow from a statement PDF", () 
 
     // The account the statement's IBAN resolves to, and a fund payment group
     // the first credit line can settle.
-    await invokeOk("create_bank_account", {
+    const account = await invokeOk<{ id: string }>("create_bank_account", {
       name: "E2E Statement Account",
       iban: FIXTURE_IBAN,
     });
@@ -87,6 +86,23 @@ describe("Bank statement reconciliation — full flow from a statement PDF", () 
       fundId,
       paymentDate: GROUP_PAYMENT_DATE,
       procedureIds: [procedure.id],
+    });
+    // #697 — the label starts linked (« Reconnu »): its link is saved by a first
+    // validate of a one-line statement that matches nothing (BAS-035), so no
+    // bank entry is created. The fund field is a ComboboxField, which WebDriver
+    // cannot drive (ADR-004's carve-out).
+    await invokeOk("validate_bank_statement_reconciliation", {
+      bankAccountId: account.id,
+      parseResult: {
+        iban: FIXTURE_IBAN,
+        period: null,
+        credit_lines: [{ date: GROUP_PAYMENT_DATE, label: MATCHED_LABEL, amount: 1 }],
+        total_credits: 1,
+        unparsed_count: 0,
+      },
+      corrections: [
+        { type: "LinkFund", bank_label: MATCHED_LABEL, assignment: { type: "Fund", fund_id: fundId } },
+      ],
     });
     transfersBefore = (await invokeOk<unknown[]>("read_all_bank_transfers", {})).length;
 
@@ -120,11 +136,12 @@ describe("Bank statement reconciliation — full flow from a statement PDF", () 
       );
     }
 
-    // Link one label to its fund, ignore the two others, continue.
-    await setReactSelectValue(`label-assoc-select-${MATCHED_LABEL}`, fundId);
-    await browser.waitUntil(
-      async () => (await $(`#label-assoc-select-${MATCHED_LABEL}`).getValue()) === fundId,
-      { timeout: 10000, timeoutMsg: "the label should show its linked fund" },
+    // The linked label is recognized; ignore the two others with their switch, continue.
+    await $(`#label-assoc-chip-${MATCHED_LABEL}`).waitForExist({ timeout: 10000 });
+    assert.equal(
+      await $(`#label-assoc-ignore-${MATCHED_LABEL}`).getAttribute("aria-checked"),
+      "false",
+      "the recognized label is not ignored",
     );
 
     for (const label of IGNORED_LABELS) {

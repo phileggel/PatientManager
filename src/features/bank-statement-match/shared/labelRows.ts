@@ -1,4 +1,4 @@
-import type { BankStatementCorrection, BankStatementLine } from "@/bindings";
+import type { BankStatementLine } from "@/bindings";
 
 /** One label-association row (BAS-120A), derived from the draft's lines. */
 export interface LabelRow {
@@ -13,8 +13,6 @@ export interface LabelRow {
   isRejected: boolean;
   suggestedFundId: string | null;
   suggestedFundName: string | null;
-  /** BAS-120E — any of the label's lines carries assigned settlement items. */
-  hasAssignedItems: boolean;
 }
 
 /**
@@ -38,7 +36,6 @@ export function deriveLabelRows(lines: BankStatementLine[]): LabelRow[] {
         isRejected: false,
         suggestedFundId: null,
         suggestedFundName: null,
-        hasAssignedItems: false,
       };
       byLabel.set(label, row);
       rows.push(row);
@@ -49,9 +46,6 @@ export function deriveLabelRows(lines: BankStatementLine[]): LabelRow[] {
     if (line.status === "Rejected") row.isRejected = true;
     row.suggestedFundId ??= line.suggested_fund_id;
     row.suggestedFundName ??= line.suggested_fund_name;
-    if (line.assigned_group_ids.length > 0 || line.assigned_procedure_ids.length > 0) {
-      row.hasAssignedItems = true;
-    }
   }
   return rows;
 }
@@ -63,27 +57,4 @@ export function deriveLabelRows(lines: BankStatementLine[]): LabelRow[] {
  */
 export function labelSlug(label: string): string {
   return label.replace(/\s+/g, "_");
-}
-
-/** BAS-121 — the « Continuer » gate: every label linked or ignored. */
-export function allLabelsDecided(rows: LabelRow[]): boolean {
-  return rows.every((row) => row.fundId !== null || row.isRejected);
-}
-
-/**
- * BAS-120C — the in-session correction a « Rétablir » click reverts: the LAST
- * LinkFund correction targeting the label, or null when the label's state
- * comes from a saved mapping (nothing to revert).
- */
-export function lastLinkFundCorrectionIndex(
-  corrections: BankStatementCorrection[],
-  label: string,
-): number | null {
-  for (let i = corrections.length - 1; i >= 0; i--) {
-    const correction = corrections[i];
-    if (correction?.type === "LinkFund" && correction.bank_label === label) {
-      return i;
-    }
-  }
-  return null;
 }

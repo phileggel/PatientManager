@@ -233,6 +233,30 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     expect(document.getElementById("label-assoc-continue")).toBeNull();
   });
 
+  it("shows the step bar, and back from the matching offers to return there (#697)", async () => {
+    const user = userEvent.setup();
+    mockCompute.mockResolvedValue({ success: true, data: makeReconciliation([MATCHED_LINE]) });
+
+    renderView();
+    await waitFor(() => {
+      expect(
+        document.getElementById("bank-statement-step-labels")?.getAttribute("aria-current"),
+      ).toBe("step");
+    });
+    await goToSettlement(user);
+    expect(
+      document.getElementById("bank-statement-step-matching")?.getAttribute("aria-current"),
+    ).toBe("step");
+
+    const back = document.getElementById("reconciliation-back-to-labels");
+    if (!back) throw new Error("back button missing");
+    await user.click(back);
+
+    expect(document.getElementById("label-assoc-continue")?.textContent).toBe(
+      "label_association.back_to_matching",
+    );
+  });
+
   it("shows only linked labels' lines on the settlement screen — a rejected label's line never renders there (BAS-122)", async () => {
     const user = userEvent.setup();
     mockCompute.mockResolvedValue({
@@ -426,54 +450,6 @@ describe("ReconciliationView — modal routing on the settlement screen (BAS-062
       expect(document.getElementById("assign-groups-submit")).toBeNull();
     });
     expect(mockCompute).toHaveBeenCalledTimes(callCountAfterSettlement);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Applied corrections + revert (settlement screen, BAS-065)
-// ---------------------------------------------------------------------------
-
-describe("ReconciliationView — applied corrections on the settlement screen (BAS-065)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    useCacheStore.setState({ funds: MOCK_FUNDS });
-  });
-
-  it("lists an applied correction and reverts it on revert-button click", async () => {
-    const user = userEvent.setup();
-    mockCompute
-      .mockResolvedValueOnce({ success: true, data: makeReconciliation([NEEDS_GROUP_LINE]) })
-      .mockResolvedValueOnce({
-        success: true,
-        data: makeReconciliation([{ ...NEEDS_GROUP_LINE, status: "Matched" }]),
-      })
-      .mockResolvedValueOnce({ success: true, data: makeReconciliation([NEEDS_GROUP_LINE]) });
-
-    renderView();
-    await goToSettlement(user);
-
-    expect(document.getElementById("applied-corrections")).toBeNull();
-
-    await user.dblClick(document.getElementById("reconciliation-line-row-line-needs-group")!);
-    const checkbox = document.getElementById("assign-groups-check-group-1");
-    if (!checkbox) throw new Error("candidate checkbox missing");
-    await user.click(checkbox);
-    await user.click(document.getElementById("assign-groups-submit")!);
-
-    await waitFor(() => {
-      expect(document.getElementById("applied-corrections")).not.toBeNull();
-      expect(document.getElementById("correction-revert-0")).not.toBeNull();
-    });
-
-    const computeCallsBefore = mockCompute.mock.calls.length;
-    await user.click(document.getElementById("correction-revert-0")!);
-
-    await waitFor(() => {
-      expect(mockCompute.mock.calls.length).toBe(computeCallsBefore + 1);
-    });
-    await waitFor(() => {
-      expect(document.getElementById("applied-corrections")).toBeNull();
-    });
   });
 });
 

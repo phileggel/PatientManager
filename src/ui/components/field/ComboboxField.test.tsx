@@ -38,3 +38,24 @@ describe("ComboboxField", () => {
     expect(screen.queryByText("Create the patient")).not.toBeInTheDocument();
   });
 });
+
+describe("ComboboxField — hidden label (#697)", () => {
+  it("keeps the label for screen readers only", () => {
+    render(
+      <ComboboxField
+        id="fund"
+        label="Caisse"
+        items={ITEMS}
+        displayKey="label"
+        idKey="id"
+        value=""
+        onChange={vi.fn()}
+        hideLabel
+      />,
+    );
+
+    const field = screen.getByLabelText("Caisse");
+    expect(field).toBeInTheDocument();
+    expect(document.querySelector('label[for="fund"]')?.className).toContain("sr-only");
+  });
+});

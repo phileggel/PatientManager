@@ -1,23 +1,29 @@
 {
   "label_association": {
-    "title": "Link each bank label to a fund",
+    "title": "Link each label of this statement to a fund",
     "line_count": "{{count}} line(s)",
-    "select_placeholder": "-- Select a fund --",
-    "select_aria": "Fund for label {{label}}",
+    "field_label": "Fund for the label {{label}}",
+    "search_placeholder": "Search a fund",
     "suggestion": "Suggestion: {{name}}",
     "chip": {
-      "linked": "Linked",
+      "known": "Recognized",
+      "new": "New link",
       "todo": "To link",
       "ignored": "Ignored"
     },
     "ignore": "Ignore",
-    "restore": "Restore",
-    "confirm_drop": "Staged selections on these lines will be lost.",
-    "confirm": "Confirm",
-    "confirm_cancel": "Cancel",
-    "progress": "{{decided}} / {{total}} labels decided",
-    "cancel": "Cancel",
-    "continue": "Continue"
+    "ignored_note": "Ignored: its lines will not be matched, and this label will be ignored on the next imports.",
+    "changed_note_one": "Link changed: its line will start again at the matching. The other lines keep their matching.",
+    "changed_note_other": "Link changed: its {{count}} lines will start again at the matching. The other lines keep their matching.",
+    "counter": {
+      "known": "{{count}} recognized",
+      "new": "{{count}} new",
+      "todo": "{{count}} to link",
+      "ignored": "{{count}} ignored"
+    },
+    "cancel_all": "Cancel all",
+    "continue": "Continue ›",
+    "back_to_matching": "Back to the matching ›"
   },
   "reconciliation": {
     "summary": "{{resolved}} resolved, {{needsCorrection}} to correct",
@@ -56,20 +62,6 @@
     "remainder": {
       "amount": "Uncovered remainder: {{amount}}"
     },
-    "applied_corrections": {
-      "title": "Applied corrections",
-      "revert": "Undo",
-      "revert_aria": "Revert this correction"
-    },
-    "correction": {
-      "link_fund": "Linked \"{{label}}\" to a fund",
-      "link_fund_rejected": "Marked \"{{label}}\" as not a fund",
-      "assign_groups": "Assigned {{count}} group(s) to line {{line}}",
-      "unassign_groups": "Unassigned line {{line}}",
-      "assign_procedures": "Assigned {{count}} procedure(s) to line {{line}}",
-      "unassign_procedures": "Unassigned procedures from line {{line}}",
-      "acknowledge_remainder": "Acknowledged remainder on line {{line}}"
-    },
     "wizard": {
       "open": "Guided correction",
       "title": "Guided correction",
@@ -88,7 +80,13 @@
       "amount": "Amount",
       "status": "Status"
     },
-    "back_to_labels": "‹ Back to labels"
+    "back_to_labels": "‹ Back to labels",
+    "steps": {
+      "import": "Import",
+      "labels": "Labels",
+      "matching": "Matching",
+      "recap": "Recap"
+    }
   },
   "statement": {
     "title": "Bank Reconciliation",

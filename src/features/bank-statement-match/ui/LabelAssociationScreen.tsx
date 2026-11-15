@@ -3,206 +3,192 @@ import { useTranslation } from "react-i18next";
 import type { BankStatementCorrection, BankStatementReconciliation } from "@/bindings";
 import { useCacheStore } from "@/infra/cache/store";
 import { Button } from "@/ui/components/button";
+import { ComboboxField } from "@/ui/components/field/ComboboxField";
+import { Switch } from "@/ui/components/switch/Switch";
+import { Tag, type TagTone } from "@/ui/components/tag/Tag";
 import { useFormatters } from "@/ui/format/formatters";
-import {
-  allLabelsDecided,
-  deriveLabelRows,
-  type LabelRow,
-  labelSlug,
-  lastLinkFundCorrectionIndex,
-} from "../shared/labelRows";
+import { deriveLabelRows, type LabelRow, labelSlug } from "../shared/labelRows";
 
-type LinkFundCorrection = Extract<BankStatementCorrection, { type: "LinkFund" }>;
+/** Where a label's assignment comes from (#692): saved, set in this import, none, ignored. */
+type LabelOrigin = "known" | "new" | "todo" | "ignored";
+
+const ORIGIN_TONE: Record<LabelOrigin, TagTone> = {
+  known: "done",
+  new: "new",
+  todo: "action",
+  ignored: "aside",
+};
 
 interface LabelAssociationScreenProps {
   reconciliation: BankStatementReconciliation;
-  corrections: BankStatementCorrection[];
+  /** The draft before any correction: its links are the saved ones. */
+  initialReconciliation: BankStatementReconciliation | null;
   isBusy: boolean;
   /** Rejection message from the last correction attempt. */
   errorText?: string | null;
   onApplyCorrection: (correction: BankStatementCorrection) => Promise<boolean>;
-  onRevertCorrection: (index: number) => Promise<void>;
   onContinue: () => void;
   onCancel: () => void;
+  /** Each label's fund (or null when ignored) when the matching step was left;
+   *  null on the way in — back from the matching, the primary action returns there. */
+  linksAtMatching: ReadonlyMap<string, string | null> | null;
 }
 
 /**
- * BAS-120–121 — screen 1 of the two-screen flow: one row per distinct label
- * (first-occurrence order), inline fund select with suggestion helper
- * (BAS-120B), Ignorer/Rétablir single action (BAS-120C), destructive-change
- * confirmation when staged settlement items would drop (BAS-120E), and the
- * « Continuer » gate (BAS-121). Presentation per the validated wireframe.
+ * #692, step 2 — the labels of this import: an « Ignorer » switch, a
+ * searchable fund field of one width, the row on one line with its notes under
+ * it, a tag for where its link comes from. A link changed on return from the
+ * matching says its lines start again (BAS-066B).
  */
 export function LabelAssociationScreen({
   reconciliation,
-  corrections,
+  initialReconciliation,
   isBusy,
   errorText,
   onApplyCorrection,
-  onRevertCorrection,
   onContinue,
   onCancel,
+  linksAtMatching,
 }: LabelAssociationScreenProps) {
+  const isBackFromMatching = linksAtMatching !== null;
   const { t } = useTranslation("bank");
   const { formatCurrency } = useFormatters();
   const funds = useCacheStore((state) => state.funds);
   const rows = deriveLabelRows(reconciliation.lines);
+  const savedRows = new Map(
+    deriveLabelRows(initialReconciliation?.lines ?? []).map((row) => [row.label, row]),
+  );
+  // An ignored label switched back on stays « À associer » until a fund is picked.
+  const [unignored, setUnignored] = useState<string[]>([]);
 
-  // BAS-120E — a link/ignore over staged settlement work waits here for its
-  // inline confirmation instead of applying immediately.
-  const [pendingCorrection, setPendingCorrection] = useState<LinkFundCorrection | null>(null);
-  // BAS-120C — saved-rejected rows unlocked locally (nothing to revert).
-  const [unlockedLabels, setUnlockedLabels] = useState<string[]>([]);
+  const originOf = (row: LabelRow): LabelOrigin => {
+    if (unignored.includes(row.label)) return "todo";
+    if (row.isRejected) return "ignored";
+    if (!row.fundId) return "todo";
+    return savedRows.get(row.label)?.fundId === row.fundId ? "known" : "new";
+  };
 
-  const submitOrConfirm = (row: LabelRow, correction: LinkFundCorrection) => {
-    if (row.hasAssignedItems) {
-      setPendingCorrection(correction);
+  const link = (row: LabelRow, fundId: string) => {
+    setUnignored((current) => current.filter((label) => label !== row.label));
+    void onApplyCorrection({
+      type: "LinkFund",
+      bank_label: row.label,
+      assignment: { type: "Fund", fund_id: fundId },
+    });
+  };
+
+  const toggleIgnored = (row: LabelRow, ignored: boolean) => {
+    if (ignored) {
+      setUnignored((current) => current.filter((label) => label !== row.label));
+      void onApplyCorrection({
+        type: "LinkFund",
+        bank_label: row.label,
+        assignment: { type: "Rejected" },
+      });
       return;
     }
-    void onApplyCorrection(correction);
+    setUnignored((current) => [...current, row.label]);
   };
 
-  const handleRestore = (row: LabelRow) => {
-    const index = lastLinkFundCorrectionIndex(corrections, row.label);
-    if (index !== null) {
-      void onRevertCorrection(index);
-    } else {
-      setUnlockedLabels((prev) => [...prev, row.label]);
-    }
-  };
-
-  const decidedCount = rows.filter((row) => row.fundId !== null || row.isRejected).length;
+  const origins = rows.map((row) => originOf(row));
+  const count = (origin: LabelOrigin) => origins.filter((o) => o === origin).length;
+  const allDecided = origins.every((origin) => origin !== "todo");
 
   return (
-    <div className="flex flex-col flex-1 gap-4 min-h-0">
-      <h2 id="label-assoc-title" className="text-base font-semibold text-m3-on-surface">
-        {t("bank:label_association.title")}
-      </h2>
+    <div className="flex flex-col flex-1 gap-3 min-h-0">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="label-assoc-title" className="text-base font-semibold text-m3-on-surface">
+          {t("label_association.title")}
+        </h2>
+        <span id="label-assoc-counter" className="text-xs text-m3-on-surface-variant">
+          {t("label_association.counter.known", { count: count("known") })} ·{" "}
+          {t("label_association.counter.new", { count: count("new") })} ·{" "}
+          <span
+            className={
+              count("todo") > 0 ? "font-semibold text-[var(--color-snackbar-warning-text)]" : ""
+            }
+          >
+            {t("label_association.counter.todo", { count: count("todo") })}
+          </span>{" "}
+          · {t("label_association.counter.ignored", { count: count("ignored") })}
+        </span>
+      </div>
 
-      <div id="label-assoc-scrollzone" className="flex flex-col gap-2 min-h-0 overflow-y-auto">
-        {rows.map((row) => {
-          const selectLocked = row.isRejected && !unlockedLabels.includes(row.label);
-          const isPending = pendingCorrection?.bank_label === row.label;
-          const chipKey = row.fundId
-            ? "bank:label_association.chip.linked"
-            : row.isRejected
-              ? "bank:label_association.chip.ignored"
-              : "bank:label_association.chip.todo";
-
+      <div
+        id="label-assoc-scrollzone"
+        className="flex flex-col flex-1 gap-3 min-h-0 overflow-y-auto pr-1"
+      >
+        {rows.map((row, index) => {
+          const origin = origins[index] ?? "todo";
+          const slug = labelSlug(row.label);
+          const ignored = origin === "ignored";
+          const linkAtMatching = linksAtMatching?.get(row.label);
+          const currentLink = row.isRejected ? null : row.fundId;
+          const changedSinceMatching =
+            isBackFromMatching && linkAtMatching !== undefined && linkAtMatching !== currentLink;
           return (
             <div
               key={row.label}
-              id={`label-assoc-row-${labelSlug(row.label)}`}
-              // The select track carries a floor so the start of a fund name
-              // stays readable (~12 characters) instead of collapsing to the
-              // space the other columns leave over.
-              className="grid grid-cols-[minmax(140px,180px)_max-content_minmax(12rem,1fr)_max-content] items-center gap-3 rounded-xl border border-m3-outline/20 px-4 py-2.5"
+              id={`label-assoc-row-${slug}`}
+              className={`rounded-xl border border-m3-outline/20 px-4 py-2.5 ${ignored ? "bg-m3-surface-container-low" : ""}`}
             >
-              <span className="italic text-m3-on-surface-variant truncate">{row.label}</span>
-              <span className="text-xs text-m3-on-surface-variant whitespace-nowrap">
-                {t("bank:label_association.line_count", { count: row.count })} ·{" "}
-                {formatCurrency(row.totalAmount)}
-              </span>
-
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <select
-                  id={`label-assoc-select-${labelSlug(row.label)}`}
-                  className="w-full rounded-lg border border-m3-outline bg-m3-surface-container-high px-3 py-2 text-sm text-m3-on-surface disabled:opacity-50"
-                  value={row.fundId ?? ""}
-                  disabled={isBusy || selectLocked}
-                  aria-label={t("bank:label_association.select_aria", { label: row.label })}
-                  onChange={(e) => {
-                    // Re-selecting the placeholder is a no-op — an empty
-                    // fund_id is not a correction (BAS-120B defines choosing
-                    // a fund only).
-                    if (e.target.value === "") return;
-                    submitOrConfirm(row, {
-                      type: "LinkFund",
-                      bank_label: row.label,
-                      assignment: { type: "Fund", fund_id: e.target.value },
-                    });
-                  }}
-                >
-                  <option value="">{t("bank:label_association.select_placeholder")}</option>
-                  {funds.map((fund) => (
-                    <option key={fund.id} value={fund.id}>
-                      {fund.name}
-                    </option>
-                  ))}
-                </select>
-                {!row.fundId && row.suggestedFundName && (
+              <div className="grid grid-cols-[minmax(0,1fr)_max-content_30ch_7rem] items-center gap-x-4">
+                <div className="flex min-w-0 flex-col">
                   <span
-                    id={`label-assoc-suggestion-${labelSlug(row.label)}`}
-                    className="text-xs text-m3-on-surface-variant"
+                    className={`truncate italic ${ignored ? "text-m3-on-surface-variant/70 line-through" : "text-m3-on-surface-variant"}`}
                   >
-                    {t("bank:label_association.suggestion", { name: row.suggestedFundName })}
+                    {row.label}
+                  </span>
+                  <span className="whitespace-nowrap text-xs text-m3-on-surface-variant">
+                    {t("label_association.line_count", { count: row.count })} ·{" "}
+                    {formatCurrency(row.totalAmount)}
+                  </span>
+                </div>
+                <Switch
+                  id={`label-assoc-ignore-${slug}`}
+                  checked={ignored}
+                  onChange={(next) => toggleIgnored(row, next)}
+                  label={t("label_association.ignore")}
+                  disabled={isBusy}
+                />
+                <div className={`min-w-0 ${ignored ? "opacity-40" : ""}`}>
+                  <ComboboxField
+                    id={`label-assoc-fund-${slug}`}
+                    label={t("label_association.field_label", { label: row.label })}
+                    hideLabel
+                    items={funds}
+                    displayKey="name"
+                    idKey="id"
+                    value={origin === "todo" || ignored ? "" : (row.fundId ?? "")}
+                    onChange={(fundId) => link(row, fundId)}
+                    placeholder={t("label_association.search_placeholder")}
+                    disabled={isBusy || ignored}
+                  />
+                </div>
+                <Tag id={`label-assoc-chip-${slug}`} tone={ORIGIN_TONE[origin]}>
+                  {t(`label_association.chip.${origin}`)}
+                </Tag>
+
+                {origin === "todo" && row.suggestedFundName && (
+                  <span
+                    id={`label-assoc-suggestion-${slug}`}
+                    className="col-start-3 mt-1 text-xs text-m3-on-surface-variant"
+                  >
+                    {t("label_association.suggestion", { name: row.suggestedFundName })}
                   </span>
                 )}
-              </div>
-
-              <div className="flex items-center gap-2 justify-end">
-                {isPending ? (
-                  // BAS-120E — inline confirmation replacing the row action.
-                  <>
-                    <span className="text-xs text-m3-error">
-                      {t("bank:label_association.confirm_drop")}
-                    </span>
-                    <Button
-                      id={`label-assoc-confirm-${labelSlug(row.label)}`}
-                      variant="danger"
-                      size="sm"
-                      disabled={isBusy}
-                      onClick={() => {
-                        void onApplyCorrection(pendingCorrection);
-                        setPendingCorrection(null);
-                      }}
-                    >
-                      {t("bank:label_association.confirm")}
-                    </Button>
-                    <Button
-                      id={`label-assoc-confirm-cancel-${labelSlug(row.label)}`}
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setPendingCorrection(null)}
-                    >
-                      {t("bank:label_association.confirm_cancel")}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <span
-                      id={`label-assoc-chip-${labelSlug(row.label)}`}
-                      className={`w-24 text-center text-xs font-semibold rounded-full px-2 py-1 ${
-                        row.fundId
-                          ? "bg-m3-success-container/60 text-m3-on-success-container"
-                          : row.isRejected
-                            ? "bg-m3-surface-variant text-m3-on-surface-variant"
-                            : "bg-m3-tertiary-container/40 text-m3-tertiary"
-                      }`}
-                    >
-                      {t(chipKey)}
-                    </span>
-                    <Button
-                      id={`label-assoc-ignore-${labelSlug(row.label)}`}
-                      variant={row.isRejected ? "outline" : "danger"}
-                      size="sm"
-                      className="w-24"
-                      disabled={isBusy}
-                      onClick={() =>
-                        row.isRejected
-                          ? handleRestore(row)
-                          : submitOrConfirm(row, {
-                              type: "LinkFund",
-                              bank_label: row.label,
-                              assignment: { type: "Rejected" },
-                            })
-                      }
-                    >
-                      {row.isRejected
-                        ? t("bank:label_association.restore")
-                        : t("bank:label_association.ignore")}
-                    </Button>
-                  </>
+                {ignored && (
+                  <p className="col-span-full mt-2 text-xs text-m3-on-surface-variant">
+                    {t("label_association.ignored_note")}
+                  </p>
+                )}
+                {changedSinceMatching && (
+                  <p
+                    id={`label-assoc-changed-${slug}`}
+                    className="col-span-full mt-2 text-xs text-m3-tertiary"
+                  >
+                    {t("label_association.changed_note", { count: row.count })}
+                  </p>
                 )}
               </div>
             </div>
@@ -216,23 +202,20 @@ export function LabelAssociationScreen({
         </p>
       )}
 
-      <div className="flex items-center justify-between gap-2 border-t border-m3-outline/20 pt-4">
-        <span className="text-xs text-m3-on-surface-variant">
-          {t("bank:label_association.progress", { decided: decidedCount, total: rows.length })}
-        </span>
-        <div className="flex items-center gap-2">
-          <Button id="label-assoc-cancel" variant="secondary" onClick={onCancel}>
-            {t("bank:label_association.cancel")}
-          </Button>
-          <Button
-            id="label-assoc-continue"
-            variant="primary"
-            disabled={isBusy || !allLabelsDecided(rows)}
-            onClick={onContinue}
-          >
-            {t("bank:label_association.continue")}
-          </Button>
-        </div>
+      <div className="flex items-center justify-between gap-3 border-t border-m3-outline/20 pt-4">
+        <Button id="label-assoc-cancel" variant="outline" onClick={onCancel}>
+          {t("label_association.cancel_all")}
+        </Button>
+        <Button
+          id="label-assoc-continue"
+          variant="primary"
+          disabled={isBusy || !allDecided}
+          onClick={onContinue}
+        >
+          {isBackFromMatching
+            ? t("label_association.back_to_matching")
+            : t("label_association.continue")}
+        </Button>
       </div>
     </div>
   );

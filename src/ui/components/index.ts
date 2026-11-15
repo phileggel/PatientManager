@@ -23,3 +23,5 @@ export {
   TabModal,
 } from "./modal";
 export { SortIcon } from "./SortIcon";
+export { Switch } from "./switch/Switch";
+export { Tag, type TagTone } from "./tag/Tag";
