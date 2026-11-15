@@ -2,7 +2,13 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import i18n from "@/i18n/config";
-import { formatCurrency, formatMonth, formatShortDate, useFormatters } from "./formatters";
+import {
+  formatCurrency,
+  formatMonth,
+  formatShortDate,
+  todayIsoDate,
+  useFormatters,
+} from "./formatters";
 
 describe("formatShortDate", () => {
   it("renders fr-FR as dd/mm/yyyy", () => {
@@ -81,6 +87,13 @@ describe("formatCurrency", () => {
     // 1,234,567 euros in thousandths
     expect(formatCurrency(1_234_567_000, "en-GB")).toBe("€1,234,567.00");
     expect(formatCurrency(1_234_567_000, "fr-FR")).toMatch(/^1\s234\s567,00\s€$/);
+  });
+});
+
+describe("todayIsoDate", () => {
+  it("gives the local day, also just after local midnight", () => {
+    expect(todayIsoDate(new Date(2026, 10, 15, 0, 5))).toBe("2026-11-15");
+    expect(todayIsoDate(new Date(2026, 0, 1, 23, 59))).toBe("2026-01-01");
   });
 });
 

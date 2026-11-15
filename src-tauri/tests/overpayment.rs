@@ -104,6 +104,7 @@ async fn build_ctx_paid_as(status: &str) -> Ctx {
         procedure_type_repo,
         fund_repo,
         refund_repo.clone(),
+        patient_service.clone(),
     );
 
     let patient = patient_service

@@ -2,7 +2,7 @@
 
 > Domain: procedure-orchestration
 > Backend module: use_cases/procedure_orchestration
-> Last updated by: procedure-orchestration spec, business rules only (#646)
+> Last updated by: procedure-orchestration spec, tracking events (#606), 2026-11-15
 
 ## Commands
 
@@ -154,6 +154,8 @@ enum PaymentMethod {
 | Event              | Trigger                                                                          |
 | ------------------ | -------------------------------------------------------------------------------- |
 | `ProcedureUpdated` | After `add_procedure`, `update_procedure` answered `Updated`, `delete_procedure` |
+| `PatientUpdated`   | After `add_procedure` moved tracking (PRO-260)                                   |
+| `PatientUpdated`   | After `delete_procedure` (PRO-270)                                               |
 
 ## Changelog
 
@@ -162,3 +164,4 @@ enum PaymentMethod {
 - 2026-11-07 — `delete_procedure` (#588, PRO-030): a procedure is really deleted; one a payment record still refers to is refused with `ProcedureDeleteBlocked`. The error was misnamed `DeletionBlocked` here.
 - 2026-11-08 — `delete_procedure`: `DatabaseError` listed again (release sweep).
 - 2026-11-14 — #646: the spec holds business rules only; references follow (PRO-170, PRO-190, PRO-030A–C). No signature, type or error change.
+- 2026-11-15 — #606: `PatientUpdated` after the tracking writes of `add_procedure` and `delete_procedure` (PRO-260, PRO-270).

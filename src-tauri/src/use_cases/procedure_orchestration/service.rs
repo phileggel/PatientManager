@@ -3,7 +3,7 @@ use specta::Type;
 use std::sync::Arc;
 
 use crate::context::fund::FundRepository;
-use crate::context::patient::{Patient, PatientRepository};
+use crate::context::patient::{Patient, PatientRepository, PatientService};
 use crate::context::procedure::{
     PaymentMethod, Procedure, ProcedureCandidate, ProcedureError, ProcedureRefundRepository,
     ProcedureService as ContextProcedureService, ProcedureStatus, ProcedureTypeRepository,
@@ -17,13 +17,15 @@ use super::error::{ProcedureOrchestrationError, ProcedureOrchestrationTask};
 /// Coordinates across multiple bounded contexts (Patient, Fund, ProcedureType).
 /// Handles FK validation and patient tracking side effects.
 /// Delegates basic CRUD operations to context/procedure/ProcedureService.
-/// Does NOT publish domain events (those are published by context service).
+/// Its tracking writes are announced through the patient context's service
+/// (#606, B20); it publishes no event itself.
 pub struct ProcedureOrchestrationService {
     context_procedure_service: Arc<ContextProcedureService>,
     patient_repository: Arc<dyn PatientRepository>,
     procedure_type_repository: Arc<dyn ProcedureTypeRepository>,
     fund_repository: Arc<dyn FundRepository>,
     procedure_refund_repository: Arc<dyn ProcedureRefundRepository>,
+    patient_service: Arc<PatientService>,
 }
 
 impl ProcedureOrchestrationService {
@@ -34,6 +36,7 @@ impl ProcedureOrchestrationService {
         procedure_type_repository: Arc<dyn ProcedureTypeRepository>,
         fund_repository: Arc<dyn FundRepository>,
         procedure_refund_repository: Arc<dyn ProcedureRefundRepository>,
+        patient_service: Arc<PatientService>,
     ) -> Self {
         ProcedureOrchestrationService {
             context_procedure_service,
@@ -41,6 +44,7 @@ impl ProcedureOrchestrationService {
             procedure_type_repository,
             fund_repository,
             procedure_refund_repository,
+            patient_service,
         }
     }
 
@@ -167,6 +171,8 @@ impl ProcedureOrchestrationService {
                     tracing::error!(target: BACKEND, err = ?e, "create_procedure: update_patient tracking failed");
                     ProcedureOrchestrationTask::DatabaseError
                 })?;
+            // #606 — the tracking fields changed: the patient cache must follow (PRO-260).
+            self.patient_service.notify_patients_updated();
 
             tracing::debug!(
                 target: BACKEND,
@@ -418,6 +424,8 @@ impl ProcedureOrchestrationService {
                     tracing::error!(target: BACKEND, err = ?e, "delete_procedure: update_patient tracking failed");
                     ProcedureOrchestrationTask::DatabaseError
                 })?;
+            // #606 — the tracking fields changed: the patient cache must follow (PRO-270).
+            self.patient_service.notify_patients_updated();
         }
 
         Ok(())
@@ -605,7 +613,7 @@ mod tests {
         Procedure, ProcedureRefund, ProcedureService as ContextProcedureService, ProcedureStatus,
         ProcedureType,
     };
-    use crate::shared::event_bus::EventBus;
+    use crate::shared::event_bus::{EventBus, PatientUpdated};
     use chrono::NaiveDate;
     use std::sync::{Arc, Mutex};
 
@@ -845,6 +853,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         )
     }
 
@@ -864,7 +873,16 @@ mod tests {
             type_repo,
             fund_repo,
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         )
+    }
+
+    /// A patient service whose `PatientUpdated` nobody listens to.
+    fn silent_patient_service() -> Arc<PatientService> {
+        Arc::new(PatientService::new(
+            Arc::new(MockPatientRepository::new()),
+            Arc::new(EventBus::new()),
+        ))
     }
 
     fn make_valid_patient() -> Patient {
@@ -912,6 +930,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
 
         let candidate = ProcedureCandidate {
@@ -980,6 +999,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
 
         // Older procedure date (2024-06-15 < 2024-12-01)
@@ -1151,12 +1171,20 @@ mod tests {
             event_bus,
         ));
 
+        let patient_bus = Arc::new(EventBus::new());
+        let mut patient_updates = patient_bus
+            .subscribe::<PatientUpdated>()
+            .expect("subscribe");
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            Arc::new(PatientService::new(
+                Arc::new(MockPatientRepository::new()),
+                patient_bus.clone(),
+            )),
         );
 
         orchestrator.delete_procedure("proc-newer").await.unwrap();
@@ -1172,6 +1200,10 @@ mod tests {
         );
         assert_eq!(updated.latest_fund, Some("fund-older".to_string()));
         assert_eq!(updated.latest_procedure_amount, Some(100000));
+        assert!(
+            patient_updates.try_recv().is_ok(),
+            "PatientUpdated is published (PRO-270)"
+        );
     }
 
     #[tokio::test]
@@ -1211,12 +1243,21 @@ mod tests {
             event_bus,
         ));
 
+        // #606 — the tracking write is published for the patient cache.
+        let patient_bus = Arc::new(EventBus::new());
+        let mut patient_updates = patient_bus
+            .subscribe::<PatientUpdated>()
+            .expect("subscribe");
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            Arc::new(PatientService::new(
+                Arc::new(MockPatientRepository::new()),
+                patient_bus.clone(),
+            )),
         );
 
         orchestrator.delete_procedure("proc-only").await.unwrap();
@@ -1226,6 +1267,10 @@ mod tests {
         assert_eq!(updated.latest_procedure_type, None);
         assert_eq!(updated.latest_fund, None);
         assert_eq!(updated.latest_procedure_amount, None);
+        assert!(
+            patient_updates.try_recv().is_ok(),
+            "PatientUpdated is published"
+        );
     }
 
     // --- R19: latest_fund cleared when newest single procedure has no fund ---
@@ -1252,12 +1297,21 @@ mod tests {
             event_bus,
         ));
 
+        // #606 — the tracking write is published for the patient cache.
+        let patient_bus = Arc::new(EventBus::new());
+        let mut patient_updates = patient_bus
+            .subscribe::<PatientUpdated>()
+            .expect("subscribe");
         let orchestrator = ProcedureOrchestrationService::new(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_with_type()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            Arc::new(PatientService::new(
+                Arc::new(MockPatientRepository::new()),
+                patient_bus.clone(),
+            )),
         );
 
         orchestrator
@@ -1288,6 +1342,73 @@ mod tests {
             "latest_fund must be cleared when newest single procedure has no fund (R19)"
         );
         assert_eq!(updated.latest_procedure_amount, Some(100000));
+        assert!(
+            patient_updates.try_recv().is_ok(),
+            "PatientUpdated is published"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_606_an_older_creation_leaves_tracking_alone_and_raises_no_patient_updated() {
+        let patient = Patient::restore(
+            "patient-id-1".to_string(),
+            false,
+            Some("Marie Dupont".to_string()),
+            None,
+            Some("old-type-id".to_string()),
+            Some("old-fund-id".to_string()),
+            Some(NaiveDate::from_ymd_opt(2024, 12, 1).unwrap()),
+            Some(50000),
+        );
+
+        let updated_capture: Arc<Mutex<Option<Patient>>> = Arc::new(Mutex::new(None));
+        let patient_repo = Arc::new(mock_patient_repo(Some(patient), updated_capture.clone()));
+
+        let event_bus = Arc::new(EventBus::new());
+        let context_service = Arc::new(ContextProcedureService::new(
+            Arc::new(mock_proc_repo_creating()),
+            event_bus,
+        ));
+
+        // #606 — an older procedure leaves the tracking, and says nothing.
+        let patient_bus = Arc::new(EventBus::new());
+        let mut patient_updates = patient_bus
+            .subscribe::<PatientUpdated>()
+            .expect("subscribe");
+        let orchestrator = ProcedureOrchestrationService::new(
+            context_service,
+            patient_repo,
+            Arc::new(mock_type_repo_with_type()),
+            Arc::new(mock_fund_repo_stub()),
+            Arc::new(refund_repo_noop()),
+            Arc::new(PatientService::new(
+                Arc::new(MockPatientRepository::new()),
+                patient_bus.clone(),
+            )),
+        );
+
+        orchestrator
+            .create_procedure(CreateProcedureRequest {
+                patient_id: "patient-id-1".to_string(),
+                fund_id: None,
+                procedure_type_id: "new-type-id".to_string(),
+                procedure_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
+                billed_amount: 100000,
+                payment_method: None,
+                confirmed_payment_date: None,
+                paid_amount: None,
+            })
+            .await
+            .unwrap();
+
+        assert!(
+            updated_capture.lock().unwrap().is_none(),
+            "no tracking write"
+        );
+        assert!(
+            patient_updates.try_recv().is_err(),
+            "no PatientUpdated (PRO-260)"
+        );
     }
 
     // --- R19: latest_fund cleared when newest batch procedure has no fund ---
@@ -1319,6 +1440,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
 
         let candidate = ProcedureCandidate {
@@ -1529,6 +1651,7 @@ mod tests {
             Arc::new(mock_type_repo_with_type()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         )
     }
 
@@ -1567,6 +1690,7 @@ mod tests {
             Arc::new(mock_type_repo_with_type()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
         let err = orchestrator
             .edit_procedure(make_procedure_with_status(ProcedureStatus::Created))
@@ -1598,6 +1722,7 @@ mod tests {
             Arc::new(mock_type_repo_with_type()),
             Arc::new(mock_fund_repo_not_found()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
         let edit = orchestrator.edit_procedure(changed.clone()).await.unwrap();
         assert_eq!(edit, ProcedureEdit::Updated { procedure: changed });
@@ -1622,6 +1747,7 @@ mod tests {
             Arc::new(mock_type_repo_with_type()),
             Arc::new(mock_fund_repo_not_found()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
         let err = orchestrator.edit_procedure(changed).await.unwrap_err();
         assert!(matches!(
@@ -1774,6 +1900,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
 
         let result = orchestrator.delete_procedure("proc-id-1").await;
@@ -1808,6 +1935,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
 
         let result = orchestrator.delete_procedure("proc-id-1").await;
@@ -1833,6 +1961,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
         let result = orchestrator.delete_procedure("non-existent").await;
         assert!(matches!(
@@ -1890,6 +2019,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_returning(refund_record)),
+            silent_patient_service(),
         );
         let result = orchestrator.update_procedure(source_proc).await;
         assert!(result.is_ok());
@@ -1924,6 +2054,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_returning(refund_record)),
+            silent_patient_service(),
         );
         let result = orchestrator.update_procedure(source_proc).await;
         assert!(result.is_ok());
@@ -1958,6 +2089,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_returning(refund_record)),
+            silent_patient_service(),
         );
         let result = orchestrator.update_procedure(source_proc).await;
         assert!(result.is_ok());
@@ -2105,6 +2237,7 @@ mod tests {
             Arc::new(mock_type_repo_with_type()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
         let result = orchestrator
             .create_procedure(CreateProcedureRequest {
@@ -2140,6 +2273,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_find_err()),
+            silent_patient_service(),
         );
         let result = orchestrator.update_procedure(source_proc).await;
         assert!(matches!(
@@ -2164,6 +2298,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
         let result = orchestrator.delete_procedure(&to_delete.id).await;
         assert!(matches!(
@@ -2188,6 +2323,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
         let result = orchestrator.delete_procedure(&to_delete.id).await;
         assert!(matches!(
@@ -2211,6 +2347,7 @@ mod tests {
             Arc::new(mock_type_repo_stub()),
             Arc::new(mock_fund_repo_stub()),
             Arc::new(refund_repo_noop()),
+            silent_patient_service(),
         );
         let candidates = vec![ProcedureCandidate {
             patient_id: "patient-id-1".to_string(),

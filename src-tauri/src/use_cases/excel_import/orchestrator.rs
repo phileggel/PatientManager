@@ -705,6 +705,7 @@ mod tests {
             Arc::new(mocks.orch_type_repo),
             Arc::new(mocks.orch_fund_repo),
             Arc::new(mocks.orch_refund_repo),
+            patient_svc.clone(),
         ));
         ExcelImportOrchestrator::new(
             patient_svc,

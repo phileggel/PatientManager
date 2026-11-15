@@ -54,6 +54,15 @@ export function formatCurrency(thousandths: number, locale: string): string {
 }
 
 /**
+ * The local calendar day as `YYYY-MM-DD` (#606): the day the user lives in,
+ * not the UTC one, which is still yesterday just after local midnight.
+ */
+export function todayIsoDate(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
  * A `YYYY-MM` month as its capitalised name and year in the locale
  * ("Octobre 2026", "October 2026"); the input as is when it is not one.
  */
