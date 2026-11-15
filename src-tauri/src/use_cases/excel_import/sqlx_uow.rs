@@ -633,8 +633,9 @@ mod tests {
             )
             .await;
 
+        let err = result.unwrap_err();
         assert_eq!(
-            result.unwrap_err(),
+            err,
             ExcelImportError::ProcedureTypeNotFound {
                 procedure_type_id: "type-gone".to_string(),
             }
@@ -657,8 +658,9 @@ mod tests {
             )
             .await;
 
+        let err = result.unwrap_err();
         assert_eq!(
-            result.unwrap_err(),
+            err,
             ExcelImportError::ProcedureTypeNotFound {
                 procedure_type_id: "type-gone".to_string(),
             }
