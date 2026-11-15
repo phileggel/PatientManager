@@ -123,7 +123,13 @@
       "error": "Error",
       "unknown_error": "An unexpected error occurred.",
       "unparsed_warning_one": "{{count}} statement line could not be read and is not shown below.",
-      "unparsed_warning_other": "{{count}} statement lines could not be read and are not shown below."
+      "unparsed_warning_other": "{{count}} statement lines could not be read and are not shown below.",
+      "abandon": {
+        "title": "Abandon this import?",
+        "message": "The labels and matches made will not be saved.",
+        "confirm": "Abandon",
+        "cancel": "Continue the import"
+      }
     }
   },
   "transfer": {

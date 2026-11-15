@@ -51,7 +51,7 @@
   "missing_ids": {
     "src/features/bank-account/add_bank_account_panel/AddBankAccountPanel.tsx": 1,
     "src/features/bank-account/edit_bank_account_modal/EditBankAccountModal.tsx": 2,
-    "src/features/bank-statement-match/ui/BankStatementModal.tsx": 5,
+    "src/features/bank-statement-match/ui/BankStatementModal.tsx": 4,
     "src/features/bank-statement-match/ui/ReconciliationView.tsx": 1,
     "src/features/bank-transfer/add_bank_transfer_form/AddBankTransferForm.tsx": 1,
     "src/features/bank-transfer/bank_transfer_list/BankTransferList.tsx": 2,

@@ -9,6 +9,9 @@ interface ModalContainerProps {
   children: ReactNode;
   maxWidth?: "max-w-md" | "max-w-2xl" | "max-w-3xl" | "max-w-4xl";
   maxHeight?: "max-h-[80vh]" | "max-h-[90vh]";
+  /** A fixed height — 90 % of the window, capped at 800 px — kept whatever the
+   *  content, for a flow whose steps share one frame (#696). */
+  fixedHeight?: boolean;
   titleId?: string;
 }
 
@@ -30,6 +33,7 @@ export function ModalContainer({
   children,
   maxWidth = "max-w-md",
   maxHeight = "max-h-[90vh]",
+  fixedHeight = false,
   titleId,
 }: ModalContainerProps) {
   if (!isOpen) return null;
@@ -39,7 +43,7 @@ export function ModalContainer({
       id={id}
       onClose={onClose}
       aria-labelledby={titleId}
-      className={`bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} overflow-hidden flex-col open:flex`}
+      className={`bg-m3-surface-container-lowest/85 backdrop-blur-[12px] rounded-[28px] shadow-elevation-4 w-full ${maxWidth} ${maxHeight} ${fixedHeight ? "h-[min(90vh,800px)]" : ""} overflow-hidden flex-col open:flex`}
     >
       {children}
     </NativeDialog>

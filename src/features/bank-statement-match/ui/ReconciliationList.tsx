@@ -59,7 +59,7 @@ export function ReconciliationList({
     );
 
   return (
-    <div id="reconciliation-list">
+    <div id="reconciliation-list" className="flex flex-col flex-1 min-h-0">
       <div className="flex items-center justify-between mb-3">
         <output id="reconciliation-summary" className="text-sm text-m3-on-surface-variant">
           {t("reconciliation.summary", {
@@ -81,8 +81,9 @@ export function ReconciliationList({
         </label>
       </div>
 
-      {/* BAS-119/122A — the line list is the screen's only scrollable region. */}
-      <div id="reconciliation-list-scrollzone" className="min-h-0 max-h-[55vh] overflow-y-auto">
+      {/* BAS-119/122A — the line list is the screen's only scrollable region; it
+          takes what the fixed-height modal leaves (#696). */}
+      <div id="reconciliation-list-scrollzone" className="flex-1 min-h-0 overflow-y-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="text-xs text-m3-on-surface-variant">

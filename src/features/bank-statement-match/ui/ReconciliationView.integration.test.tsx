@@ -156,12 +156,14 @@ async function goToSettlement(user: ReturnType<typeof userEvent.setup>) {
   });
 }
 
-function renderView(onClose = vi.fn()) {
+function renderView(onClose = vi.fn(), onCancel = vi.fn(), onWorkChange = vi.fn()) {
   return render(
     <ReconciliationView
       bankAccountId={BANK_ACCOUNT_ID}
       parseResult={PARSE_RESULT}
       onClose={onClose}
+      onCancel={onCancel}
+      onWorkChange={onWorkChange}
     />,
   );
 }

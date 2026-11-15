@@ -123,7 +123,13 @@
       "error": "Erreur",
       "unknown_error": "Une erreur inattendue s'est produite.",
       "unparsed_warning_one": "{{count}} ligne du relevé n'a pas pu être lue et n'apparaît pas ci-dessous.",
-      "unparsed_warning_other": "{{count}} lignes du relevé n'ont pas pu être lues et n'apparaissent pas ci-dessous."
+      "unparsed_warning_other": "{{count}} lignes du relevé n'ont pas pu être lues et n'apparaissent pas ci-dessous.",
+      "abandon": {
+        "title": "Abandonner cet import ?",
+        "message": "Les libellés et les rapprochements faits ne seront pas enregistrés.",
+        "confirm": "Abandonner",
+        "cancel": "Continuer l'import"
+      }
     }
   },
   "transfer": {
