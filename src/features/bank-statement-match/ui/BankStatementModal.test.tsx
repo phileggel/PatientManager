@@ -16,6 +16,7 @@ import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BankStatementReconciliation } from "@/bindings";
+import { useCacheStore } from "@/infra/cache/store";
 import { makeBankAccount } from "@/tests/bank.factory";
 
 vi.mock("../gateway", () => ({
@@ -184,5 +185,148 @@ describe("BankStatementModal — inline create-account gate (BAS-011..014)", () 
       expect(document.getElementById("create-account-form")).not.toBeNull();
     });
     expect(document.getElementById("bank-statement-modal-unparsed-warning")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #696 — one modal height, and no way out drops the work without asking
+// ---------------------------------------------------------------------------
+
+describe("BankStatementModal — the abandon confirmation and the fixed height (#696)", () => {
+  const ACCOUNT = makeBankAccount({ id: "acc-1", name: "Compte courant", iban: PARSE_RESULT.iban });
+  const RECONCILIATION_TO_LINK: BankStatementReconciliation = {
+    ...EMPTY_RECONCILIATION,
+    lines: [
+      {
+        line_id: "line-0",
+        credit_line: PARSE_RESULT.credit_lines[0] ?? { date: "", label: "", amount: 0 },
+        status: "NeedsLink",
+        fund_id: null,
+        assigned_group_ids: [],
+        assigned_procedure_ids: [],
+        covered_amount: 0,
+        remainder_acknowledged: false,
+        candidate_groups: [],
+        candidate_procedures: [],
+        suggested_fund_id: null,
+        suggested_fund_name: null,
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({
+      funds: [{ id: "fund-1", fund_identifier: "75", name: "CPAM 75", temp_id: null }],
+    });
+    mockParse.mockResolvedValue({ success: true, data: PARSE_RESULT });
+    mockResolveAccount.mockResolvedValue({ success: true, data: ACCOUNT });
+    mockCompute.mockResolvedValue({ success: true, data: RECONCILIATION_TO_LINK });
+  });
+
+  async function renderReady(onClose: () => void) {
+    render(<BankStatementModal filePath={FILE_PATH} onClose={onClose} />);
+    await waitFor(() => {
+      expect(document.getElementById("label-assoc-select-CPAM75")).not.toBeNull();
+    });
+  }
+
+  async function doSomeWork(user: ReturnType<typeof userEvent.setup>) {
+    const select = document.getElementById("label-assoc-select-CPAM75") as HTMLSelectElement;
+    await user.selectOptions(select, "fund-1");
+    await waitFor(() => {
+      expect(mockCompute).toHaveBeenCalledWith("acc-1", PARSE_RESULT, [
+        { type: "LinkFund", bank_label: "CPAM75", assignment: { type: "Fund", fund_id: "fund-1" } },
+      ]);
+    });
+  }
+
+  function element(id: string): HTMLElement {
+    const found = document.getElementById(id);
+    if (!found) throw new Error(`#${id} missing`);
+    return found;
+  }
+
+  it("closes at once when no work was done", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    await renderReady(onClose);
+
+    await user.click(element("bank-statement-modal-close"));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(document.getElementById("bank-statement-abandon-confirmation")).toBeNull();
+  });
+
+  it("asks before the close cross drops the work, and abandons on confirm", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    await renderReady(onClose);
+    await doSomeWork(user);
+
+    await user.click(element("bank-statement-modal-close"));
+    expect(element("bank-statement-abandon-confirmation")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(element("bank-statement-abandon-confirmation-confirm"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the import when the user continues it", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    await renderReady(onClose);
+    await doSomeWork(user);
+
+    await user.click(element("bank-statement-modal-close"));
+    await user.click(element("bank-statement-abandon-confirmation-cancel"));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.getElementById("bank-statement-abandon-confirmation")).toBeNull();
+    expect(document.getElementById("label-assoc-select-CPAM75")).not.toBeNull();
+  });
+
+  it("asks on Escape", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    await renderReady(onClose);
+    await doSomeWork(user);
+
+    element("bank-statement-modal").dispatchEvent(new Event("cancel", { cancelable: true }));
+
+    await waitFor(() => {
+      expect(document.getElementById("bank-statement-abandon-confirmation")).not.toBeNull();
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("asks on a click outside the modal", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    await renderReady(onClose);
+    await doSomeWork(user);
+
+    await user.click(element("bank-statement-modal"));
+
+    expect(element("bank-statement-abandon-confirmation")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("asks on the labels' Annuler", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    await renderReady(onClose);
+    await doSomeWork(user);
+
+    await user.click(element("label-assoc-cancel"));
+
+    expect(element("bank-statement-abandon-confirmation")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps one height on every step: 90 % of the window, capped at 800 px", async () => {
+    await renderReady(vi.fn());
+
+    expect(element("bank-statement-modal").className).toContain("h-[min(90vh,800px)]");
   });
 });

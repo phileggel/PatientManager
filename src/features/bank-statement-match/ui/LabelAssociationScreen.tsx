@@ -74,7 +74,7 @@ export function LabelAssociationScreen({
   const decidedCount = rows.filter((row) => row.fundId !== null || row.isRejected).length;
 
   return (
-    <div className="flex flex-col gap-4 min-h-0">
+    <div className="flex flex-col flex-1 gap-4 min-h-0">
       <h2 id="label-assoc-title" className="text-base font-semibold text-m3-on-surface">
         {t("bank:label_association.title")}
       </h2>

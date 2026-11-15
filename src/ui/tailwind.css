@@ -388,6 +388,11 @@
   --color-snackbar-error-text: #ef9a9a;
   --color-snackbar-warning-bg: #3e2800;
   --color-snackbar-warning-text: #ffcc80;
+
+  /* Warning container (dark variant, #696) — the warning snackbar's dark
+     orange, so a « needs action » tag reads on a dark surface. */
+  --color-m3-warning-container: #3e2800;
+  --color-m3-on-warning-container: #ffcc80;
 }
 
 /* Base body styles */
@@ -401,6 +406,10 @@
   body {
     @apply bg-m3-surface text-m3-on-surface antialiased;
     font-family: var(--font-family-sans);
+  }
+  /* Checkboxes take the app's primary (#696). */
+  input[type="checkbox"] {
+    accent-color: var(--color-m3-primary);
   }
 }
 

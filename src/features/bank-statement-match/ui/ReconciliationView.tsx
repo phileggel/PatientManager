@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   BankStatementCorrection,
@@ -19,7 +19,12 @@ import { useBankStatementReconciliation } from "./useBankStatementReconciliation
 interface ReconciliationViewProps {
   bankAccountId: string;
   parseResult: BankStatementParseResult;
+  /** Closes the flow at once — once validated, nothing is left to lose. */
   onClose: () => void;
+  /** Leaves the flow; asks first when work was done (#696). */
+  onCancel: () => void;
+  /** Reports whether a correction was made and not validated yet (#696). */
+  onWorkChange: (hasWork: boolean) => void;
 }
 
 /**
@@ -35,6 +40,8 @@ export function ReconciliationView({
   bankAccountId,
   parseResult,
   onClose,
+  onCancel,
+  onWorkChange,
 }: ReconciliationViewProps) {
   const { t } = useTranslation("bank");
   const {
@@ -53,6 +60,12 @@ export function ReconciliationView({
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [createdCount, setCreatedCount] = useState<number | null>(null);
   const procedureWindowDays = getProcedureWindowDays();
+
+  // #696 — work exists from the first correction until the validate commit.
+  const hasWork = corrections.length > 0 && createdCount === null;
+  useEffect(() => {
+    onWorkChange(hasWork);
+  }, [hasWork, onWorkChange]);
 
   // Done summary takes over once the validate commit succeeds (BAS-093).
   if (createdCount !== null) {
@@ -95,7 +108,7 @@ export function ReconciliationView({
           clearError();
           setScreen("settlement");
         }}
-        onCancel={onClose}
+        onCancel={onCancel}
       />
     );
   }
@@ -143,7 +156,7 @@ export function ReconciliationView({
   };
 
   return (
-    <div className="flex flex-col gap-6 min-h-0">
+    <div className="flex flex-col flex-1 gap-6 min-h-0">
       <ReconciliationList
         reconciliation={settlementReconciliation}
         onApplyCorrection={openLine}
