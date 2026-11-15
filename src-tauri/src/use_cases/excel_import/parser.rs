@@ -15,6 +15,13 @@ use uuid::Uuid;
 /// opened (#512).
 const MAX_XLSX_BYTES: u64 = 50 * 1024 * 1024;
 
+/// The parse's patients and funds, by the keys a monthly row names them with.
+struct RowLookups<'a> {
+    patient_by_ssn: &'a HashMap<String, String>,
+    patient_by_name: &'a HashMap<String, String>,
+    fund_by_identifier: &'a HashMap<String, String>,
+}
+
 /// Dynamic column index mapping for monthly procedure sheets.
 ///
 /// Supports two formats detected from the header row (ligne 2):
@@ -326,7 +333,7 @@ impl ExcelParserService {
             Ok(r) => r,
             Err(_) => {
                 tracing::debug!(target: BACKEND, sheet = sheet_name, "Sheet not found, skipping");
-                parsing_issues.missing_sheets.push(sheet_name.to_string());
+                // EXI-220 — "missing sheets" lists monthly sheets only.
                 return Ok(Vec::new());
             }
         };
@@ -413,7 +420,7 @@ impl ExcelParserService {
             Ok(r) => r,
             Err(_) => {
                 tracing::debug!(target: BACKEND, sheet = sheet_name, "Sheet not found, skipping");
-                parsing_issues.missing_sheets.push(sheet_name.to_string());
+                // EXI-220 — "missing sheets" lists monthly sheets only.
                 return Ok(Vec::new());
             }
         };
@@ -500,6 +507,11 @@ impl ExcelParserService {
         fund_identifier_to_temp_id: &HashMap<String, String>,
     ) -> anyhow::Result<Vec<ExcelProcedure>> {
         let mut procedures = Vec::new();
+        let lookups = RowLookups {
+            patient_by_ssn: patient_ssn_to_temp_id,
+            patient_by_name: patient_name_to_temp_id,
+            fund_by_identifier: fund_identifier_to_temp_id,
+        };
 
         for &(canonical_month, variations) in codec::MONTHLY_SHEET_VARIATIONS {
             let mut found = false;
@@ -544,225 +556,15 @@ impl ExcelParserService {
                             continue;
                         };
 
-                        // Skip rows with insufficient columns for essential fields
-                        if row.len() < idx.date + 1 {
-                            continue;
-                        }
-
-                        let patient_name = row
-                            .get(idx.patient)
-                            .map(|c| c.to_string())
-                            .unwrap_or_default();
-                        let fund_identifier_raw =
-                            row.get(idx.fund).map(|c| c.to_string()).unwrap_or_default();
-                        // Treat NO_FUND_PLACEHOLDER as no fund (patient without fund).
-                        let fund_identifier = match fund_identifier_raw.trim() {
-                            s if s.is_empty() || s == codec::NO_FUND_PLACEHOLDER => String::new(),
-                            id => id.to_string(),
-                        };
-                        let amount_str = row
-                            .get(idx.amount)
-                            .map(|c| c.to_string())
-                            .unwrap_or_default();
-                        let date_cell =
-                            row.get(idx.date).map(|c| c.to_string()).unwrap_or_default();
-
-                        // Extract payment fields using dynamic indices
-                        let payment_method = row
-                            .get(idx.payment_method)
-                            .map(|c| c.to_string())
-                            .and_then(|s| {
-                                let trimmed = s.trim();
-                                if trimmed.is_empty() {
-                                    None
-                                } else {
-                                    Some(trimmed.to_string())
-                                }
-                            });
-                        let confirmed_payment_date_cell = row
-                            .get(idx.confirmed_payment_date)
-                            .map(|c| c.to_string())
-                            .unwrap_or_default();
-                        let paid_amount = row
-                            .get(idx.paid_amount)
-                            .map(|c| c.to_string())
-                            .and_then(|s| s.trim().parse::<f64>().ok())
-                            .map(|v| (v * 1000.0).round() as i64);
-                        let awaited_amount = row
-                            .get(idx.awaited_amount)
-                            .map(|c| c.to_string())
-                            .and_then(|s| s.trim().parse::<f64>().ok())
-                            .map(|v| (v * 1000.0).round() as i64);
-
-                        // Convert date: try Excel serial number first, then text fallback
-                        let trimmed_date = date_cell.trim();
-                        let procedure_date = trimmed_date
-                            .parse::<f64>()
-                            .ok()
-                            .and_then(convert_excel_date_to_iso)
-                            .or_else(|| parse_text_date_to_iso(trimmed_date));
-
-                        // Skip rows where the date is present but unparseable
-                        let procedure_date = match procedure_date {
-                            Some(d) => d,
-                            None => {
-                                if !trimmed_date.is_empty() {
-                                    tracing::warn!(
-                                        target: BACKEND,
-                                        month = canonical_month,
-                                        row = row_number,
-                                        date_cell = trimmed_date,
-                                        "Skipping row: unrecognized date format"
-                                    );
-                                    parsing_issues.skipped_rows.push(SkippedRow {
-                                        sheet: canonical_month.to_string(),
-                                        row_number,
-                                        reason: SkipReason::UnrecognizedDateFormat {
-                                            value: trimmed_date.to_string(),
-                                        },
-                                    });
-                                }
-                                continue;
-                            }
-                        };
-
-                        // Convert confirmed_payment_date: try Excel serial number first, then text fallback
-                        let trimmed_cpd = confirmed_payment_date_cell.trim();
-                        let confirmed_payment_date = trimmed_cpd
-                            .parse::<f64>()
-                            .ok()
-                            .and_then(convert_excel_date_to_iso)
-                            .or_else(|| parse_text_date_to_iso(trimmed_cpd));
-
-                        // Skip empty rows (no patient name AND no amount AND no date)
-                        if [&patient_name, &amount_str, &procedure_date]
-                            .iter()
-                            .all(|s| s.trim().is_empty())
-                        {
-                            continue;
-                        }
-
-                        // Skip rows where patient_name is #N/A
-                        if Self::is_excel_error(&patient_name) {
-                            continue;
-                        }
-
-                        // Look up patient temp_id:
-                        // 1. By SSN (col 0) — primary, avoids name variation issues
-                        // 2. By name (case-insensitive) — fallback for patients without valid SSN
-                        // 3. By name + "(code: SSN)" — fallback for invalid-SSN patients
-                        let row_ssn = row.first().map(|c| c.to_string()).unwrap_or_default();
-                        let row_ssn = row_ssn.trim();
-                        let patient_temp_id = if Self::is_valid_ssn(row_ssn) {
-                            patient_ssn_to_temp_id.get(row_ssn).cloned()
-                        } else {
-                            patient_name_to_temp_id
-                                .get(&patient_name.to_lowercase())
-                                .cloned()
-                                .or_else(|| {
-                                    // Patient stored with "(code: SSN)" suffix (invalid SSN).
-                                    if !row_ssn.is_empty() && !Self::is_excel_error(row_ssn) {
-                                        let key = format!("{patient_name} (code: {row_ssn})")
-                                            .to_lowercase();
-                                        patient_name_to_temp_id.get(&key).cloned()
-                                    } else {
-                                        None
-                                    }
-                                })
-                        };
-                        let fund_temp_id =
-                            fund_identifier_to_temp_id.get(&fund_identifier).cloned();
-
-                        // Validate patient exists
-                        if patient_name.is_empty() || patient_temp_id.is_none() {
-                            let reason = if patient_name.is_empty() {
-                                SkipReason::MissingPatientName
-                            } else {
-                                SkipReason::PatientNotFound {
-                                    name: patient_name.clone(),
-                                }
-                            };
-                            // Code only — the PatientNotFound payload carries
-                            // the patient name (PII) and must not reach logs.
-                            tracing::debug!(
-                                target: BACKEND,
-                                month = canonical_month,
-                                row = row_number,
-                                reason_code = reason.code(),
-                                "Skipping row"
-                            );
-                            parsing_issues.skipped_rows.push(SkippedRow {
-                                sheet: canonical_month.to_string(),
-                                row_number,
-                                reason,
-                            });
-                            continue;
-                        }
-
-                        // Validate fund exists if provided
-                        if !fund_identifier.is_empty() && fund_temp_id.is_none() {
-                            tracing::debug!(
-                                target: BACKEND,
-                                month = canonical_month,
-                                row = row_number,
-                                fund_identifier = %fund_identifier,
-                                "Skipping row: fund not found in parsed funds"
-                            );
-                            parsing_issues.skipped_rows.push(SkippedRow {
-                                sheet: canonical_month.to_string(),
-                                row_number,
-                                reason: SkipReason::FundNotFound {
-                                    identifier: fund_identifier.clone(),
-                                },
-                            });
-                            continue;
-                        }
-
-                        let amount_euros: f64 = amount_str.parse().unwrap_or(0.0);
-                        let amount = (amount_euros * 1000.0).round() as i64;
-                        if amount <= 0 {
-                            tracing::debug!(
-                                target: BACKEND,
-                                month = canonical_month,
-                                row = row_number,
-                                amount_str = %amount_str,
-                                parsed_amount = amount,
-                                "Skipping procedure with invalid amount"
-                            );
-                            parsing_issues.skipped_rows.push(SkippedRow {
-                                sheet: canonical_month.to_string(),
-                                row_number,
-                                reason: SkipReason::InvalidAmount {
-                                    value: amount_str.clone(),
-                                },
-                            });
-                            continue;
-                        }
-
-                        tracing::trace!(
-                            target: BACKEND,
-                            month = canonical_month,
-                            row = row_number,
-                            fund_id = %fund_identifier,
-                            amount = amount,
-                            date = %procedure_date,
-                            "Successfully parsed procedure"
-                        );
-
-                        if let Some(patient_id) = patient_temp_id {
-                            procedures.push(ExcelProcedure {
-                                patient_temp_id: patient_id,
-                                fund_temp_id,
-                                procedure_type_tmp_id: String::new(), // Will be set after parsing
-                                amount,
-                                procedure_date,
-                                sheet_month: canonical_month.to_string(),
-                                payment_method,
-                                confirmed_payment_date,
-                                paid_amount,
-                                awaited_amount,
-                                source_row: row_number, // IFC-026 — 1-based row index in the source sheet
-                            });
+                        if let Some(procedure) = Self::procedure_from_row(
+                            row,
+                            idx,
+                            canonical_month,
+                            row_number,
+                            &lookups,
+                            parsing_issues,
+                        ) {
+                            procedures.push(procedure);
                         }
                     }
                     break; // Found the month, stop trying other variations
@@ -779,6 +581,245 @@ impl ExcelParserService {
         }
 
         Ok(procedures)
+    }
+
+    /// EXI-020, EXI-040 — one monthly-sheet row: its procedure, or `None` with
+    /// the reason pushed to `parsing_issues` (an empty or `#N/A` row is dropped
+    /// silently, EXI-220).
+    fn procedure_from_row(
+        row: &[calamine::Data],
+        idx: &ColIdx,
+        canonical_month: &str,
+        row_number: u32,
+        lookups: &RowLookups,
+        parsing_issues: &mut ParsingIssues,
+    ) -> Option<ExcelProcedure> {
+        // EXI-020 — a row too short for its date column is reported, unless empty.
+        if row.len() < idx.date + 1 {
+            let n_a = row
+                .get(idx.patient)
+                .is_some_and(|c| Self::is_excel_error(&c.to_string()));
+            if !n_a && row.iter().any(|c| !c.to_string().trim().is_empty()) {
+                parsing_issues.skipped_rows.push(SkippedRow {
+                    sheet: canonical_month.to_string(),
+                    row_number,
+                    reason: SkipReason::InsufficientColumns {
+                        needed: (idx.date + 1) as u32,
+                    },
+                });
+            }
+            return None;
+        }
+
+        let patient_name = row
+            .get(idx.patient)
+            .map(|c| c.to_string())
+            .unwrap_or_default();
+        let fund_identifier_raw = row.get(idx.fund).map(|c| c.to_string()).unwrap_or_default();
+        // Treat NO_FUND_PLACEHOLDER as no fund (patient without fund).
+        let fund_identifier = match fund_identifier_raw.trim() {
+            s if s.is_empty() || s == codec::NO_FUND_PLACEHOLDER => String::new(),
+            id => id.to_string(),
+        };
+        let amount_str = row
+            .get(idx.amount)
+            .map(|c| c.to_string())
+            .unwrap_or_default();
+        let date_cell = row.get(idx.date).map(|c| c.to_string()).unwrap_or_default();
+
+        // Extract payment fields using dynamic indices
+        let payment_method = row
+            .get(idx.payment_method)
+            .map(|c| c.to_string())
+            .and_then(|s| {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            });
+        let confirmed_payment_date_cell = row
+            .get(idx.confirmed_payment_date)
+            .map(|c| c.to_string())
+            .unwrap_or_default();
+        let paid_amount = row
+            .get(idx.paid_amount)
+            .map(|c| c.to_string())
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .map(|v| (v * 1000.0).round() as i64);
+        let awaited_amount = row
+            .get(idx.awaited_amount)
+            .map(|c| c.to_string())
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .map(|v| (v * 1000.0).round() as i64);
+
+        // EXI-220 — an empty row, or one whose patient is `#N/A`, is dropped unreported.
+        let trimmed_date = date_cell.trim();
+        if [patient_name.as_str(), amount_str.as_str(), trimmed_date]
+            .iter()
+            .all(|s| s.trim().is_empty())
+            || Self::is_excel_error(&patient_name)
+        {
+            return None;
+        }
+
+        // Convert date: try Excel serial number first, then text fallback
+        let procedure_date = trimmed_date
+            .parse::<f64>()
+            .ok()
+            .and_then(convert_excel_date_to_iso)
+            .or_else(|| parse_text_date_to_iso(trimmed_date));
+
+        // EXI-020 — a missing or unparseable date skips the row, reported.
+        let Some(procedure_date) = procedure_date else {
+            let reason = if trimmed_date.is_empty() {
+                SkipReason::MissingDate
+            } else {
+                SkipReason::UnrecognizedDateFormat {
+                    value: trimmed_date.to_string(),
+                }
+            };
+            tracing::warn!(
+                target: BACKEND,
+                month = canonical_month,
+                row = row_number,
+                reason_code = reason.code(),
+                "Skipping row: no usable date"
+            );
+            parsing_issues.skipped_rows.push(SkippedRow {
+                sheet: canonical_month.to_string(),
+                row_number,
+                reason,
+            });
+            return None;
+        };
+
+        // Convert confirmed_payment_date: try Excel serial number first, then
+        // text fallback; a cell that parses as neither is kept verbatim so the
+        // import's EXI-280 gate reports it.
+        let trimmed_cpd = confirmed_payment_date_cell.trim();
+        let confirmed_payment_date = trimmed_cpd
+            .parse::<f64>()
+            .ok()
+            .and_then(convert_excel_date_to_iso)
+            .or_else(|| parse_text_date_to_iso(trimmed_cpd))
+            .or_else(|| (!trimmed_cpd.is_empty()).then(|| trimmed_cpd.to_string()));
+
+        // Look up patient temp_id:
+        // 1. By SSN (col 0) — primary, avoids name variation issues
+        // 2. By name (case-insensitive) — fallback for patients without valid SSN
+        // 3. By name + "(code: SSN)" — fallback for invalid-SSN patients
+        let row_ssn = row.first().map(|c| c.to_string()).unwrap_or_default();
+        let row_ssn = row_ssn.trim();
+        let patient_temp_id = if Self::is_valid_ssn(row_ssn) {
+            lookups.patient_by_ssn.get(row_ssn).cloned()
+        } else {
+            lookups
+                .patient_by_name
+                .get(&patient_name.to_lowercase())
+                .cloned()
+                .or_else(|| {
+                    // Patient stored with "(code: SSN)" suffix (invalid SSN).
+                    if !row_ssn.is_empty() && !Self::is_excel_error(row_ssn) {
+                        let key = format!("{patient_name} (code: {row_ssn})").to_lowercase();
+                        lookups.patient_by_name.get(&key).cloned()
+                    } else {
+                        None
+                    }
+                })
+        };
+        let fund_temp_id = lookups.fund_by_identifier.get(&fund_identifier).cloned();
+
+        // Validate patient exists
+        let (false, Some(patient_id)) = (patient_name.is_empty(), patient_temp_id) else {
+            let reason = if patient_name.is_empty() {
+                SkipReason::MissingPatientName
+            } else {
+                SkipReason::PatientNotFound {
+                    name: patient_name.clone(),
+                }
+            };
+            // Code only — the PatientNotFound payload carries
+            // the patient name (PII) and must not reach logs.
+            tracing::debug!(
+                target: BACKEND,
+                month = canonical_month,
+                row = row_number,
+                reason_code = reason.code(),
+                "Skipping row"
+            );
+            parsing_issues.skipped_rows.push(SkippedRow {
+                sheet: canonical_month.to_string(),
+                row_number,
+                reason,
+            });
+            return None;
+        };
+
+        // Validate fund exists if provided
+        if !fund_identifier.is_empty() && fund_temp_id.is_none() {
+            tracing::debug!(
+                target: BACKEND,
+                month = canonical_month,
+                row = row_number,
+                fund_identifier = %fund_identifier,
+                "Skipping row: fund not found in parsed funds"
+            );
+            parsing_issues.skipped_rows.push(SkippedRow {
+                sheet: canonical_month.to_string(),
+                row_number,
+                reason: SkipReason::FundNotFound {
+                    identifier: fund_identifier.clone(),
+                },
+            });
+            return None;
+        }
+
+        let amount_euros: f64 = amount_str.parse().unwrap_or(0.0);
+        let amount = (amount_euros * 1000.0).round() as i64;
+        if amount <= 0 {
+            tracing::debug!(
+                target: BACKEND,
+                month = canonical_month,
+                row = row_number,
+                amount_str = %amount_str,
+                parsed_amount = amount,
+                "Skipping procedure with invalid amount"
+            );
+            parsing_issues.skipped_rows.push(SkippedRow {
+                sheet: canonical_month.to_string(),
+                row_number,
+                reason: SkipReason::InvalidAmount {
+                    value: amount_str.clone(),
+                },
+            });
+            return None;
+        }
+
+        tracing::trace!(
+            target: BACKEND,
+            month = canonical_month,
+            row = row_number,
+            fund_id = %fund_identifier,
+            amount = amount,
+            date = %procedure_date,
+            "Successfully parsed procedure"
+        );
+
+        Some(ExcelProcedure {
+            patient_temp_id: patient_id,
+            fund_temp_id,
+            procedure_type_tmp_id: String::new(), // Will be set after parsing
+            amount,
+            procedure_date,
+            sheet_month: canonical_month.to_string(),
+            payment_method,
+            confirmed_payment_date,
+            paid_amount,
+            awaited_amount,
+            source_row: row_number, // IFC-026 — 1-based row index in the source sheet
+        })
     }
 }
 
@@ -895,6 +936,182 @@ mod tests {
     }
 
     // --- ColIdx::from_header_row ---
+
+    /// A monthly sheet's header, and a row of it: CODE, NOM, NOM SECU, CAISSE,
+    /// ADRESSE, TARIF, DATE, ENVOI, T, REMBSE.
+    fn monthly_row(name: &str, amount: &str, date: &str, rembse: &str) -> Vec<calamine::Data> {
+        vec![
+            s("1234567890123"),
+            s(name),
+            s(""),
+            s(""),
+            s(""),
+            s(amount),
+            s(date),
+            s(""),
+            s(""),
+            s(rembse),
+        ]
+    }
+
+    /// Parses one row against Marie Dupont's patient sheet; returns it and the report.
+    fn parse_row(row: &[calamine::Data]) -> (Option<ExcelProcedure>, Vec<SkippedRow>) {
+        let header: Vec<calamine::Data> = [
+            "CODE", "NOM", "NOM SECU", "CAISSE", "ADRESSE", "TARIF", "DATE", "ENVOI", "T", "REMBSE",
+        ]
+        .iter()
+        .map(|h| s(h))
+        .collect();
+        let idx = ColIdx::from_header_row(&header).expect("header");
+        let by_ssn = HashMap::from([("1234567890123".to_string(), "p-1".to_string())]);
+        let by_name = HashMap::from([("marie dupont".to_string(), "p-1".to_string())]);
+        let funds = HashMap::new();
+        let lookups = RowLookups {
+            patient_by_ssn: &by_ssn,
+            patient_by_name: &by_name,
+            fund_by_identifier: &funds,
+        };
+        let mut issues = ParsingIssues {
+            skipped_rows: vec![],
+            missing_sheets: vec![],
+        };
+        let procedure =
+            ExcelParserService::procedure_from_row(row, &idx, "Jan", 4, &lookups, &mut issues);
+        (procedure, issues.skipped_rows)
+    }
+
+    /// EXI-220 (#621): "missing sheets" names the monthly sheets only, never the
+    /// patient or fund sheet.
+    #[cfg(feature = "dev-fixtures")]
+    #[tokio::test]
+    async fn test_621_exi_220_missing_sheets_name_monthly_sheets_only() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("only_january.xlsx");
+        let mut workbook = rust_xlsxwriter::Workbook::new();
+        let sheet = workbook.add_worksheet();
+        sheet.set_name("Jan").expect("name");
+        for (col, label) in [
+            "CODE", "NOM", "NOM SECU", "CAISSE", "ADRESSE", "TARIF", "DATE",
+        ]
+        .iter()
+        .enumerate()
+        {
+            sheet.write_string(0, col as u16, *label).expect("header");
+        }
+        workbook.save(&path).expect("save");
+
+        let parsed = ExcelParserService::parse_excel(&path)
+            .await
+            .expect("parses");
+
+        let missing = parsed.parsing_issues.missing_sheets;
+        assert!(!missing.contains(&codec::PATIENTE_SHEET.to_string()));
+        assert!(!missing.contains(&codec::SECU_SHEET.to_string()));
+        assert!(!missing.contains(&"Jan".to_string()));
+        assert!(missing.contains(&"Fév".to_string()));
+    }
+
+    #[test]
+    fn test_621_exi_020_a_row_with_an_empty_date_is_reported() {
+        let (procedure, skipped) = parse_row(&monthly_row("Marie Dupont", "50", "", ""));
+
+        assert!(procedure.is_none());
+        assert_eq!(
+            skipped,
+            vec![SkippedRow {
+                sheet: "Jan".to_string(),
+                row_number: 4,
+                reason: SkipReason::MissingDate,
+            }]
+        );
+    }
+
+    #[test]
+    fn test_621_exi_020_a_row_too_short_for_its_date_is_reported() {
+        let (procedure, skipped) = parse_row(&[s("1234567890123"), s("Marie Dupont")]);
+
+        assert!(procedure.is_none());
+        assert_eq!(
+            skipped[0].reason,
+            SkipReason::InsufficientColumns { needed: 7 }
+        );
+    }
+
+    #[test]
+    fn test_621_exi_020_each_parse_time_cause_is_reported() {
+        let cases = [
+            (
+                monthly_row("", "50", "15/01/2026", ""),
+                SkipReason::MissingPatientName,
+            ),
+            (
+                monthly_row("Paul Inconnu", "50", "15/01/2026", ""),
+                SkipReason::PatientNotFound {
+                    name: "Paul Inconnu".to_string(),
+                },
+            ),
+            (
+                monthly_row("Marie Dupont", "abc", "15/01/2026", ""),
+                SkipReason::InvalidAmount {
+                    value: "abc".to_string(),
+                },
+            ),
+        ];
+        for (row, reason) in cases {
+            // An unknown SSN, so the name decides.
+            let mut row = row;
+            row[0] = s("");
+            let (procedure, skipped) = parse_row(&row);
+            assert!(procedure.is_none(), "{reason:?}");
+            assert_eq!(skipped[0].reason, reason);
+        }
+
+        let mut with_fund = monthly_row("Marie Dupont", "50", "15/01/2026", "");
+        with_fund[3] = s("99");
+        let (_, skipped) = parse_row(&with_fund);
+        assert_eq!(
+            skipped[0].reason,
+            SkipReason::FundNotFound {
+                identifier: "99".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_621_exi_220_a_short_n_a_row_is_not_reported() {
+        let (procedure, skipped) = parse_row(&[s("1234567890123"), s("#N/A")]);
+
+        assert!(procedure.is_none());
+        assert!(skipped.is_empty());
+    }
+
+    #[test]
+    fn test_621_exi_220_an_empty_row_and_an_n_a_row_are_not_reported() {
+        let (empty, empty_skips) = parse_row(&monthly_row("", "", "", ""));
+        let (n_a, n_a_skips) = parse_row(&monthly_row("#N/A", "50", "not-a-date", ""));
+
+        assert!(empty.is_none() && n_a.is_none());
+        assert!(empty_skips.is_empty() && n_a_skips.is_empty());
+    }
+
+    #[test]
+    fn test_621_exi_280_a_malformed_rembse_reaches_the_import_verbatim() {
+        let (procedure, skipped) = parse_row(&monthly_row(
+            "Marie Dupont",
+            "50",
+            "15/01/2026",
+            "31/02/2026",
+        ));
+
+        assert!(skipped.is_empty());
+        assert_eq!(
+            procedure
+                .expect("the row parses")
+                .confirmed_payment_date
+                .as_deref(),
+            Some("31/02/2026")
+        );
+    }
 
     #[test]
     fn col_idx_parses_explicit_column_positions() {

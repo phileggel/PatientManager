@@ -75,7 +75,8 @@
     "invalid_format": "Le fichier n'est pas un classeur Excel lisible.",
     "parse_error": "Le fichier Excel n'a pas pu être analysé.",
     "import_failed": "L'import n'a pas pu être effectué. Veuillez réessayer.",
-    "database_error": "Une erreur de base de données inattendue s'est produite."
+    "database_error": "Une erreur de base de données inattendue s'est produite.",
+    "procedure_type_not_found": "Un type d'acte du mapping n'existe plus. Associez de nouveau ce montant, puis relancez l'import."
   },
   "parsing_report": {
     "unified_title": "Rapport d'import",
@@ -103,7 +104,11 @@
       "invalid_procedure_date": "Date d'acte invalide : « {{value}} »",
       "invalid_confirmed_payment_date": "Date de paiement confirmée invalide : « {{value}} »",
       "unknown_sheet_name": "Nom de feuille inconnu",
-      "date_outside_sheet_month": "La date d'acte {{date}} ne correspond pas au mois de la feuille"
+      "date_outside_sheet_month": "La date d'acte {{date}} ne correspond pas au mois de la feuille",
+      "missing_date": "Date absente",
+      "unmapped_amount": "Aucun type d'acte associé à ce montant",
+      "month_blocked": "Mois {{month}} bloqué : il contient un paiement",
+      "patient_not_resolved": "Patient introuvable dans le fichier"
     }
   }
 }

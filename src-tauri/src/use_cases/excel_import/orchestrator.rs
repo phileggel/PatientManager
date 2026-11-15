@@ -6,7 +6,9 @@ use chrono::{Datelike, NaiveDate};
 
 use crate::context::fund::{Fund, FundService};
 use crate::context::patient::{Patient, PatientService};
-use crate::context::procedure::{ProcedureCandidate, ProcedureService, ProcedureType};
+use crate::context::procedure::{
+    ProcedureCandidate, ProcedureError, ProcedureService, ProcedureType, ProcedureTypeService,
+};
 use crate::shared::logger::BACKEND;
 use crate::use_cases::excel_import::dto::{ImportExecutionResult, ParseExcelResponse};
 use crate::use_cases::excel_import::error::ExcelImportError;
@@ -36,6 +38,7 @@ pub struct ExcelImportOrchestrator {
     patient_service: Arc<PatientService>,
     fund_service: Arc<FundService>,
     procedure_service: Arc<ProcedureService>,
+    procedure_type_service: Arc<ProcedureTypeService>,
     procedure_orchestration: Arc<ProcedureOrchestrationService>,
     transaction_manager: Arc<dyn ExcelImportTransactionManager>,
 }
@@ -45,6 +48,7 @@ impl ExcelImportOrchestrator {
         patient_service: Arc<PatientService>,
         fund_service: Arc<FundService>,
         procedure_service: Arc<ProcedureService>,
+        procedure_type_service: Arc<ProcedureTypeService>,
         procedure_orchestration: Arc<ProcedureOrchestrationService>,
         transaction_manager: Arc<dyn ExcelImportTransactionManager>,
     ) -> Self {
@@ -52,6 +56,7 @@ impl ExcelImportOrchestrator {
             patient_service,
             fund_service,
             procedure_service,
+            procedure_type_service,
             procedure_orchestration,
             transaction_manager,
         }
@@ -82,6 +87,31 @@ impl ExcelImportOrchestrator {
             procedures = parsed_data.procedures.len(),
             "Starting Excel import execution"
         );
+
+        // ── Step 0: EXI-151 — every mapped type exists, before any write ─────
+        let mut mapped_types: Vec<&String> = procedure_type_mapping
+            .values()
+            .filter(|id| id.as_str() != DEFAULT_TYPE_ID)
+            .collect();
+        mapped_types.sort();
+        mapped_types.dedup();
+        for type_id in mapped_types {
+            match self
+                .procedure_type_service
+                .read_procedure_type(type_id)
+                .await
+            {
+                Ok(_) => {}
+                Err(ProcedureError::ProcedureTypeNotFound { procedure_type_id }) => {
+                    tracing::warn!(target: BACKEND, "Import refused: a mapped procedure type does not exist");
+                    return Err(ExcelImportError::ProcedureTypeNotFound { procedure_type_id });
+                }
+                Err(e) => {
+                    tracing::error!(target: BACKEND, err = ?e, "Failed to check a mapped procedure type");
+                    return Err(ExcelImportError::ImportFailed);
+                }
+            }
+        }
 
         // ── Step 1: Patients ─────────────────────────────────────────────────
         let mut patients_map: HashMap<String, String> = HashMap::new();
@@ -198,6 +228,7 @@ impl ExcelImportOrchestrator {
             .map(|d| d.year());
 
         let mut blocked_months: Vec<String> = Vec::new();
+        let mut blocked_sheets: HashMap<String, String> = HashMap::new();
         let mut allowed_sheets: HashSet<String> = HashSet::new();
         let mut months_to_clear: Vec<String> = Vec::new();
 
@@ -222,6 +253,7 @@ impl ExcelImportOrchestrator {
                     })?
                 {
                     tracing::warn!(target: BACKEND, month = %month_key, sheet = %sheet, "Month blocked: it holds a fund payment or a procedure with a blocking status");
+                    blocked_sheets.insert(sheet.clone(), month_key.clone());
                     blocked_months.push(month_key);
                 } else {
                     months_to_clear.push(month_key);
@@ -247,9 +279,9 @@ impl ExcelImportOrchestrator {
         //   (5) month-match gate       — EXI-281 (procedure_date.month == sheet.month)
         //   (6) ProcedureCandidate built
         //
-        // Soft-skip taxonomy: gates (1)-(3) bump `procedures_skipped` only;
-        // gates (4)-(5) ALSO append to `skipped_procedures` (EXI-290) so the
-        // user sees what went wrong.
+        // Soft-skip taxonomy: an unselected sheet bumps `procedures_skipped`
+        // only; every other gate ALSO appends to `skipped_procedures`
+        // (EXI-290) so the user sees what went wrong.
         let mut candidates: Vec<ProcedureCandidate> = Vec::new();
         let mut procedures_skipped = 0u32;
         let mut skipped_procedures: Vec<SkippedRow> = Vec::new();
@@ -259,6 +291,19 @@ impl ExcelImportOrchestrator {
             // sheet_month equality vs the canonicalized allowed_sheets set
             // (parser writes canonical names; FE selection passes them
             // through verbatim).
+            // EXI-290 — a row of a blocked month is reported, one of an
+            // unselected sheet only counted.
+            if let Some(month) = blocked_sheets.get(&excel_proc.sheet_month) {
+                skipped_procedures.push(SkippedRow {
+                    sheet: excel_proc.sheet_month.clone(),
+                    row_number: excel_proc.source_row,
+                    reason: SkipReason::MonthBlocked {
+                        month: month.clone(),
+                    },
+                });
+                procedures_skipped += 1;
+                continue;
+            }
             if !allowed_sheets.contains(&excel_proc.sheet_month) {
                 procedures_skipped += 1;
                 continue;
@@ -271,6 +316,11 @@ impl ExcelImportOrchestrator {
                     patient_temp_id = %excel_proc.patient_temp_id,
                     "Skipping procedure: patient temp_id not resolved"
                 );
+                skipped_procedures.push(SkippedRow {
+                    sheet: excel_proc.sheet_month.clone(),
+                    row_number: excel_proc.source_row,
+                    reason: SkipReason::PatientNotResolved,
+                });
                 procedures_skipped += 1;
                 continue;
             };
@@ -285,6 +335,13 @@ impl ExcelImportOrchestrator {
                     type_tmp_id = %excel_proc.procedure_type_tmp_id,
                     "Skipping procedure: procedure type not mapped"
                 );
+                skipped_procedures.push(SkippedRow {
+                    sheet: excel_proc.sheet_month.clone(),
+                    row_number: excel_proc.source_row,
+                    reason: SkipReason::UnmappedAmount {
+                        amount: excel_proc.amount,
+                    },
+                });
                 procedures_skipped += 1;
                 continue;
             };
@@ -501,6 +558,8 @@ mod tests {
     struct Writes {
         months_cleared: Vec<String>,
         procedures: usize,
+        /// EXI-180 — every write, in the order the import made it.
+        log: Vec<&'static str>,
     }
 
     /// The test double of the manager: records the writes, or refuses them.
@@ -528,13 +587,18 @@ mod tests {
     #[async_trait::async_trait]
     impl ExcelImportUnitOfWork for FakeUnitOfWork {
         async fn insert_patient(&mut self, _: &Patient) -> anyhow::Result<()> {
-            self.check()
+            self.check()?;
+            self.writes.lock().unwrap().log.push("patient");
+            Ok(())
         }
         async fn insert_fund(&mut self, _: &Fund) -> anyhow::Result<()> {
-            self.check()
+            self.check()?;
+            self.writes.lock().unwrap().log.push("fund");
+            Ok(())
         }
         async fn delete_procedures_of_month(&mut self, month: &str) -> anyhow::Result<u64> {
             self.check()?;
+            self.writes.lock().unwrap().log.push("delete");
             self.writes
                 .lock()
                 .unwrap()
@@ -547,11 +611,15 @@ mod tests {
             _: &crate::context::procedure::Procedure,
         ) -> anyhow::Result<()> {
             self.check()?;
-            self.writes.lock().unwrap().procedures += 1;
+            let mut writes = self.writes.lock().unwrap();
+            writes.procedures += 1;
+            writes.log.push("procedure");
             Ok(())
         }
         async fn update_patient(&mut self, _: &Patient) -> anyhow::Result<()> {
-            self.check()
+            self.check()?;
+            self.writes.lock().unwrap().log.push("tracking");
+            Ok(())
         }
     }
 
@@ -575,10 +643,26 @@ mod tests {
         orch_patient_repo: MockPatientRepository,
         orch_fund_repo: MockFundRepository,
         orch_type_repo: MockProcedureTypeRepository,
+        /// EXI-151 — the types the import checks the mapping against.
+        type_repo: MockProcedureTypeRepository,
         orch_refund_repo: MockProcedureRefundRepository,
         writes: Arc<Mutex<Writes>>,
         deleted_per_month: u64,
         writes_fail: bool,
+    }
+
+    /// EXI-151 — every type a test maps exists, unless the test says otherwise.
+    fn type_repo_holding_every_type() -> MockProcedureTypeRepository {
+        let mut mock = MockProcedureTypeRepository::new();
+        mock.expect_read_procedure_type().returning(|id| {
+            Ok(Some(ProcedureType::restore(
+                id.to_string(),
+                "Type".to_string(),
+                10000,
+                None,
+            )))
+        });
+        mock
     }
 
     impl Default for OrchestratorMocks {
@@ -591,6 +675,7 @@ mod tests {
                 orch_patient_repo: MockPatientRepository::new(),
                 orch_fund_repo: MockFundRepository::new(),
                 orch_type_repo: MockProcedureTypeRepository::new(),
+                type_repo: type_repo_holding_every_type(),
                 orch_refund_repo: MockProcedureRefundRepository::new(),
                 writes: Arc::default(),
                 deleted_per_month: 0,
@@ -625,6 +710,10 @@ mod tests {
             patient_svc,
             fund_svc,
             proc_svc,
+            Arc::new(ProcedureTypeService::new(
+                Arc::new(mocks.type_repo),
+                bus.clone(),
+            )),
             proc_orch,
             Arc::new(FakeTransactionManager {
                 writes: mocks.writes,
@@ -1100,6 +1189,15 @@ mod tests {
 
         assert_eq!(result.procedures_skipped, 1);
         assert_eq!(result.procedures_created, 0);
+        // EXI-290 (#621): the row is reported with its amount.
+        assert_eq!(
+            result.skipped_procedures,
+            vec![SkippedRow {
+                sheet: "Fév".to_string(),
+                row_number: 3,
+                reason: SkipReason::UnmappedAmount { amount: 5000 },
+            }]
+        );
     }
 
     // ── EXI-270 — Sheet-based filter ──────────────────────────────────────────
@@ -1159,8 +1257,8 @@ mod tests {
 
         let mut parse_result = empty_parse_result();
         // Row is from "Jan" and "Jan" is selected — must pass the sheet filter.
-        // No patient in map → procedures_skipped bumped by patient-resolution,
-        // but the row was NOT skipped by EXI-270 (skipped_procedures stays empty).
+        // No patient in map → skipped and reported by patient resolution,
+        // not by EXI-270.
         parse_result.procedures = vec![ExcelProcedure {
             patient_temp_id: "unknown-tmp".to_string(),
             fund_temp_id: None,
@@ -1184,10 +1282,18 @@ mod tests {
             .await
             .unwrap();
 
-        // Row passed the sheet filter; patient resolution skipped it — that is
-        // a procedures_skipped increment, not a skipped_procedures entry.
+        // Row passed the sheet filter; patient resolution skipped it and
+        // reports it (EXI-290, #621). Its amount has no mapping either: the
+        // patient comes first in EXI-180's order, so one entry, for it.
         assert_eq!(result.procedures_skipped, 1);
-        assert!(result.skipped_procedures.is_empty());
+        assert_eq!(
+            result.skipped_procedures,
+            vec![SkippedRow {
+                sheet: "Jan".to_string(),
+                row_number: 2,
+                reason: SkipReason::PatientNotResolved,
+            }]
+        );
     }
 
     // ── EXI-280 — Execute-time date format validation ─────────────────────────
@@ -1575,6 +1681,87 @@ mod tests {
             "correctly-dated row must not produce a skipped_procedures entry"
         );
         assert_eq!(result.procedures_created, 1);
+    }
+
+    /// EXI-180 (#621): the writes go patients, funds, the months' deletes, the
+    /// procedures, then the tracking fields.
+    #[tokio::test]
+    async fn test_621_exi_180_the_writes_follow_the_execution_order() {
+        let mut proc_repo = MockProcedureRepository::new();
+        proc_repo
+            .expect_has_blocking_procedures_in_month()
+            .returning(|_| Ok(false));
+        let mut patient_repo = MockPatientRepository::new();
+        patient_repo
+            .expect_find_patient_by_name()
+            .returning(|_| Ok(None));
+        let mut fund_repo = MockFundRepository::new();
+        fund_repo
+            .expect_find_fund_by_identifier()
+            .returning(|_| Ok(None));
+        let mut orch_patient_repo = MockPatientRepository::new();
+        orch_patient_repo.expect_read_patient().returning(|id| {
+            Ok(Some(crate::context::patient::Patient::restore(
+                id.to_string(),
+                false,
+                Some("Test".to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )))
+        });
+
+        let mut parse_result = empty_parse_result();
+        parse_result.patients = vec![ExcelPatient {
+            temp_id: "tmp-1".to_string(),
+            name: "Test".to_string(),
+            ssn: String::new(),
+            latest_fund: None,
+        }];
+        parse_result.funds = vec![ExcelFund {
+            temp_id: "tmp-fund".to_string(),
+            fund_identifier: "59".to_string(),
+            fund_name: "Caisse 59".to_string(),
+            fund_address: None,
+        }];
+        parse_result.procedures = vec![ExcelProcedure {
+            patient_temp_id: "tmp-1".to_string(),
+            fund_temp_id: Some("tmp-fund".to_string()),
+            procedure_type_tmp_id: "type-1".to_string(),
+            amount: 10000,
+            procedure_date: "2026-01-15".to_string(),
+            sheet_month: "Jan".to_string(),
+            payment_method: None,
+            confirmed_payment_date: None,
+            paid_amount: None,
+            awaited_amount: None,
+            source_row: 2,
+        }];
+        let writes = Arc::new(Mutex::new(Writes::default()));
+
+        let orchestrator = make_orchestrator(OrchestratorMocks {
+            patient_repo,
+            fund_repo,
+            proc_repo,
+            orch_patient_repo,
+            writes: writes.clone(),
+            ..Default::default()
+        });
+        orchestrator
+            .execute_import(
+                parse_result,
+                HashMap::from([("type-1".to_string(), "real-type-id".to_string())]),
+                vec!["Jan".to_string()],
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            writes.lock().unwrap().log,
+            vec!["patient", "fund", "delete", "procedure", "tracking"]
+        );
     }
 
     /// EXI-281: `confirmed_payment_date` in a different month from the sheet is

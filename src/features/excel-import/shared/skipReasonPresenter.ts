@@ -62,5 +62,16 @@ export function formatSkipReason(reason: SkipReason): {
         key: "excel-import:parsing_report.reasons.date_outside_sheet_month",
         params: { date: reason.date },
       };
+    case "MissingDate":
+      return { key: "excel-import:parsing_report.reasons.missing_date" };
+    case "UnmappedAmount":
+      return { key: "excel-import:parsing_report.reasons.unmapped_amount" };
+    case "MonthBlocked":
+      return {
+        key: "excel-import:parsing_report.reasons.month_blocked",
+        params: { month: reason.month },
+      };
+    case "PatientNotResolved":
+      return { key: "excel-import:parsing_report.reasons.patient_not_resolved" };
   }
 }

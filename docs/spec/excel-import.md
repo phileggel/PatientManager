@@ -69,13 +69,15 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-131 — The default type is stored as the reserved type (backend)**: A procedure whose amount is mapped to `imported-from-excel` is created with the reserved type, id `import-pdf` (see R21 of procedure-type.md). No procedure type is created.
 
-**EXI-150 (R25) — Procedures skipped if amount missing from mapping (backend)**: If an amount is missing from the mapping received at execution time, all procedures matching that amount are skipped.
+**EXI-150 (R25) — Procedures skipped if amount missing from mapping (backend)**: If an amount is missing from the mapping received at execution time, all procedures matching that amount are skipped, each reported (EXI-290).
+
+**EXI-151 — A mapped type that does not exist (backend)**: When the mapping received at execution time names a procedure type that does not exist — deleted since the mapping, or never created — the import is refused before anything is written, whatever rows use that amount, with an error naming any one such type by the identifier the mapping gave (owner, 2026-11-15, #621). The default type `imported-from-excel` is never refused: it stands for the reserved type, which cannot be deleted (EXI-131, procedure-type.md R22). This is the mapping the import is given; the saved mappings are filtered on read instead (EXI-250, procedure-type.md R6).
 
 ### Reconciled-data protection
 
 **EXI-160 (R15) — Blocked month (backend)**: Before importing a selected sheet, the system checks the sheet's nominal month — whether procedures exist in the database with a blocking status for that month. The blocking statuses are those that block a deletion (PRO-030A): each ties the procedure to a fund-payment group or a bank entry that deleting it would leave dangling. If so, the entire month is **blocked**: no procedure for that month is deleted or recreated. Blocked months are reported in the result. EXI-281 guarantees that every accepted row's `procedure_date` falls in the sheet's nominal month, so per-month blocking remains consistent with per-sheet selection.
 
-**EXI-161 — A month holding a fund payment (backend)**: A procedure held by a fund payment line blocks its month as EXI-160 says, whatever its status: the import never touches a real payment.
+**EXI-161 — A month holding a payment (backend)**: A procedure held by a fund payment line, named by a bank entry, or named by a procedure refund (as its source or its refund) blocks its month as EXI-160 says, whatever its status — the import's side of PRO-030B: the import never touches a real payment (#621).
 
 **EXI-170 (R16) — Pre-import deletion (backend)**: If a sheet's nominal month is not blocked (see EXI-160), **all** existing procedures for that month are permanently deleted before the new data is imported, unless EXI-171 applies. This mechanism allows a corrected sheet to be re-imported without accumulating duplicates.
 
@@ -89,16 +91,16 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 **EXI-178 — What a failed import does not undo (backend)**: The mapping preferences (EXI-230) and the procedure types created for its mapping remain after a failed import.
 
-**EXI-179 — What fails an import (backend)**: An import fails, as EXI-175 says, when a read or a write fails (the database refusing a patient, fund or procedure is a failed write), or when the domain refuses a patient or fund that passed parsing. The refused patient and the refused fund each have their own error.
+**EXI-179 — What fails an import (backend)**: An import fails, as EXI-175 says, when a read or a write fails (the database refusing a patient, fund or procedure is a failed write), or when the domain refuses a patient or fund that passed parsing, or when the mapping names a type that does not exist (EXI-151). The refused patient, the refused fund and the gone type each have their own error.
 
 ### Import orchestration
 
-**EXI-180 (R17) — Execution order (backend)**: The writes of an import follow a strict order; everything they need is read before the first of them:
+**EXI-180 (R17) — Execution order (backend)**: The writes of an import follow a strict order; everything they need is read before the first of them, starting with the check of the types the mapping names (EXI-151):
 
 1. Resolve and create patients (existing reused, new ones created)
 2. Resolve and create funds (existing reused, new ones created)
 3. Validate selected sheets: identify blocked months (per EXI-160) and list the non-blocked months as the months to replace (per EXI-170); the procedures of the months to replace are deleted before any procedure is created. (none when EXI-171 applies)
-4. For each procedure row in a selected sheet: first drop rows whose amount has no mapping (per EXI-150), then apply the execute-time validation gates (EXI-280 format, EXI-281 month-match) before creating the procedure; rows that fail any gate are reported per EXI-290
+4. For each procedure row in a selected sheet: first drop rows whose patient reference matches no patient of the workbook, then those whose amount has no mapping (per EXI-150), then apply the execute-time validation gates (EXI-280 format, EXI-281 month-match) before creating the procedure; rows that fail any gate are reported per EXI-290
 
 The writes of these steps and of EXI-190 apply as one (EXI-175).
 
@@ -114,7 +116,7 @@ Procedures in `Created` are then eligible for fund reconciliation (see R1 of fun
 
 ### Result and reporting
 
-**EXI-210 (R20) — Result (backend)**: An import's result counts the patients created and reused, the funds created and reused, and the procedures created, deleted and skipped — skipped meaning a row of an unselected sheet or a blocked month, whose patient was not resolved, whose amount has no mapping (EXI-150), or that failed a date gate (EXI-280, EXI-281); parse-time skips are not counted. It lists the blocked months, if any.
+**EXI-210 (R20) — Result (backend)**: An import's result counts the patients created and reused, the funds created and reused, and the procedures created, deleted and skipped — skipped meaning a row of an unselected sheet (counted, not reported, EXI-290) or of a blocked month, whose patient reference matches no patient of the workbook, whose amount has no mapping (EXI-150), or that failed a date gate (EXI-280, EXI-281); parse-time skips are not counted. It lists the blocked months, if any.
 
 **EXI-220 (R21) — Import report (backend)**: An import's report holds two lists (today the parse gives the missing sheets and its skipped lines, the import its own, and the screen merges and sorts them — owed by #429):
 
@@ -145,7 +147,7 @@ This report is informative and non-blocking.
 
 **EXI-281 — Procedure date must match sheet's nominal month (backend)**: For each procedure row in a selected sheet, after `procedure_date` parses successfully (per EXI-280), the parsed date's month MUST equal the source sheet's nominal month — a row in the `Jan` sheet must have a January `procedure_date`, `Fév` → February, etc. The sheet-name → nominal-month mapping covers both abbreviated and full canonical forms per EXI-010 (e.g. both `Jan` and `Janvier` map to January). A row whose parsed `procedure_date.month` differs from its sheet's nominal month is skipped and recorded in the execute-time skip report defined by EXI-290. A row whose sheet name maps to no month is reported the same way, though EXI-010 means detection should never select one. The year is not checked — the workbook is single-year by convention and the year is not part of sheet identity (see the Open Question on year-drift acceptance). `confirmed_payment_date` is NOT subject to this constraint: a procedure performed in January can be confirmed-paid in February (or any other month), and that is legitimate data.
 
-**EXI-290 — Execute-time skip rows (backend)**: The import-execution result carries per-row skip entries covering every procedure skipped during execution (format failures per EXI-280; month mismatches per EXI-281; future execute-time skip reasons fall under this rule). Each entry uses the same `SkippedRow` shape as EXI-220 (sheet + row + reason), reused without modification. The `reason` is a stable typed code with cause-specific evidence as a payload — the raw cell text for format failures (verbatim, as it appears in the file), the parsed date in `YYYY-MM-DD` form for month mismatches. No display text is authored with it: the code carries the cause. They join the parse-time skip rows in the import's report (EXI-220; merged on screen today, #429).
+**EXI-290 — Execute-time skip rows (backend)**: Every row of a selected sheet that the import leaves out is reported with its sheet, its row and its cause, the first that applies in EXI-180's order: its month is blocked (EXI-160), its patient reference matches no patient of the workbook, its amount has no mapping (EXI-150), a date fails its format (EXI-280) or its month (EXI-281); later execute-time causes fall under this rule too. Each row has one entry. The cause carries its evidence — the month for a blocked month, the amount for an amount with no mapping, the raw cell text for a format failure (verbatim, as it appears in the file), the parsed date (`YYYY-MM-DD`) for a month mismatch, none for an unmatched patient — and no display text. A row of a sheet the user did not select is not reported. These rows join the parse-time ones in the import's report (EXI-220; merged on screen today, #429).
 
 ---
 
@@ -169,11 +171,13 @@ This report is informative and non-blocking.
           │
           ▼
 [Run the import] (backend)
+  → Refuse if the mapping names a type that does not exist (EXI-151)
   → Resolve patients (reuse or create)
   → Resolve funds (reuse or create)
   → For each selected sheet: check blocking (EXI-160); list the non-blocked months to replace (EXI-170)
   → Delete the procedures of the months to replace
   → For each procedure row in a selected sheet:
+       → Skip + report a row of a blocked month, an unmatched patient or no mapping (EXI-290)
        → Validate date formats (EXI-280); skip + report on failure
        → Validate procedure_date.month == sheet.month (EXI-281); skip + report on mismatch
        → Create with the mapped type (status Created / ImportDirectlyPaid / ImportFundPaid per EXI-200)

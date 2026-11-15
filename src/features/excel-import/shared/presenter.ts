@@ -22,5 +22,7 @@ export function formatExcelImportError(err: ExcelImportError): { key: string } {
       return { key: "excel-import:errors.import_failed" };
     case "DatabaseError":
       return { key: "excel-import:errors.database_error" };
+    case "ProcedureTypeNotFound":
+      return { key: "excel-import:errors.procedure_type_not_found" };
   }
 }

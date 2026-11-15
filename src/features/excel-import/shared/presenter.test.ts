@@ -44,6 +44,13 @@ describe("formatExcelImportError", () => {
     });
   });
 
+  it("maps ProcedureTypeNotFound to its own key (EXI-151)", () => {
+    const err: ExcelImportError = { code: "ProcedureTypeNotFound", procedure_type_id: "type-1" };
+    expect(formatExcelImportError(err)).toEqual({
+      key: "excel-import:errors.procedure_type_not_found",
+    });
+  });
+
   it("maps DatabaseError to its key", () => {
     const err: ExcelImportError = { code: "DatabaseError" };
     expect(formatExcelImportError(err)).toEqual({
