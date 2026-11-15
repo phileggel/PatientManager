@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ExcelImportError } from "@/bindings";
-import { formatExcelImportError, formatGoneTypeError, goneTypeDetails } from "./presenter";
+import {
+  formatExcelImportError,
+  formatGoneTypeError,
+  formatImportFailure,
+  goneTypeDetails,
+} from "./presenter";
 
 /**
  * Layer 3 (F27 typed-error pipeline): pure code → i18n key mapping for the
@@ -101,6 +106,33 @@ describe("formatGoneTypeError — EXI-151 (#621)", () => {
   it("falls back to the generic message when no row uses the type", () => {
     expect(formatGoneTypeError("Bilan", "")).toEqual({
       key: "excel-import:errors.procedure_type_not_found",
+    });
+  });
+});
+
+describe("formatImportFailure — F27 layer 3 (#621)", () => {
+  const context = {
+    mapping: { "tmp-a": "type-gone" },
+    rows: [{ tmp_id: "tmp-a", amount: 50000 }],
+    types: [{ id: "type-gone", name: "Bilan", default_amount: 50000, category: null }],
+    formatAmount: (amount: number) => `${amount / 1000} €`,
+  };
+
+  it("names a gone type with its amounts", () => {
+    expect(
+      formatImportFailure(
+        { code: "ProcedureTypeNotFound", procedure_type_id: "type-gone" },
+        context,
+      ),
+    ).toEqual({
+      key: "excel-import:errors.procedure_type_not_found_named",
+      params: { name: "Bilan", amounts: "50 €" },
+    });
+  });
+
+  it("gives every other error its own key", () => {
+    expect(formatImportFailure({ code: "ImportFailed" }, context)).toEqual({
+      key: "excel-import:errors.import_failed",
     });
   });
 });

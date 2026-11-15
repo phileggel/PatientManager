@@ -60,3 +60,27 @@ export function formatGoneTypeError(
   }
   return { key: "excel-import:errors.procedure_type_not_found_for", params: { amounts } };
 }
+
+/**
+ * The message for a failed import (F27 layer 3): the gone-type one with its
+ * name and amounts (EXI-151), every other error its own key. `formatAmount`
+ * is the caller's locale formatter.
+ */
+export function formatImportFailure(
+  err: ExcelImportError,
+  context: {
+    mapping: Record<string, string>;
+    rows: ProcedureMapping[];
+    types: ProcedureType[];
+    formatAmount: (amount: number) => string;
+  },
+): { key: string; params?: Record<string, string> } {
+  if (err.code !== "ProcedureTypeNotFound") return formatExcelImportError(err);
+  const { name, amounts } = goneTypeDetails(
+    err.procedure_type_id,
+    context.mapping,
+    context.rows,
+    context.types,
+  );
+  return formatGoneTypeError(name, amounts.map(context.formatAmount).join(", "));
+}

@@ -8,7 +8,7 @@ import { Button } from "@/ui/components/button";
 import { useFormatters } from "@/ui/format/formatters";
 import { executeExcelImport, parseExcelFile } from "../api/gateway";
 import { deriveProcedureMappings } from "../shared/mappings";
-import { formatExcelImportError, formatGoneTypeError, goneTypeDetails } from "../shared/presenter";
+import { formatExcelImportError, formatImportFailure } from "../shared/presenter";
 import { ParsingReportModal } from "./components/ParsingReportModal";
 import { ProcedureTypeMappingStep } from "./components/ProcedureTypeMappingStep";
 import { ProgressIndicator } from "./components/ProgressIndicator";
@@ -145,18 +145,14 @@ export function ImportExcelPage({ filePath, onClose }: ImportExcelPageProps) {
         const result = await executeExcelImport(parsed, mapping, selectedSheets);
 
         if (!result.success) {
-          if (result.error.code === "ProcedureTypeNotFound") {
-            // EXI-151 — name the gone type, or at least the amounts mapped to it.
-            const { name, amounts } = goneTypeDetails(
-              result.error.procedure_type_id,
-              mapping,
-              deriveProcedureMappings(parsed.procedures, selectedSheets),
-              procedureTypes,
-            );
-            const message = formatGoneTypeError(name, amounts.map(formatCurrency).join(", "));
-            throw new Error(t(message.key, message.params));
-          }
-          throw new Error(t(formatExcelImportError(result.error).key));
+          // EXI-151 — a gone type is named, with the amounts mapped to it.
+          const message = formatImportFailure(result.error, {
+            mapping,
+            rows: deriveProcedureMappings(parsed.procedures, selectedSheets),
+            types: procedureTypes,
+            formatAmount: formatCurrency,
+          });
+          throw new Error(t(message.key, message.params));
         }
 
         setImportResult(result.data);
