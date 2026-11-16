@@ -15,13 +15,15 @@ SETTINGS = Path(__file__).resolve().parents[2] / ".claude" / "settings.json"
 
 # What CLAUDE.md rule 1 forbids, in the usual ways of writing it. The list is a net under
 # the written rule, not a proof (owner, 2026-10-11): it does not chase every spelling, and
-# `gh api` is left to the rule itself. What stops a push to `main` for good is on GitHub's side.
+# `gh api` is left to the rule itself, its releases endpoints aside (owner, 2026-11-15, /app:init).
+# What stops a push to `main` for good is on GitHub's side.
 FORBIDDEN = {
     "publishing a release": [
         "gh release edit v1.2.3 --draft=false",
         "gh release edit v1.2.3 --draft=false --latest",
         "gh release edit v1.2.3 --latest --draft false",
         "gh release create v1.2.3 --notes-file notes.md",
+        "gh api repos/o/r/releases/1 --method PATCH -F draft=false",
         "just publish-release",
         "just -f justfile publish-release",
         "env just publish-release",

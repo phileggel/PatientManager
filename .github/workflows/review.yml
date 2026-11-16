@@ -47,7 +47,7 @@ env:
   REVIEW_BLOCKING: "true"
   # The daneel release the reviewers, their protocol and helpers come from. A pull
   # request moves it; the prompts of that pull request's own review are then the new ones.
-  DANEEL_REF: app--v0.7.0
+  DANEEL_REF: app--v0.9.0
 
 jobs:
   lanes:
@@ -196,6 +196,31 @@ jobs:
           path: .daneel
           persist-credentials: false
 
+      - name: Review a pull request once
+        id: once
+        # #691 (owner, 2026-11-14, phileggel/daneel#102): in CI a lane reviews a pull
+        # request once. On a later push it starts no session: it passes when every 🔴
+        # and 🟡 of its report has a grade in a newer comment, and fails while one has
+        # none. A lane with no report yet (new to the pull request, or stopped by the
+        # usage limit) reviews. The script reads the lane and grading comments only,
+        # never the code: the tests validate a fix.
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+          REVIEWER: ${{ matrix.reviewer }}
+        run: |
+          set -euo pipefail
+          code=0
+          python3 .daneel/plugins/app/scripts/lane-reviewed.py "$PR_NUMBER" "$REVIEWER" || code=$?
+          case "$code" in
+            3) echo "review=true" >> "$GITHUB_OUTPUT" ;;
+            0) echo "review=false" >> "$GITHUB_OUTPUT" ;;
+            *) exit 1 ;;
+          esac
+
       - name: Give the branch helper a local main, the base branch's settings, and the branch's tree
         id: trusted
         # The plugin's branch.sh resolves the diff base as merge-base(HEAD, main), and
@@ -203,7 +228,7 @@ jobs:
         # prompts and helpers come from the pinned release, their settings from the base
         # branch, so a PR can neither soften the criteria that grade it nor change what
         # the reviewer runs; a PR that edits them still has that edit in its diff.
-        if: steps.gate.outputs.run == 'true'
+        if: steps.gate.outputs.run == 'true' && steps.once.outputs.review == 'true'
         shell: bash
         env:
           BASE: ${{ github.base_ref || 'main' }}
@@ -307,7 +332,7 @@ jobs:
         # A prompt injection in a reviewed diff could steer the session into
         # echoing a token into the report. The report becomes a public comment
         # and the log an artifact, so both are scrubbed of token shapes first.
-        if: ${{ steps.gate.outputs.run == 'true' && !cancelled() }}
+        if: ${{ steps.gate.outputs.run == 'true' && steps.once.outputs.review == 'true' && !cancelled() }}
         shell: bash
         env:
           # Every secret live in this job is scrubbed by its exact value too,
@@ -333,7 +358,7 @@ jobs:
           echo "redaction pass done"
 
       - name: Keep the session log for diagnosis
-        if: ${{ steps.gate.outputs.run == 'true' && !cancelled() }}
+        if: ${{ steps.gate.outputs.run == 'true' && steps.once.outputs.review == 'true' && !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: review-session-${{ matrix.reviewer }}
@@ -344,7 +369,7 @@ jobs:
       - name: Post the report and fail on criticals
         # Runs even when the reviewer step failed, so a failed round still leaves
         # its report beside the red check.
-        if: ${{ steps.gate.outputs.run == 'true' && !cancelled() }}
+        if: ${{ steps.gate.outputs.run == 'true' && steps.once.outputs.review == 'true' && !cancelled() }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

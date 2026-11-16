@@ -106,7 +106,8 @@
       "Bash(gh release edit *--draft false*)",
       "Bash(*just*publish-release*)",
       "Bash(*publish-release.sh*)",
-      "Bash(gh release create *)"
+      "Bash(gh release create *)",
+      "Bash(gh api *releases*)"
     ]
   },
   "hooks": {
@@ -130,7 +131,7 @@
       "source": {
         "source": "github",
         "repo": "phileggel/daneel",
-        "ref": "app--v0.7.0"
+        "ref": "app--v0.9.0"
       }
     }
   }
