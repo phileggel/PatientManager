@@ -83,6 +83,12 @@ A **bank statement label** is the label of a bank statement line, remembered per
 
 **BAS-053 (R13) — Already-reconciled groups excluded (backend)**: A group already linked to a bank transfer is excluded from the matching pool.
 
+**BAS-053A — A settled group is no longer auto-matched at validate (backend)**: Validate computes the draft again (BAS-064). A line auto-matched to a group that another bank entry settled since the draft is no longer matched to it: validate skips the line (BAS-063) unless the recompute matches it to another group.
+
+**BAS-053B — A stale assignment refuses the validate (backend)**: When a correction assigns a group settled since the draft, or a procedure no longer open (BAS-112), the validate is rejected with a specific error and nothing is written.
+
+**BAS-053C — A group settled during the validate (backend)**: A group that another bank entry settles while validate writes is not settled a second time (`bank-statement-manual-match` BSM-038): validate fails at that group with a specific error, and what it settled before stays (Accepted limitations).
+
 **BAS-054 (R14) — Exclusive matching (backend)**: A group and a line can only be associated once. As soon as a match is established, both are locked for the rest of the processing.
 
 ### Reconciliation draft and corrections (060–069)
@@ -243,4 +249,6 @@ One bank transfer is created and linked as for any group (BAS-070/093). A failed
 ## Open questions
 
 - [ ] BAS-032's whitespace handling and tie suppression, in the code, not in this spec — #551.
+- [ ] At validate, may a line whose auto-matched group was settled since the draft be matched to another eligible group (BAS-053A)? Today the recompute decides, as for any line.
+- [ ] What does validate answer for an assigned group deleted, or changed in amount, since the draft (BAS-053B)? Today the recompute's own refusals apply (BAS-064, BAS-094).
 - [ ] A remainder acknowledged on a line not covered below its amount is not refused (BAS-092) — #358.

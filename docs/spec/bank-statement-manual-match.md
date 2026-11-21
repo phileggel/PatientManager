@@ -1,10 +1,29 @@
-# Business Rules — Manual Bank Reconciliation (bank-statement-manual-match)
+# Business Rules — Bank Statement Manual Match (BSM)
 
 ## Context
 
-A practitioner can record incoming payments manually, whether they come from health-insurance fund transfers (`FUND`) or direct patient payments (check, credit card, cash). This feature **creates and manages** these transactions and updates the procedure statuses — and, for `FUND` transfers, the corresponding fund-payment groups.
+A practitioner records by hand the payments received: a fund's wire (`FundWire`) or a patient's direct payment by check, card or cash. This feature creates, edits and deletes these bank entries and moves the statuses of the procedures they pay — and, for a fund's wire, of the fund-payment groups it settles.
 
-This document covers exclusively the **manual flow**: direct entry of transactions.
+This document covers the manual flow only; the bank statement import is `bank-statement-auto-match`.
+
+> Rules R1–R21 keep the numbers they shipped with; the newer ones are `BSM-NNN`. BSM-023, BSM-024, BSM-025, BSM-032 and BSM-033 described the screens and are vacant since #644. R12, R20 and R21 keep their numbers for the backend part of what they said: the candidates with no date bound, and the items an entry holds. Giving R1–R21 their `BSM-NNN` numbers is #638's.
+
+---
+
+## Entity Definition
+
+### BankEntry
+
+A payment received — a fund's wire or a patient's direct payment — or an overpayment refund paid out (REF-110).
+
+| Field          | Business meaning                       |
+| -------------- | -------------------------------------- |
+| `bank_account` | The account it is recorded on.         |
+| `date`         | The day it was received, or paid.      |
+| `type`         | What the entry is; never changed.      |
+| `amount`       | What it holds (R3); a refund: REF-110. |
+
+A bank entry also holds the fund-payment groups a fund's wire settles, or the procedures a direct payment pays.
 
 ---
 
@@ -12,48 +31,42 @@ This document covers exclusively the **manual flow**: direct entry of transactio
 
 ### Procedure status lifecycle
 
-**R1 — Status lifecycles (backend)**: Two distinct lifecycles depending on the transaction type:
+**R1 — Status lifecycles (backend)**: Two distinct lifecycles depending on the bank entry's type:
 
-- **Fund lifecycle** (`FUND` transfer): the procedure goes through two stages — first the fund reconciliation (`Created` → `Reconciliated` / `PartiallyReconciled`), then the bank reconciliation (`Reconciliated` → `FundPayed`, `PartiallyReconciled` → `PartiallyFundPayed`). This document covers Stage 2.
-- **Direct lifecycle** (direct payment `CHECK`, `CREDIT_CARD`, `CASH`): the procedure goes directly from `Created` to `DirectlyPayed` in a single stage — no prior fund reconciliation. The payment method, date, and actual paid amount are populated.
+- **Fund lifecycle** (a fund's wire): the procedure goes through two stages — first the fund reconciliation (`Created` → `Reconciled` / `PartiallyReconciled`), then the bank reconciliation (`Reconciled` → `FundPaid`, `PartiallyReconciled` → `PartiallyFundPaid`). This document covers Stage 2.
+- **Direct lifecycle** (a direct payment): the procedure goes directly from `Created` to `DirectlyPaid` in a single stage — no prior fund reconciliation. The payment method, date, and paid amount are populated.
 
-A fund-payment group becomes locked as soon as one of its procedures reaches Stage 2 of the fund lifecycle — it can no longer be edited or deleted. Unlocking can only be performed by deleting the associated transfer (see R8).
+A fund-payment group becomes locked as soon as one of its procedures reaches Stage 2 of the fund lifecycle — it can no longer be edited or deleted. It is unlocked as R8 and R11 say.
 
-> **Declared exception (2026-07-31)** — bank-born groups (`bank-statement-auto-match` BAS-115) fold Stage 1 into the bank validate (`Created` → `FundPaid` in one step). After validate they are ordinary groups: deleting their transfer (R8) reverts them like any other (procedures → `Reconciled`, group `Active`).
+> **Declared exception (2026-07-31)** — bank-born groups (`bank-statement-auto-match` BAS-115) fold Stage 1 into the bank validate (`Created` → `FundPaid` in one step). After validate they are ordinary groups: deleting their bank entry (R8) reverts them like any other (procedures → `Reconciled`, group `Active`).
 
-### Rules common to all transactions
+### Rules common to all bank entries
 
-**R2 — Transaction types (backend)**: Four types are supported: `FUND` (fund transfer), `CHECK` (check), `CREDIT_CARD` (credit card), `CASH` (cash). The `OutgoingWire` type is exclusively reserved for the overpayment-refund flow and cannot be created via this flow (see REF-080).
+**R2 — Bank entry types (backend)**: Four types are recorded here: `FundWire` (a fund's wire) and the direct payments `PatientCheck`, `PatientCreditCard` and `PatientCash`. `FundOutgoingWire` is reserved for the overpayment-refund flow and cannot be created via this flow (REF-080).
 
-**R3 — Transaction fields (frontend + backend)**: A transaction is defined by a bank account, a date, and a type. The amount is computed dynamically in real time from the selected items (groups or procedures) and cannot be entered manually. The account is not chosen for a direct type (R13).
+**R3 — Bank entry fields (backend)**: A bank entry is defined by a bank account, a date and a type. Its amount is the sum of the items it holds — the total amounts of its groups, or the billed amounts of its procedures — and is never entered. The account is not chosen for a direct payment (R13).
 
-**R4 — Immutable type (frontend + backend)**: A transaction's type cannot be changed once defined. It is impossible to switch from `FUND` to a direct type (or vice versa), nor to change the type within the direct types (`CHECK`, `CREDIT_CARD`, `CASH`).
+**R4 — Immutable type (backend)**: A bank entry's type cannot be changed once defined. Editing or deleting, as a fund's wire, an entry that is not a `FundWire`, or, as a direct payment, an entry that is not one — a refund's entry included (REF-110) — is rejected with a specific error.
 
-**R5 — Transaction deletion (frontend + backend)**: Deletion requires explicit confirmation. It is irreversible — the transaction is permanently erased (hard delete) along with its links to the associated fund-payment groups or procedures.
+**R5 — Bank entry deletion (backend)**: A deletion is irreversible — the bank entry is permanently erased (hard delete) along with its links to the fund-payment groups or procedures it held.
 
-**BSM-020 — Creation refusals, all at once (backend)**: Creating a bank entry (FUND or direct) is refused when its account is missing (not for a direct payment, BSM-026), its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written.
+**BSM-020 — Creation refusals, all at once (backend)**: Creating a bank entry (a fund's wire or a direct payment) is refused when its account is missing (not for a direct payment, BSM-026), its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written.
 
-**BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account (not for a direct payment, BSM-026) or group, a procedure of a direct selection (BSM-036), a wrong type (R4), or the refund-only type (REF-080): a form with a refused field is refused for its fields alone.
+**BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account (not for a direct payment, BSM-026) or group, a procedure of a direct selection (BSM-036), a wrong type (R4), or the refund-only type (REF-080): an entry with a refused field is refused for its fields alone.
 
-**BSM-023 — Refusals at the field (frontend)**: When a save is refused under BSM-020 or BSM-030, each reason is shown as an error under its field — the date (missing and invalid have different messages) and the account. A new save clears every message first; any other refusal, an empty selection included, shows no message at a field.
+**BSM-026 — A direct payment is on its technical account (backend)**: A patient's direct payment — a `PatientCash`, `PatientCheck` or `PatientCreditCard` bank entry created here — is recorded as BAC-056 says (owner, 2026-11-07, #518).
 
-**BSM-024 — A refused save keeps the form (frontend)**: When a save is refused, for any reason, the form or dialog stays open and an error snackbar is shown.
+**BSM-027 — A fund's wire pays no procedure directly (backend)**: Recording a `FundWire` entry that would pay procedures directly is refused with a specific error, after the field refusals (BSM-021) and before any selected procedure is judged (BSM-036, BSM-039); nothing is written (owner, 2026-11-07, #634).
 
-**BSM-025 — A field's message clears when it is edited (frontend)**: A message of BSM-023 clears once its field is edited. While the date is missing or invalid, the 7-day selection shows no candidate (the broadened search has no date window, R12, R20).
-
-**BSM-026 — A direct payment is on its technical account (backend)**: A patient's direct payment — a `CASH`, `CHECK` or `CREDIT_CARD` bank entry created here — is recorded as BAC-056 says (owner, 2026-11-07, #518).
-
-**BSM-027 — A fund's wire pays no procedure directly (backend)**: Recording a `FUND` entry that would pay procedures directly is refused with a specific error, after the field refusals (BSM-021) and before any selected procedure is judged (BSM-036, BSM-039); nothing is written (owner, 2026-11-07, #634).
+**R21 — What a bank entry holds (backend)**: The groups a fund's wire holds, or the procedures a direct payment holds, can be read with their date and amount, although settled or paid: they are no longer in R12's or R20's set.
 
 **BSM-028 — A selection is a set (backend)**: A group or procedure repeated in the selection of a bank entry, created or edited, counts once: in its amount, its links and the changes to statuses, as BSM-031 already compares a selection as a set.
 
-**BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9, R17).
+**BSM-029 — An amount that is not positive (backend)**: Creating or editing a bank entry whose amount (R3) is not positive is rejected with a specific error, and nothing is written (BSM-034).
+
+**BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9).
 
 **BSM-031 — An unchanged edit (backend)**: An edit nothing refuses whose date and selection (as a set, order aside) equal the stored bank entry's is answered unchanged: nothing is written and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
-
-**BSM-032 — An unchanged edit closes silently (frontend)**: When an edit is answered unchanged (BSM-031), the edit dialog closes with no snackbar and the list is not refreshed.
-
-**BSM-033 — The edit dialog shows the account (frontend)**: The edit dialog shows a `FUND` entry's account and offers no way to change it (R9, R17); a direct payment shows none (R13).
 
 **BSM-034 — A refused bank entry changes nothing (backend)**: Creating or editing a bank entry writes the entry, its links and all it changes on the groups and procedures it adds, keeps or removes (R7, R8, R10, R11, R15, R16, R18, R19, BSM-035) together. When the creation or edit is refused or fails, all of them stay as they were and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
 
@@ -61,184 +74,121 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-040 — A refused or failed deletion changes nothing (backend)**: Deleting a bank entry removes the entry and its links and reverts its groups and procedures (R8, R16) together. A deletion is refused for an unknown bank entry or a wrong type (R4). When the deletion is refused or fails, all of them stay as they were and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
 
-### FUND-type transfers
+### Fund wires
 
-**R6 — Creation: group selection (frontend + backend)**: The user selects one or more fund-payment groups among those not yet reconciled at the bank level, whose payment date is within the 7 days preceding the transfer date. The selection UI is similar to the procedure-management UI in fund-payment groups. The transfer amount is the sum of the total amounts of the selected groups.
+**R6 — Groups of the window (backend)**: The groups offered first for a fund's wire, created or edited, are those not yet settled at the bank level whose payment date is from 7 days before the wire's date to that date, both included. A missing or invalid date is rejected with a specific error.
 
-**R7 — Creation: status effects (backend)**: On validation, the procedures of the selected groups move to their final status (`Reconciliated` → `FundPayed`, `PartiallyReconciled` → `PartiallyFundPayed`) and the groups move to `BankPayed` status. See the "Affected fields — on transfer creation" table.
+**R7 — Creation: status effects (backend)**: When the wire is recorded, the procedures of its groups move to their final status (`Reconciled` → `FundPaid`, `PartiallyReconciled` → `PartiallyFundPaid`) and the groups move to `BankPaid` status. See the "Affected fields — on wire creation" table.
 
-**R8 — Deletion: rollback (backend)**: Deleting a `FUND` transfer reverts the procedures of the associated groups to their prior state (`FundPayed` → `Reconciliated`, `PartiallyFundPayed` → `PartiallyReconciled`) and moves the groups back to `Active` status. The procedures' confirmed payment date is restored to the date of the fund-payment group.
+**R8 — Deletion: rollback (backend)**: Deleting a fund's wire reverts the procedures of its groups to their prior state (`FundPaid` → `Reconciled`, `PartiallyFundPaid` → `PartiallyReconciled`) and moves the groups back to `Active` status. The procedures' confirmed payment date is restored to the date of the fund-payment group.
 
-**R9 — Edit: editable fields (frontend + backend)**: The transfer date and the composition of selected groups can be edited. The same selection rules as at creation apply (7-day window, broadened search via R12). The amount is recomputed accordingly.
+**R9 — Edit: editable fields (backend)**: The date of a fund's wire and the groups it holds can be edited, never its account. A group it adds is one of R12's (BSM-037). The amount is recomputed accordingly.
+
+**R12 — Every unsettled group (backend)**: A wire, created or edited, can hold any group not yet settled at the bank level, whatever its date: R6's window only narrows what is offered first, and the whole set can be read instead.
 
 **R10 — Edit: adding a group (backend)**: Adding a group has the same effects on procedure and group statuses as at creation (see R7).
 
 **R11 — Edit: removing a group (backend)**: Removing a group has the same effects on procedure and group statuses as at deletion (see R8).
 
-**R12 — Broadened search (frontend)**: When the desired group is not in the initial selection (outside the 7-day window), a "Broaden search" button opens a modal showing all groups not yet reconciled at the bank level, with no date constraint. Filterable by fund (identifier or name). Sorted by descending payment date. Available at creation and edit.
+**BSM-037 — A group is settled by one bank entry (backend)**: Creating a `FundWire` bank entry, or editing one, whose selection holds a group already settled at the bank level or locked is refused with a specific error naming the first such group in the selection's order, and nothing is written (BSM-034). A group the edited entry already holds is kept, settled on the new date (BSM-035). An unknown group is refused first (owner, 2026-11-07, #634).
 
-**BSM-037 — A group is settled by one bank entry (backend)**: Creating a `FUND` bank entry, or editing one, whose selection holds a group already settled at the bank level or locked is refused with a specific error naming the first such group in the selection's order, and nothing is written (BSM-034). A group the edited entry already holds is kept, settled on the new date (BSM-035). An unknown group is refused first (owner, 2026-11-07, #634).
-
-**BSM-038 — One bank entry per group (backend)**: A fund-payment group is linked to at most one bank entry, whatever records it: this flow (BSM-037), the bank statement import (`bank-statement-auto-match` BAS-053) or a refund (`overpayment` REF-120).
+**BSM-038 — One bank entry per group (backend)**: A fund-payment group is linked to at most one bank entry, whatever records it: this flow (BSM-037), the bank statement import (`bank-statement-auto-match` BAS-053 to BAS-053C) or a refund (`overpayment` REF-120).
 
 **BSM-038A — An upgrade over a double link stops (backend)**: A database that already holds a group linked to two bank entries is not upgraded: the upgrade stops, its error names the group, and the application does not start until the double link is repaired by hand (owner, 2026-11-14, #640). An imported backup holding one is upgraded at the next start (`db-backup` R10), so it stops the same way.
 
-**Affected fields — on transfer creation**
+**Affected fields — on wire creation**
 
-| Entity    | Field                    | Value                                                                        |
-| --------- | ------------------------ | ---------------------------------------------------------------------------- |
-| Procedure | `payment_status`         | `Reconciliated` → `FundPayed` / `PartiallyReconciled` → `PartiallyFundPayed` |
-| Procedure | `payment_method`         | `BankTransfer`                                                               |
-| Procedure | `confirmed_payment_date` | = transfer date                                                              |
-| Procedure | `actual_payment_amount`  | preserved                                                                    |
-| Group     | `status`                 | `Active` → `BankPayed`                                                       |
-| Group     | `is_locked`              | → true                                                                       |
+| Entity    | Field                    | Value                                                                   |
+| --------- | ------------------------ | ----------------------------------------------------------------------- |
+| Procedure | `payment_status`         | `Reconciled` → `FundPaid` / `PartiallyReconciled` → `PartiallyFundPaid` |
+| Procedure | `payment_method`         | `BankTransfer`                                                          |
+| Procedure | `confirmed_payment_date` | = wire date                                                             |
+| Procedure | `paid_amount`            | preserved                                                               |
+| Group     | `status`                 | `Active` → `BankPaid`                                                   |
+| Group     | `is_locked`              | → true                                                                  |
 
-**Affected fields — on transfer deletion**
+**Affected fields — on wire deletion**
 
-| Entity    | Field                    | Value                                                                        |
-| --------- | ------------------------ | ---------------------------------------------------------------------------- |
-| Procedure | `payment_status`         | `FundPayed` → `Reconciliated` / `PartiallyFundPayed` → `PartiallyReconciled` |
-| Procedure | `payment_method`         | cleared                                                                      |
-| Procedure | `confirmed_payment_date` | = group date                                                                 |
-| Procedure | `actual_payment_amount`  | preserved                                                                    |
-| Group     | `status`                 | `BankPayed` → `Active`                                                       |
-| Group     | `is_locked`              | → false                                                                      |
+| Entity    | Field                    | Value                                                                   |
+| --------- | ------------------------ | ----------------------------------------------------------------------- |
+| Procedure | `payment_status`         | `FundPaid` → `Reconciled` / `PartiallyFundPaid` → `PartiallyReconciled` |
+| Procedure | `payment_method`         | cleared                                                                 |
+| Procedure | `confirmed_payment_date` | = group date                                                            |
+| Procedure | `paid_amount`            | preserved                                                               |
+| Group     | `status`                 | `BankPaid` → `Active`                                                   |
+| Group     | `is_locked`              | → false                                                                 |
 
-### Direct payments (CHECK / CREDIT_CARD / CASH)
+### Direct payments
 
-**R13 — Automatic account for the direct types (backend)**: No account is chosen for a `CASH`, `CHECK` or `CREDIT_CARD` transaction: BSM-026 places it (owner, 2026-11-07, #518).
+**R13 — Automatic account for a direct payment (backend)**: No account is chosen for a `PatientCash`, `PatientCheck` or `PatientCreditCard` bank entry: BSM-026 places it (owner, 2026-11-07, #518).
 
-**R14 — Creation: procedure selection (frontend + backend)**: The user selects one or more procedures in `Created` status whose execution date (`procedure_date`) is within the 7 days preceding the payment date. The selection UI is similar to the procedure-management UI in fund-payment groups. The payment amount is the sum of the amounts of the selected procedures.
+**R14 — Procedures of the window (backend)**: The procedures offered first for a direct payment, created or edited, are those in `Created` status whose `procedure_date` is from 7 days before the payment's date to that date, both included. A missing or invalid date is rejected with a specific error.
 
-**BSM-036 — Every selected procedure exists (backend)**: Creating or editing a direct bank entry whose selection holds a procedure that does not exist is refused, naming the first in the order the selection holds them, even beside procedures that exist. A procedure the entry already holds cannot be deleted (PRO-030B), so a kept one always exists. The field refusals of BSM-021 come first; an edit answered unchanged (BSM-031) is not judged.
+**BSM-036 — Every selected procedure exists (backend)**: Creating or editing a direct payment whose selection holds a procedure that does not exist is refused, naming the first in the order the selection holds them, even beside procedures that exist. A procedure the entry already holds cannot be deleted (PRO-030B), so a kept one always exists. The field refusals of BSM-021 come first; an edit answered unchanged (BSM-031) is not judged.
 
-**BSM-039 — A direct payment takes `Created` procedures (backend)**: Creating or editing a direct bank entry whose selection holds a procedure not in `Created` status is refused with a specific error naming the first such procedure in the selection's order, and nothing is written (BSM-034). A procedure the edited entry already holds is kept, paid on the new date (BSM-035). BSM-036's refusal of an unknown procedure comes first (owner, 2026-11-07, #634).
+**BSM-039 — A direct payment takes `Created` procedures (backend)**: Creating or editing a direct payment whose selection holds a procedure not in `Created` status is refused with a specific error naming the first such procedure in the selection's order, and nothing is written (BSM-034). A procedure the edited entry already holds is kept, paid on the new date (BSM-035). BSM-036's refusal of an unknown procedure comes first (owner, 2026-11-07, #634).
 
-**R15 — Creation: status effects (backend)**: On validation, each procedure receives the corresponding payment method, its date and actual paid amount are set, and its status moves to `DirectlyPayed`. See the "Affected fields — on payment creation" table.
+**R15 — Creation: status effects (backend)**: When the payment is recorded, each procedure receives the payment method of the entry's type, its date and its paid amount, and its status moves to `DirectlyPaid`. See the "Affected fields — on payment creation" table.
 
-**R16 — Deletion: rollback (backend)**: Deleting a direct payment reverts the associated procedures to `Created` status and clears their payment method, date, and actual paid amount.
+**R16 — Deletion: rollback (backend)**: Deleting a direct payment reverts its procedures to `Created` status and clears their payment method, date, and paid amount.
 
-**R17 — Edit: editable fields (frontend + backend)**: The payment date and the composition of selected procedures can be edited. The same selection rules as at creation apply (7-day window, broadened search via R20). The amount is recomputed accordingly.
+**R17 — Edit: editable fields (backend)**: The date of a direct payment and the procedures it holds can be edited. A procedure it adds is one of R20's (BSM-039). The amount is recomputed accordingly.
+
+**R20 — Every `Created` procedure (backend)**: A direct payment, created or edited, can hold any procedure in `Created` status, whatever its date: R14's window only narrows what is offered first, and the whole set can be read instead.
 
 **R18 — Edit: adding a procedure (backend)**: Adding a procedure has the same effects on its statuses and fields as at creation (see R15).
 
 **R19 — Edit: removing a procedure (backend)**: Removing a procedure has the same effects on its statuses and fields as at deletion (see R16).
 
-**R20 — Broadened search (frontend)**: When the desired procedure is not in the initial selection (outside the 7-day window), a "Broaden search" button opens a modal showing all procedures in `Created` status, with no date constraint. Search by patient name, SSN, or execution date. Sorted by descending `procedure_date`. Available at creation and edit.
-
-**R21 — Edit form pre-fill (frontend)**: When the edit form opens, the date is pre-filled with the existing transfer's date. For `FUND` transfers, the currently linked groups (`BankPayed` status) are shown pre-selected in a dedicated section, so the user can remove them if desired. For direct payments, the currently linked procedures (`DirectlyPayed` status) are shown pre-selected in the same way.
-
 **Affected fields — on payment creation**
 
-| Entity    | Field                    | Value                                                                                  |
-| --------- | ------------------------ | -------------------------------------------------------------------------------------- |
-| Procedure | `payment_status`         | `Created` → `DirectlyPayed`                                                            |
-| Procedure | `payment_method`         | `Check` / `BankCard` / `Cash` (depending on the `CHECK` / `CREDIT_CARD` / `CASH` type) |
-| Procedure | `confirmed_payment_date` | = payment date                                                                         |
-| Procedure | `actual_payment_amount`  | = procedure amount                                                                     |
+| Entity    | Field                    | Value                                                                                   |
+| --------- | ------------------------ | --------------------------------------------------------------------------------------- |
+| Procedure | `payment_status`         | `Created` → `DirectlyPaid`                                                              |
+| Procedure | `payment_method`         | `Check` / `BankCard` / `Cash`, for `PatientCheck` / `PatientCreditCard` / `PatientCash` |
+| Procedure | `confirmed_payment_date` | = payment date                                                                          |
+| Procedure | `paid_amount`            | = billed amount                                                                         |
 
 **Affected fields — on payment deletion**
 
-| Entity    | Field                    | Value                       |
-| --------- | ------------------------ | --------------------------- |
-| Procedure | `payment_status`         | `DirectlyPayed` → `Created` |
-| Procedure | `payment_method`         | cleared                     |
-| Procedure | `confirmed_payment_date` | cleared                     |
-| Procedure | `actual_payment_amount`  | cleared                     |
+| Entity    | Field                    | Value                      |
+| --------- | ------------------------ | -------------------------- |
+| Procedure | `payment_status`         | `DirectlyPaid` → `Created` |
+| Procedure | `payment_method`         | cleared                    |
+| Procedure | `confirmed_payment_date` | cleared                    |
+| Procedure | `paid_amount`            | cleared                    |
 
 ---
 
 ## Workflow
 
-### Entering a FUND transfer
-
 ```
-[User picks the account and the date]
-          │
-          ▼
-[Select fund-payment groups]
-  → Groups not yet reconciled at the bank level
-  → Within the 7 days preceding the transfer date
-  → Total amount computed in real time
-  → [Broaden search] → modal: all groups, fund filter, descending date sort
-          │
-          ▼
-[Validation]
-  → Groups → BankPayed, procedures → FundPayed / PartiallyFundPayed
-```
+[A fund's wire is recorded: account, date, groups]
+  → groups → BankPaid, locked; procedures → FundPaid / PartiallyFundPaid (R7)
+[It is edited: date, groups]
+  → groups removed → Active; groups added → BankPaid; kept ones follow the date (R10, R11, BSM-035)
+[It is deleted]
+  → groups → Active; procedures → Reconciled / PartiallyReconciled (R8)
 
-### Entering a direct payment (CHECK / CREDIT_CARD / CASH)
+[A direct payment is recorded: type, date, procedures]
+  → procedures → DirectlyPaid (R15)
+[It is edited: date, procedures]
+  → procedures removed → Created; procedures added → DirectlyPaid (R18, R19, BSM-035)
+[It is deleted]
+  → procedures → Created (R16)
 
-```
-[User picks the type (`CHECK`, `CREDIT_CARD`, `CASH`) and the date]
-          │
-          ▼
-[Select procedures]
-  → Procedures in Created status
-  → Within the 7 days preceding the payment date
-  → Total amount computed in real time
-  → [Broaden search] → all procedures, search by patient/SSN/date, descending procedure_date sort
-          │
-          ▼
-[Validation]
-  → Procedures → DirectlyPayed
+A refused creation, edit or deletion changes nothing (BSM-034, BSM-040).
 ```
 
-### Editing a FUND transfer
-
-```
-[User edits the date and/or the group selection]
-  → Groups not yet reconciled at the bank level
-  → Within the 7 days preceding the transfer date
-  → [Broaden search] → all groups, fund filter, descending date sort
-  → Amount recomputed in real time
-          │
-          ▼
-[Validation]
-  → Old groups → Active, new groups → BankPayed
-  → Procedure statuses updated accordingly
-```
-
-### Editing a direct payment (CHECK / CREDIT_CARD / CASH)
-
-```
-[User edits the date and/or the procedure selection]
-  → Procedures in Created status
-  → Within the 7 days preceding the payment date
-  → [Broaden search] → all procedures, search by patient/SSN/date, descending procedure_date sort
-  → Amount recomputed in real time
-          │
-          ▼
-[Validation]
-  → Old procedures → Created, new procedures → DirectlyPayed
-```
-
-### Deleting a FUND transfer
-
-```
-[User deletes a FUND transfer]
-  → Explicit confirmation required
-          │
-          ▼
-[Transfer and links permanently deleted]
-  → Procedures and groups reverted to their prior state (Active / Reconciliated)
-```
-
-### Deleting a direct payment (CHECK / CREDIT_CARD / CASH)
-
-```
-[User deletes a direct payment]
-  → Explicit confirmation required
-          │
-          ▼
-[Payment and links permanently deleted]
-  → Procedures reverted to Created status
-```
+---
 
 ## Open Questions
 
-- [x] Which account does a `CASH` creation store (R13)? — Decided by the owner on 2026-10-24
+- [ ] Where does BSM-029's refusal come among those of BSM-036, BSM-037 and BSM-039? Today after an unknown group or procedure.
+- [ ] In what order are the groups and procedures of R6, R12, R14 and R20 returned? Today the order is not set; the screens sort them.
+- [ ] May one fund's wire hold groups of several funds (R9)? Today it may; the import refuses it per line (BAS-090A).
+- [ ] Which of `BankEntryUpdated`, `FundPaymentGroupUpdated` and `ProcedureUpdated` does a successful creation, edit or deletion publish? BSM-031, BSM-034 and BSM-040 name them only for what is refused or unchanged.
+- [x] Which account does a `PatientCash` creation store (R13)? — Decided by the owner on 2026-10-24
       (#455): the cash account, set by the backend whatever it is sent.
-- [x] May a `CHECK` or `CREDIT_CARD` bank entry be recorded on the cash account? — Decided by
+- [x] May a `PatientCheck` or `PatientCreditCard` bank entry be recorded on the cash account? — Decided by
       the owner on 2026-11-07 (#518): each direct type has its own technical account (BAC-056).
