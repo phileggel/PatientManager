@@ -6,12 +6,30 @@ const DIRECT_PAYMENT_TYPES: ReadonlySet<BankEntry["transfer_type"]> = new Set([
   "PATIENT_CREDIT_CARD",
 ]);
 
+/** #642 — the two pages a bank entry received is listed on. */
+export type BankEntryKind = "direct" | "fund";
+
 /**
- * BAC-056 — the account a bank entry shows: none for a patient's direct payment, which
- * sits on a technical account never shown; a fund wire's or a refund's otherwise. A refund
- * by check or card is the negative entry of a direct type (REF-110) on a `bank` account.
+ * #642 — the page that lists a bank entry: a patient's payment by check, card or cash on
+ * « Paiements directs », a fund's wire on « Virements de caisse »; an overpayment refund
+ * (negative, or an outgoing wire, REF-110) on neither (owner, 2026-11-21).
  */
-export function entryAccountName(entry: BankEntry): string | null {
-  const isDirectPayment = DIRECT_PAYMENT_TYPES.has(entry.transfer_type) && entry.amount > 0;
-  return isDirectPayment ? null : entry.bank_account.name;
+export function entryKind(entry: BankEntry): BankEntryKind | null {
+  if (entry.amount <= 0) return null;
+  if (entry.transfer_type === "FUND_WIRE") return "fund";
+  return DIRECT_PAYMENT_TYPES.has(entry.transfer_type) ? "direct" : null;
+}
+
+/** #642 — the i18n key naming a direct payment's method (« Moyen de paiement »); none for a wire. */
+export function paymentMethodKey(type: BankEntry["transfer_type"]): string | null {
+  switch (type) {
+    case "PATIENT_CHECK":
+      return "transfer.type_check";
+    case "PATIENT_CREDIT_CARD":
+      return "transfer.type_credit_card";
+    case "PATIENT_CASH":
+      return "transfer.type_cash";
+    default:
+      return null;
+  }
 }

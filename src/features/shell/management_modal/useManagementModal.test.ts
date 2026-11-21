@@ -73,25 +73,25 @@ describe("useManagementModal", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("handleBankTransfer navigates to bank-transfer when bank accounts exist", () => {
+  it("ticket #642: handleFundWires opens the fund wires page and closes", () => {
     useCacheStore.setState({ funds: [], bankAccounts: [makeBankAccount({ id: "b1" })] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
-    result.current.handleBankTransfer();
+    result.current.handleFundWires();
 
-    expect(onNavigate).toHaveBeenCalledWith("bank-transfer");
+    expect(onNavigate).toHaveBeenCalledWith("fund-wires");
     expect(onClose).toHaveBeenCalledOnce();
     expect(toastService.show).not.toHaveBeenCalled();
   });
 
-  it("ticket #518: handleBankTransfer opens bank-transfer with no account (BAC-056)", () => {
+  it("ticket #642: handleDirectPayments opens the direct payments page with no account (BAC-056)", () => {
     useCacheStore.setState({ funds: [], bankAccounts: [] });
     const { result } = renderHook(() => useManagementModal({ onNavigate, onClose }));
 
-    result.current.handleBankTransfer();
+    result.current.handleDirectPayments();
 
     expect(toastService.show).not.toHaveBeenCalled();
-    expect(onNavigate).toHaveBeenCalledWith("bank-transfer");
+    expect(onNavigate).toHaveBeenCalledWith("direct-payments");
     expect(onClose).toHaveBeenCalledOnce();
   });
 

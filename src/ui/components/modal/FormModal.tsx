@@ -24,7 +24,7 @@ interface FormModalProps {
  * - Fixed footer for action buttons
  *
  * Best for:
- * - Medium forms (4-6 fields) like EditBankTransferModal
+ * - Medium forms (4-6 fields) like the Excel import's CreateProcedureTypeModal
  * - Complex forms (7+ fields with sections) like ProcedureFormModal
  */
 export function FormModal({

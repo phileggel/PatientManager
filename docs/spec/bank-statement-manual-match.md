@@ -35,13 +35,11 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account (not for a direct payment, BSM-026) or group, a procedure of a direct selection (BSM-036), a wrong type (R4), or the refund-only type (REF-080): a form with a refused field is refused for its fields alone.
 
-**BSM-022 — The form does not judge its fields (frontend)**: The bank entry forms, creation and edit, FUND and direct, never check their own fields: Save is enabled whenever they are not saving and sends the form as it is (BSM-020, BSM-030 judge it).
-
-**BSM-023 — Refusals at the field (frontend)**: When a save is refused under BSM-020 or BSM-030, each reason is shown as an error under its field — the date (missing and invalid have different messages), the account, the selection (below both lists, in the edit dialog). A new save clears every message first; any other refusal shows no message at a field.
+**BSM-023 — Refusals at the field (frontend)**: When a save is refused under BSM-020 or BSM-030, each reason is shown as an error under its field — the date (missing and invalid have different messages) and the account. A new save clears every message first; any other refusal, an empty selection included, shows no message at a field.
 
 **BSM-024 — A refused save keeps the form (frontend)**: When a save is refused, for any reason, the form or dialog stays open and an error snackbar is shown.
 
-**BSM-025 — A field's message clears when it is edited (frontend)**: A message of BSM-023 clears once its field is edited; for the selection, once a group or procedure is added or removed, in the broadened search too (R12, R20). Changing the type at creation clears the account and selection messages. While the date is missing or invalid, the 7-day selection shows no candidate (the broadened search has no date window, R12, R20).
+**BSM-025 — A field's message clears when it is edited (frontend)**: A message of BSM-023 clears once its field is edited. While the date is missing or invalid, the 7-day selection shows no candidate (the broadened search has no date window, R12, R20).
 
 **BSM-026 — A direct payment is on its technical account (backend)**: A patient's direct payment — a `CASH`, `CHECK` or `CREDIT_CARD` bank entry created here — is recorded as BAC-056 says (owner, 2026-11-07, #518).
 
@@ -55,7 +53,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-032 — An unchanged edit closes silently (frontend)**: When an edit is answered unchanged (BSM-031), the edit dialog closes with no snackbar and the list is not refreshed.
 
-**BSM-033 — The edit dialog shows the account (frontend)**: The edit dialog shows a `FUND` entry's account as text and offers no way to change it (R9, R17); a direct payment shows none (R13).
+**BSM-033 — The edit dialog shows the account (frontend)**: The edit dialog shows a `FUND` entry's account and offers no way to change it (R9, R17); a direct payment shows none (R13).
 
 **BSM-034 — A refused bank entry changes nothing (backend)**: Creating or editing a bank entry writes the entry, its links and all it changes on the groups and procedures it adds, keeps or removes (R7, R8, R10, R11, R15, R16, R18, R19, BSM-035) together. When the creation or edit is refused or fails, all of them stay as they were and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
 
@@ -156,7 +154,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 ### Entering a FUND transfer
 
 ```
-[User picks the FUND type, the account, and the date]
+[User picks the account and the date]
           │
           ▼
 [Select fund-payment groups]
@@ -173,7 +171,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 ### Entering a direct payment (CHECK / CREDIT_CARD / CASH)
 
 ```
-[User picks the type and the date; the account only for a FUND transfer]
+[User picks the type (`CHECK`, `CREDIT_CARD`, `CASH`) and the date]
           │
           ▼
 [Select procedures]

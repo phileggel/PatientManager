@@ -26,7 +26,8 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
     handleFunds,
     handleProcedureTypes,
     handleFundPayment,
-    handleBankTransfer,
+    handleDirectPayments,
+    handleFundWires,
     handleBankAccount,
     handleBankStatementLabels,
   } = useManagementModal({ onNavigate, onClose });
@@ -127,17 +128,33 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
           </p>
         </button>
 
-        {/* Bank Transfer */}
+        {/* #642 — Direct payments */}
         <button
-          id="mgmt-card-bank-transfers"
+          id="mgmt-card-direct-payments"
           type="button"
           className={cardClasses}
-          onClick={handleBankTransfer}
-          aria-label={t("bank_transfer.title")}
+          onClick={handleDirectPayments}
+          aria-label={t("direct_payments.title")}
         >
-          <span className="text-sm font-medium text-m3-on-surface">{t("bank_transfer.title")}</span>
+          <span className="text-sm font-medium text-m3-on-surface">
+            {t("direct_payments.title")}
+          </span>
           <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("bank_transfer.description")}
+            {t("direct_payments.description")}
+          </p>
+        </button>
+
+        {/* #642 — Fund wires */}
+        <button
+          id="mgmt-card-fund-wires"
+          type="button"
+          className={cardClasses}
+          onClick={handleFundWires}
+          aria-label={t("fund_wires.title")}
+        >
+          <span className="text-sm font-medium text-m3-on-surface">{t("fund_wires.title")}</span>
+          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
+            {t("fund_wires.description")}
           </p>
         </button>
 

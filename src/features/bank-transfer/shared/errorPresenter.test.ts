@@ -83,7 +83,6 @@ describe("bankEntryFieldErrorKeys (BSM-023)", () => {
     ).toEqual({
       bankAccount: "transfer.validate.bank_account_required",
       transferDate: "transfer.validate.date_invalid",
-      selection: "transfer.validate.no_items_selected",
     });
   });
 

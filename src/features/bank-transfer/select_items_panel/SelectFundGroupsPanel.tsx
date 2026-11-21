@@ -32,19 +32,19 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-neutral-90">{t("transfer.select_groups.label")}</p>
+      <p className="text-sm font-medium text-m3-on-surface">{t("transfer.select_groups.label")}</p>
 
       {/* Current groups section — shown in edit mode */}
       {currentGroups && currentGroups.length > 0 && (
         <div className="flex flex-col gap-1">
-          <p className="text-xs font-medium text-neutral-60 uppercase tracking-wide">
+          <p className="text-xs font-medium text-m3-on-surface-variant uppercase tracking-wide">
             {t("transfer.select_groups.current")}
           </p>
           <div className="bg-m3-surface-container-low rounded-xl flex flex-col">
             {currentGroups.map((group) => (
               <label
                 key={group.group_id}
-                className="flex items-center gap-3 px-3 py-3 hover:bg-neutral-10 cursor-pointer transition-colors"
+                className="flex items-center gap-3 px-3 py-3 hover:bg-m3-surface-container-high cursor-pointer transition-colors"
               >
                 <input
                   type="checkbox"
@@ -53,13 +53,13 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                   className="w-4 h-4 shrink-0"
                 />
                 <div className="flex flex-1 items-center justify-between gap-2 text-sm min-w-0">
-                  <span className="font-medium text-neutral-90 truncate">
+                  <span className="font-medium text-m3-on-surface truncate">
                     {getFundName(group.fund_id)}
                   </span>
-                  <span className="text-neutral-60 text-xs whitespace-nowrap">
+                  <span className="text-m3-on-surface-variant text-xs whitespace-nowrap">
                     {formatDate(group.payment_date)}
                   </span>
-                  <span className="font-semibold whitespace-nowrap">
+                  <span className="font-semibold whitespace-nowrap text-m3-on-surface">
                     {formatCurrency(group.total_amount)}
                   </span>
                 </div>
@@ -76,14 +76,16 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
           value={fundFilter}
           onChange={(e) => setFundFilter(e.target.value)}
           placeholder={t("transfer.select_groups.filter_placeholder")}
-          className="w-full px-3 py-2 text-sm border border-neutral-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-m3-primary"
+          className="w-full px-3 py-2 text-sm border border-m3-outline/40 rounded-lg bg-transparent text-m3-on-surface focus:outline-none focus:ring-2 focus:ring-m3-primary"
         />
       )}
 
       {loading ? (
-        <p className="text-sm text-neutral-60 py-2">{t("transfer.select_groups.loading")}</p>
+        <p className="text-sm text-m3-on-surface-variant py-2">
+          {t("transfer.select_groups.loading")}
+        </p>
       ) : filteredCandidates.length === 0 ? (
-        <p className="text-sm text-neutral-60 py-2">
+        <p className="text-sm text-m3-on-surface-variant py-2">
           {isExpanded ? t("transfer.select_groups.empty_all") : t("transfer.select_groups.empty")}
         </p>
       ) : (
@@ -91,7 +93,7 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
           {filteredCandidates.map((group) => (
             <label
               key={group.group_id}
-              className="flex items-center gap-3 px-3 py-3 hover:bg-neutral-10 cursor-pointer transition-colors"
+              className="flex items-center gap-3 px-3 py-3 hover:bg-m3-surface-container-high cursor-pointer transition-colors"
             >
               <input
                 type="checkbox"
@@ -100,13 +102,13 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
                 className="w-4 h-4 shrink-0"
               />
               <div className="flex flex-1 items-center justify-between gap-2 text-sm min-w-0">
-                <span className="font-medium text-neutral-90 truncate">
+                <span className="font-medium text-m3-on-surface truncate">
                   {getFundName(group.fund_id)}
                 </span>
-                <span className="text-neutral-60 text-xs whitespace-nowrap">
+                <span className="text-m3-on-surface-variant text-xs whitespace-nowrap">
                   {formatDate(group.payment_date)}
                 </span>
-                <span className="font-semibold whitespace-nowrap">
+                <span className="font-semibold whitespace-nowrap text-m3-on-surface">
                   {formatCurrency(group.total_amount)}
                 </span>
               </div>
@@ -125,12 +127,6 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
         >
           {t("transfer.select_groups.expand")}
         </Button>
-      )}
-
-      {selectedGroupIds.length > 0 && (
-        <p className="text-xs text-neutral-60">
-          {t("transfer.select_groups.selected", { count: selectedGroupIds.length })}
-        </p>
       )}
     </div>
   );

@@ -19,9 +19,13 @@
     "title": "Fund Payment",
     "description": "View and manage fund payment groups."
   },
-  "bank_transfer": {
-    "title": "Bank Transfer",
-    "description": "View and manage bank transfers associated with payment groups."
+  "direct_payments": {
+    "title": "Direct payments",
+    "description": "View and manage procedure payments by check, bank card or cash."
+  },
+  "fund_wires": {
+    "title": "Fund wires",
+    "description": "View and manage the wires funds send to settle their payment groups."
   },
   "bank_account": {
     "title": "Bank Accounts",

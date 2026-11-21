@@ -92,15 +92,15 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
 export interface BankEntryFieldErrorKeys {
   transferDate?: string;
   bankAccount?: string;
-  selection?: string;
 }
 
-const FIELD_KEYS: Record<BankEntryInvalidReason, [keyof BankEntryFieldErrorKeys, string]> = {
-  AccountMissing: ["bankAccount", "transfer.validate.bank_account_required"],
-  DateMissing: ["transferDate", "transfer.validate.date_required"],
-  DateInvalid: ["transferDate", "transfer.validate.date_invalid"],
-  NothingSelected: ["selection", "transfer.validate.no_items_selected"],
-};
+// An empty selection names no field: the window never sends one (#642).
+const FIELD_KEYS: Partial<Record<BankEntryInvalidReason, [keyof BankEntryFieldErrorKeys, string]>> =
+  {
+    AccountMissing: ["bankAccount", "transfer.validate.bank_account_required"],
+    DateMissing: ["transferDate", "transfer.validate.date_required"],
+    DateInvalid: ["transferDate", "transfer.validate.date_invalid"],
+  };
 
 /**
  * The message keys of a refused bank entry form, one per refused field
@@ -109,5 +109,10 @@ const FIELD_KEYS: Record<BankEntryInvalidReason, [keyof BankEntryFieldErrorKeys,
  */
 export function bankEntryFieldErrorKeys(err: BankManualMatchError): BankEntryFieldErrorKeys | null {
   if (err.code !== "BankEntryInvalid") return null;
-  return Object.fromEntries(err.reasons.map((reason) => FIELD_KEYS[reason]));
+  return Object.fromEntries(
+    err.reasons.flatMap((reason) => {
+      const entry = FIELD_KEYS[reason];
+      return entry ? [entry] : [];
+    }),
+  );
 }

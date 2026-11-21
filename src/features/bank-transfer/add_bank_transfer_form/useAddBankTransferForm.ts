@@ -16,14 +16,25 @@ import {
   bankEntryFieldErrorKeys,
   formatBankManualMatchError,
 } from "../shared/errorPresenter";
+import type { BankEntryKind } from "../shared/presenter";
 
-export function useAddBankTransferForm() {
+/** #642 — the type a new entry starts with: a fund's wire, or a payment by check. */
+const INITIAL_TYPE: Record<BankEntryKind, BankEntryType> = {
+  fund: "FUND_WIRE",
+  direct: "PATIENT_CHECK",
+};
+
+/**
+ * The add window of one page (#642): a fund wire settles groups, a direct payment
+ * procedures. A saved entry resets the form and calls `onSaved` (the window closes).
+ */
+export function useAddBankTransferForm(kind: BankEntryKind, onSaved?: () => void) {
   const { t } = useTranslation("bank");
 
   const bankAccounts = useCacheStore((state) => state.bankAccounts);
 
   const [transferDate, setTransferDateState] = useState<string>("");
-  const [transferType, setTransferType] = useState<BankEntryType>("FUND_WIRE");
+  const [transferType, setTransferType] = useState<BankEntryType>(INITIAL_TYPE[kind]);
   const [bankAccount, setBankAccountState] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
@@ -54,12 +65,11 @@ export function useAddBankTransferForm() {
     setFieldErrors((prev) => ({ ...prev, bankAccount: undefined }));
   };
 
+  // #642 — the payment method of a direct payment; its procedures stay ticked, every
+  // method offering the same ones.
   const handleTypeChange = (newType: BankEntryType) => {
     setTransferType(newType);
-    setSelectedGroupIds([]);
-    setSelectedProcedureIds([]);
-    setTotalAmountMillis(0);
-    // BSM-025 — a new type has its own account and selection.
+    // A new type has its own account message.
     setFieldErrors((prev) => ({ transferDate: prev.transferDate }));
     // BSM-026 — a direct payment sends no account: the backend sets it.
     setBankAccountState("");
@@ -68,18 +78,16 @@ export function useAddBankTransferForm() {
   const handleFundGroupSelectionChange = (groupIds: string[], totalMillis: number) => {
     setSelectedGroupIds(groupIds);
     setTotalAmountMillis(totalMillis);
-    setFieldErrors((prev) => ({ ...prev, selection: undefined }));
   };
 
   const handleProcedureSelectionChange = (procedureIds: string[], totalMillis: number) => {
     setSelectedProcedureIds(procedureIds);
     setTotalAmountMillis(totalMillis);
-    setFieldErrors((prev) => ({ ...prev, selection: undefined }));
   };
 
   const resetForm = () => {
     setTransferDateState("");
-    setTransferType("FUND_WIRE");
+    setTransferType(INITIAL_TYPE[kind]);
     setBankAccountState("");
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
@@ -90,7 +98,7 @@ export function useAddBankTransferForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // BSM-022 — the form sends what it holds; the backend judges it (BSM-020).
+    // The form sends what it holds; the backend judges it (BSM-020).
     setFieldErrors({});
 
     setSubmitting(true);
@@ -109,8 +117,9 @@ export function useAddBankTransferForm() {
       }
 
       if (result.success) {
-        toastService.show("success", t("transfer.add.success"));
+        toastService.show("success", t(`transfer.${kind}.added`));
         resetForm();
+        onSaved?.();
       } else {
         setFieldErrors(bankEntryFieldErrorKeys(result.error) ?? {});
         const { key, params } = formatBankManualMatchError(result.error);
@@ -118,11 +127,19 @@ export function useAddBankTransferForm() {
       }
     } catch (error) {
       logger.error("[useAddBankTransferForm] Exception", { error });
-      toastService.show("error", t("transfer.add.error_unknown"));
+      toastService.show("error", t("transfer.error_unknown"));
     } finally {
       setSubmitting(false);
     }
   };
+
+  // #642 — something entered: closing asks first.
+  const isDirty =
+    transferDate !== "" ||
+    bankAccount !== "" ||
+    transferType !== INITIAL_TYPE[kind] ||
+    selectedGroupIds.length > 0 ||
+    selectedProcedureIds.length > 0;
 
   return {
     transferDate,
@@ -139,7 +156,8 @@ export function useAddBankTransferForm() {
     submitting,
     fieldErrors,
     bankAccountOptions,
-    isFund,
+    isDirty,
+    resetForm,
     handleSubmit,
   };
 }

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { BankAccountManager } from "@/features/bank-account";
 import { BankStatementLabelManager } from "@/features/bank-statement-label";
 import { BankStatementPage } from "@/features/bank-statement-match";
-import { BankTransferManager } from "@/features/bank-transfer";
+import { BankEntryManager } from "@/features/bank-transfer";
 import DashboardPage from "@/features/dashboard/presentation/DashboardPage";
 import { DbBackupModal } from "@/features/db-backup";
 import { ImportExcelPage } from "@/features/excel-import/presentation";
@@ -89,8 +89,10 @@ function AppContent() {
         return t("nav.fund_payment");
       case "fund-payment-match":
         return t("nav.reconciliation");
-      case "bank-transfer":
-        return t("nav.bank_transfer");
+      case "direct-payments":
+        return t("nav.direct_payments");
+      case "fund-wires":
+        return t("nav.fund_wires");
       case "bank-account":
         return t("nav.bank_account");
       case "bank-statement-label":
@@ -152,7 +154,8 @@ function AppContent() {
           {currentPage === "fund-payment-match" && pendingFilePath && (
             <ReconciliationPage filePath={pendingFilePath} onClose={handleCloseImportPage} />
           )}
-          {currentPage === "bank-transfer" && <BankTransferManager />}
+          {currentPage === "direct-payments" && <BankEntryManager key="direct" kind="direct" />}
+          {currentPage === "fund-wires" && <BankEntryManager key="fund" kind="fund" />}
           {currentPage === "bank-account" && <BankAccountManager />}
           {currentPage === "bank-statement-label" && <BankStatementLabelManager />}
           {currentPage === "bank-statement-match" && pendingFilePath && (
