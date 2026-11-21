@@ -211,8 +211,7 @@
     "validate": {
       "date_required": "La date du virement est obligatoire",
       "date_invalid": "Saisissez une date valide",
-      "bank_account_required": "Le compte bancaire est obligatoire",
-      "no_items_selected": "Veuillez sélectionner au moins un groupe ou un acte"
+      "bank_account_required": "Le compte bancaire est obligatoire"
     }
   },
   "account": {

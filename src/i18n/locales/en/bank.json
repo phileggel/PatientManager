@@ -211,8 +211,7 @@
     "validate": {
       "date_required": "Transfer date is required",
       "date_invalid": "Enter a valid date",
-      "bank_account_required": "Bank account is required",
-      "no_items_selected": "Please select at least one group or procedure"
+      "bank_account_required": "Bank account is required"
     }
   },
   "account": {
