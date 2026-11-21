@@ -112,6 +112,11 @@ impl Database {
             .await
             .with_context(|| "Failed to heal migration checksums")?;
 
+        // #725 — migration 20261114 stops on a fund payment group linked to
+        // several bank entries (BSM-038A): say in the log what each link is,
+        // before it does. Nothing is changed, and a failure here stops nothing.
+        log_group_double_links_if_pending(&db.pool).await;
+
         // Apply database migrations on a dedicated connection with foreign-key
         // enforcement DISABLED (gh#67).
         //
@@ -301,6 +306,123 @@ async fn heal_crlf_checksum_drift(pool: &SqlitePool) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// The migration that gives a fund payment group one bank entry at most (BSM-038).
+const ONE_BANK_ENTRY_PER_GROUP_VERSION: i64 = 20261114;
+
+/// One link of a fund payment group that several links settle (#725): what the
+/// log needs to tell a link left behind by a deleted bank entry from two bank
+/// entries recorded for one payment. Identifiers, a date and yes/no only — no
+/// amount, no name.
+#[derive(Debug, PartialEq, Eq, sqlx::FromRow)]
+struct GroupDoubleLink {
+    link_id: String,
+    fund_payment_group_id: String,
+    group_exists: bool,
+    group_status: Option<String>,
+    bank_entry_id: String,
+    bank_entry_exists: bool,
+    bank_entry_type: Option<String>,
+    bank_entry_date: Option<String>,
+    /// How many groups this bank entry is linked to, this one included.
+    groups_of_bank_entry: i64,
+    /// Whether procedures or a refund also hold this bank entry.
+    held_elsewhere: bool,
+    /// Whether this bank entry's amount is the group's total.
+    amount_is_group_total: bool,
+    /// Whether the existing bank entries of the group share one amount.
+    same_amount: bool,
+}
+
+/// Every link of every fund payment group linked more than once, the latest bank
+/// entry of a group first. Reads only.
+async fn read_group_double_links(pool: &SqlitePool) -> Result<Vec<GroupDoubleLink>> {
+    let links = sqlx::query_as(
+        "SELECT
+             l.id                                       AS link_id,
+             l.fund_payment_group_id                    AS fund_payment_group_id,
+             g.id IS NOT NULL                           AS group_exists,
+             g.status                                   AS group_status,
+             l.bank_transfer_id                         AS bank_entry_id,
+             bt.id IS NOT NULL                          AS bank_entry_exists,
+             bt.transfer_type                           AS bank_entry_type,
+             bt.transfer_date                           AS bank_entry_date,
+             (SELECT COUNT(*) FROM bank_transfer_fund_group_link o
+               WHERE o.bank_transfer_id = l.bank_transfer_id) AS groups_of_bank_entry,
+             (SELECT COUNT(*) FROM bank_transfer_procedure_link p
+               WHERE p.bank_transfer_id = l.bank_transfer_id)
+           + (SELECT COUNT(*) FROM procedure_refund r
+               WHERE r.refund_bank_transfer_id = l.bank_transfer_id) > 0 AS held_elsewhere,
+             COALESCE(bt.amount = g.total_amount, 0)    AS amount_is_group_total,
+             (SELECT COUNT(DISTINCT b.amount)
+                FROM bank_transfer_fund_group_link s
+                JOIN bank_transfer b ON b.id = s.bank_transfer_id
+               WHERE s.fund_payment_group_id = l.fund_payment_group_id) <= 1 AS same_amount
+         FROM bank_transfer_fund_group_link l
+         LEFT JOIN bank_transfer bt     ON bt.id = l.bank_transfer_id
+         LEFT JOIN fund_payment_group g ON g.id = l.fund_payment_group_id
+         WHERE l.fund_payment_group_id IN (
+             SELECT fund_payment_group_id FROM bank_transfer_fund_group_link
+             GROUP BY fund_payment_group_id HAVING COUNT(*) > 1)
+         ORDER BY l.fund_payment_group_id, bt.transfer_date DESC, l.rowid DESC",
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(links)
+}
+
+/// #725 — before migration 20261114 runs on a database that has not taken it,
+/// writes one log line per link of each group it will stop on. Nothing is
+/// written to the database, and no failure here stops the start.
+async fn log_group_double_links_if_pending(pool: &SqlitePool) {
+    let pending = async {
+        let link_table: Option<String> = sqlx::query_scalar(
+            "SELECT name FROM sqlite_master
+             WHERE type = 'table' AND name = 'bank_transfer_fund_group_link'",
+        )
+        .fetch_optional(pool)
+        .await?;
+        if link_table.is_none() {
+            return Ok(Vec::new());
+        }
+        let applied: Option<i64> = sqlx::query_scalar(
+            "SELECT version FROM _sqlx_migrations WHERE version = ? AND success = 1",
+        )
+        .bind(ONE_BANK_ENTRY_PER_GROUP_VERSION)
+        .fetch_optional(pool)
+        .await?;
+        if applied.is_some() {
+            return Ok(Vec::new());
+        }
+        read_group_double_links(pool).await
+    };
+    let links: Result<Vec<GroupDoubleLink>> = pending.await;
+    match links {
+        Ok(links) => {
+            for link in links {
+                tracing::error!(
+                    target: BACKEND,
+                    link_id = %link.link_id,
+                    fund_payment_group_id = %link.fund_payment_group_id,
+                    group_exists = link.group_exists,
+                    group_status = link.group_status.as_deref().unwrap_or("-"),
+                    bank_entry_id = %link.bank_entry_id,
+                    bank_entry_exists = link.bank_entry_exists,
+                    bank_entry_type = link.bank_entry_type.as_deref().unwrap_or("-"),
+                    bank_entry_date = link.bank_entry_date.as_deref().unwrap_or("-"),
+                    groups_of_bank_entry = link.groups_of_bank_entry,
+                    held_elsewhere = link.held_elsewhere,
+                    amount_is_group_total = link.amount_is_group_total,
+                    same_amount = link.same_amount,
+                    "Fund payment group linked to several bank entries: migration 20261114 will stop on it"
+                );
+            }
+        }
+        Err(e) => {
+            tracing::warn!(target: BACKEND, err = ?e, "Could not read the fund payment groups linked to several bank entries");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -793,5 +915,167 @@ mod tests {
             billed.is_some(),
             "20260524 must backfill billed_amount to non-NULL"
         );
+    }
+
+    // ---- #725: what the log says before migration 20261114 stops ----
+
+    /// A database upgraded up to, not including, migration 20261114.
+    async fn pool_before_one_bank_entry_per_group() -> SqlitePool {
+        let pool = fresh_pool().await;
+        // Off, as on the migration connection: an old database's links may
+        // reference a bank entry that no longer exists.
+        sqlx::query("PRAGMA foreign_keys = OFF")
+            .execute(&pool)
+            .await
+            .unwrap();
+        seed_migrations_table(&pool).await;
+        for m in sqlx::migrate!("./migrations")
+            .iter()
+            .filter(|m| m.version < ONE_BANK_ENTRY_PER_GROUP_VERSION)
+        {
+            sqlx::raw_sql(m.sql.clone()).execute(&pool).await.unwrap();
+        }
+        pool
+    }
+
+    async fn seed_entry(pool: &SqlitePool, id: &str, date: &str, amount: i64) {
+        sqlx::query(
+            "INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
+             VALUES (?, ?, ?, 'FUND', 'account-1')",
+        )
+        .bind(id)
+        .bind(date)
+        .bind(amount)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn seed_link(pool: &SqlitePool, id: &str, entry: &str, group: &str) {
+        sqlx::query(
+            "INSERT INTO bank_transfer_fund_group_link (id, bank_transfer_id, fund_payment_group_id)
+             VALUES (?, ?, ?)",
+        )
+        .bind(id)
+        .bind(entry)
+        .bind(group)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn count(pool: &SqlitePool, table: &str) -> i64 {
+        sqlx::query_scalar(AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
+            .fetch_one(pool)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_725_a_link_to_a_missing_bank_entry_is_told_from_an_existing_one() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        sqlx::query(
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount)
+             VALUES ('group-1', 'fund-1', '2026-01-01', 10000)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        seed_entry(&pool, "entry-live", "2026-02-01", 10_000).await;
+        seed_link(&pool, "link-1", "entry-gone", "group-1").await;
+        seed_link(&pool, "link-2", "entry-live", "group-1").await;
+
+        let links = read_group_double_links(&pool).await.unwrap();
+
+        assert_eq!(
+            links,
+            vec![
+                GroupDoubleLink {
+                    link_id: "link-2".to_string(),
+                    fund_payment_group_id: "group-1".to_string(),
+                    group_exists: true,
+                    group_status: Some("ACTIVE".to_string()),
+                    bank_entry_id: "entry-live".to_string(),
+                    bank_entry_exists: true,
+                    bank_entry_type: Some("FUND".to_string()),
+                    bank_entry_date: Some("2026-02-01".to_string()),
+                    groups_of_bank_entry: 1,
+                    held_elsewhere: false,
+                    amount_is_group_total: true,
+                    same_amount: true,
+                },
+                GroupDoubleLink {
+                    link_id: "link-1".to_string(),
+                    fund_payment_group_id: "group-1".to_string(),
+                    group_exists: true,
+                    group_status: Some("ACTIVE".to_string()),
+                    bank_entry_id: "entry-gone".to_string(),
+                    bank_entry_exists: false,
+                    bank_entry_type: None,
+                    bank_entry_date: None,
+                    groups_of_bank_entry: 1,
+                    held_elsewhere: false,
+                    amount_is_group_total: false,
+                    same_amount: true,
+                },
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_725_two_existing_bank_entries_come_latest_first_with_their_other_groups() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_entry(&pool, "entry-old", "2026-02-01", 14_000).await;
+        seed_entry(&pool, "entry-new", "2026-02-09", 10_000).await;
+        seed_link(&pool, "link-1", "entry-old", "group-1").await;
+        seed_link(&pool, "link-2", "entry-old", "group-2").await;
+        seed_link(&pool, "link-3", "entry-new", "group-1").await;
+        sqlx::query(
+            "INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id)
+             VALUES ('pl-1', 'entry-old', 'procedure-1')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let links = read_group_double_links(&pool).await.unwrap();
+
+        let seen: Vec<(&str, bool, i64, bool, bool)> = links
+            .iter()
+            .map(|l| {
+                (
+                    l.bank_entry_id.as_str(),
+                    l.bank_entry_exists,
+                    l.groups_of_bank_entry,
+                    l.same_amount,
+                    l.held_elsewhere,
+                )
+            })
+            .collect();
+        assert_eq!(
+            seen,
+            vec![
+                ("entry-new", true, 1, false, false),
+                ("entry-old", true, 2, false, true),
+            ],
+            "group-2, linked once, is not listed"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_725_the_log_step_changes_nothing_and_never_fails() {
+        // No link table yet: nothing to read, nothing fails.
+        log_group_double_links_if_pending(&fresh_pool().await).await;
+
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_entry(&pool, "entry-a", "2026-02-01", 10_000).await;
+        seed_entry(&pool, "entry-b", "2026-02-09", 10_000).await;
+        seed_link(&pool, "link-1", "entry-a", "group-1").await;
+        seed_link(&pool, "link-2", "entry-b", "group-1").await;
+
+        log_group_double_links_if_pending(&pool).await;
+
+        assert_eq!(count(&pool, "bank_transfer_fund_group_link").await, 2);
+        assert_eq!(count(&pool, "bank_transfer").await, 2);
     }
 }
