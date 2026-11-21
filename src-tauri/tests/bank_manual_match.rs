@@ -539,3 +539,492 @@ async fn test_640_bsm_028_a_repeated_selection_counts_once() {
     assert_eq!(amounts, vec![50000, 50000]);
     assert_eq!(fund_link_count(&pool).await, 1);
 }
+
+// ---- #712: a fund's wire with no bordereau (BSM-050 to BSM-055) ----
+
+/// A bank account, two funds, and three `Created` procedures of `fund-712`
+/// dated out of order, one of `fund-other`.
+async fn seed_712(pool: &SqlitePool) {
+    for statement in [
+        "INSERT INTO bank_account (id, name) VALUES ('bank-acc', 'Bank')",
+        "INSERT INTO fund (id, fund_identifier, name) VALUES ('fund-712', '712', 'Fund with no bordereau')",
+        "INSERT INTO fund (id, fund_identifier, name) VALUES ('fund-other', '713', 'Another fund')",
+        "INSERT INTO patient (id, is_anonymous) VALUES ('patient-712', 0)",
+        "INSERT INTO procedure_type (id, name, default_amount) VALUES ('type-712', 'Consultation', 46000)",
+        r#"INSERT INTO "procedure" (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_status)
+           VALUES ('p-march', 'patient-712', 'fund-712', 'type-712', '2026-03-10', 46000, 'CREATED'),
+                  ('p-january', 'patient-712', 'fund-712', 'type-712', '2026-01-05', 62500, 'CREATED'),
+                  ('p-february', 'patient-712', 'fund-712', 'type-712', '2026-02-02', 46000, 'CREATED'),
+                  ('p-other-fund', 'patient-712', 'fund-other', 'type-712', '2026-02-03', 46000, 'CREATED'),
+                  ('p-paid', 'patient-712', 'fund-712', 'type-712', '2026-02-04', 46000, 'DIRECTLY_PAYED'),
+                  ('p-free', 'patient-712', 'fund-712', 'type-712', '2026-02-05', 0, 'CREATED'),
+                  ('p-in-group', 'patient-712', 'fund-712', 'type-712', '2026-02-06', 46000, 'CREATED')"#,
+        "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount, status)
+         VALUES ('group-712', 'fund-712', '2026-02-10', 46000, 'ACTIVE')",
+        "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id)
+         VALUES ('line-712', 'group-712', 'p-in-group')",
+    ] {
+        sqlx::query(statement).execute(pool).await.expect("seed");
+    }
+}
+
+/// A procedure's payment columns: id, status, method, confirmed payment date,
+/// fund reconciliation date, paid amount.
+type SettledProcedureRow = (
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<i64>,
+);
+
+fn not_open(err: BankManualMatchError) -> String {
+    match err {
+        BankManualMatchError::Task(BankManualMatchTask::ProcedureNotOpen { procedure_id }) => {
+            procedure_id
+        }
+        other => panic!("expected ProcedureNotOpen, got {other:?}"),
+    }
+}
+
+async fn count(pool: &SqlitePool, table: &str) -> i64 {
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}")))
+        .fetch_one(pool)
+        .await
+        .expect("count")
+}
+
+/// BSM-050: the fund's open procedures (BAS-112), oldest first, whatever their
+/// date; another fund's, a paid one and one with no amount are not open.
+#[tokio::test]
+async fn test_712_bsm_050_the_open_procedures_of_a_fund_come_oldest_first() {
+    let (orchestrator, pool) = setup().await;
+    seed_712(&pool).await;
+
+    let open = orchestrator
+        .get_open_procedures_of_fund("fund-712")
+        .await
+        .expect("the open procedures");
+
+    let seen: Vec<(&str, &str, i64)> = open
+        .iter()
+        .map(|p| {
+            (
+                p.procedure_id.as_str(),
+                p.procedure_date.as_str(),
+                p.billed_amount,
+            )
+        })
+        .collect();
+    assert_eq!(
+        seen,
+        vec![
+            ("p-january", "2026-01-05", 62500),
+            ("p-february", "2026-02-02", 46000),
+            ("p-march", "2026-03-10", 46000),
+        ]
+    );
+    let unknown = orchestrator
+        .get_open_procedures_of_fund("no-such-fund")
+        .await
+        .expect("an unknown fund");
+    assert!(unknown.is_empty());
+}
+
+/// BSM-051: the wire creates the fund's group — dated on the wire, total of the
+/// billed amounts, one line per procedure, `BankPaid` and locked — and each
+/// procedure is `FundPaid` on the wire's date for its billed amount.
+#[tokio::test]
+async fn test_712_bsm_051_a_wire_on_open_procedures_creates_their_settled_group() {
+    let (orchestrator, pool) = setup().await;
+    seed_712(&pool).await;
+
+    let result = orchestrator
+        .create_fund_wire_from_procedures(
+            "bank-acc".to_string(),
+            "2026-03-20".to_string(),
+            "fund-712".to_string(),
+            vec![
+                "p-january".to_string(),
+                "p-february".to_string(),
+                "p-january".to_string(),
+            ],
+        )
+        .await
+        .expect("the wire is recorded");
+
+    assert_eq!(
+        result.linked_count, 2,
+        "a repeated procedure counts once (BSM-028)"
+    );
+    let (wire_amount, wire_type, wire_date): (i64, String, String) = sqlx::query_as(
+        "SELECT amount, transfer_type, transfer_date FROM bank_transfer WHERE id = ?",
+    )
+    .bind(&result.transfer_id)
+    .fetch_one(&pool)
+    .await
+    .expect("the wire");
+    assert_eq!(
+        (wire_amount, wire_type.as_str(), wire_date.as_str()),
+        (108_500, "FUND", "2026-03-20")
+    );
+    let (group_id, fund_id, payment_date, total, status): (String, String, String, i64, String) =
+        sqlx::query_as(
+            "SELECT g.id, g.fund_id, g.payment_date, g.total_amount, g.status
+             FROM bank_transfer_fund_group_link l
+             JOIN fund_payment_group g ON g.id = l.fund_payment_group_id
+             WHERE l.bank_transfer_id = ?",
+        )
+        .bind(&result.transfer_id)
+        .fetch_one(&pool)
+        .await
+        .expect("the group the wire settles");
+    assert_eq!(
+        (
+            fund_id.as_str(),
+            payment_date.as_str(),
+            total,
+            status.as_str()
+        ),
+        ("fund-712", "2026-03-20", 108_500, "BANK_PAYED")
+    );
+    let lines: Vec<String> = sqlx::query_scalar(
+        "SELECT procedure_id FROM fund_payment_line WHERE fund_payment_group_id = ? ORDER BY procedure_id",
+    )
+    .bind(&group_id)
+    .fetch_all(&pool)
+    .await
+    .expect("the group's lines");
+    assert_eq!(lines, vec!["p-february", "p-january"]);
+    let procedures: Vec<SettledProcedureRow> = sqlx::query_as(
+        r#"SELECT id, payment_status, payment_method, confirmed_payment_date,
+                      fund_reconciliation_date, paid_amount
+               FROM "procedure" WHERE id IN ('p-january', 'p-february') ORDER BY id"#,
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("the procedures");
+    let day = Some("2026-03-20".to_string());
+    assert_eq!(
+        procedures,
+        vec![
+            (
+                "p-february".to_string(),
+                "FUND_PAYED".to_string(),
+                "BANK_TRANSFER".to_string(),
+                day.clone(),
+                day.clone(),
+                Some(46000)
+            ),
+            (
+                "p-january".to_string(),
+                "FUND_PAYED".to_string(),
+                "BANK_TRANSFER".to_string(),
+                day.clone(),
+                day,
+                Some(62500)
+            ),
+        ]
+    );
+    let untouched: String =
+        sqlx::query_scalar(r#"SELECT payment_status FROM "procedure" WHERE id = 'p-march'"#)
+            .fetch_one(&pool)
+            .await
+            .expect("the procedure left out");
+    assert_eq!(untouched, "CREATED");
+}
+
+/// BSM-052: the fields are judged first, all at once, before the procedures.
+#[tokio::test]
+async fn test_712_bsm_052_such_a_wire_is_refused_for_all_its_fields_first() {
+    let (orchestrator, pool) = setup().await;
+    seed_712(&pool).await;
+
+    let err = orchestrator
+        .create_fund_wire_from_procedures(
+            " ".to_string(),
+            "not-a-date".to_string(),
+            "fund-712".to_string(),
+            vec![],
+        )
+        .await
+        .expect_err("refused for its fields");
+
+    assert_eq!(
+        reasons(err),
+        vec![
+            BankEntryInvalidReason::AccountMissing,
+            BankEntryInvalidReason::DateInvalid,
+            BankEntryInvalidReason::NothingSelected,
+        ]
+    );
+    let err = orchestrator
+        .create_fund_wire_from_procedures(
+            "".to_string(),
+            "2026-03-20".to_string(),
+            "fund-712".to_string(),
+            vec!["p-paid".to_string()],
+        )
+        .await
+        .expect_err("the account before the procedure");
+    assert_eq!(reasons(err), vec![BankEntryInvalidReason::AccountMissing]);
+    assert_eq!(bank_entry_count(&pool).await, 0);
+}
+
+/// BSM-053, BSM-054: a selection holding a procedure that is not open for the
+/// fund is refused, naming the first one; nothing is written, nothing published.
+#[tokio::test]
+async fn test_712_bsm_053_054_a_procedure_not_open_refuses_the_wire_and_writes_nothing() {
+    let (orchestrator, pool, bus) = setup_with_bus().await;
+    seed_712(&pool).await;
+    let mut procedures = bus.subscribe::<ProcedureUpdated>().expect("subscribe");
+    let mut groups = bus
+        .subscribe::<FundPaymentGroupUpdated>()
+        .expect("subscribe");
+    let mut entries = bus.subscribe::<BankEntryUpdated>().expect("subscribe");
+
+    for (selection, first_refused) in [
+        (vec!["p-january", "p-other-fund", "p-paid"], "p-other-fund"),
+        (vec!["p-paid", "p-january"], "p-paid"),
+        (vec!["p-free"], "p-free"),
+        (vec!["p-in-group"], "p-in-group"),
+        (vec!["p-january", "no-such-procedure"], "no-such-procedure"),
+    ] {
+        let err = orchestrator
+            .create_fund_wire_from_procedures(
+                "bank-acc".to_string(),
+                "2026-03-20".to_string(),
+                "fund-712".to_string(),
+                selection.into_iter().map(String::from).collect(),
+            )
+            .await
+            .expect_err("a procedure that is not open");
+        assert_eq!(not_open(err), first_refused);
+    }
+    // An unknown or missing fund has no open procedure.
+    for fund in ["no-such-fund", ""] {
+        let err = orchestrator
+            .create_fund_wire_from_procedures(
+                "bank-acc".to_string(),
+                "2026-03-20".to_string(),
+                fund.to_string(),
+                vec!["p-january".to_string()],
+            )
+            .await
+            .expect_err("an unknown fund");
+        assert_eq!(not_open(err), "p-january");
+    }
+    // A procedure that is not open is refused before the account is looked up.
+    let err = orchestrator
+        .create_fund_wire_from_procedures(
+            "no-such-account".to_string(),
+            "2026-03-20".to_string(),
+            "fund-712".to_string(),
+            vec!["p-paid".to_string()],
+        )
+        .await
+        .expect_err("the procedure before the account");
+    assert_eq!(not_open(err), "p-paid");
+
+    assert_eq!(bank_entry_count(&pool).await, 0);
+    assert_eq!(
+        count(&pool, "fund_payment_group").await,
+        1,
+        "the seeded group only"
+    );
+    assert_eq!(count(&pool, "fund_payment_line").await, 1);
+    let created: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*) FROM "procedure" WHERE id = 'p-january' AND payment_status = 'CREATED'"#,
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("the procedure");
+    assert_eq!(created, 1);
+    assert!(procedures.try_recv().is_err());
+    assert!(groups.try_recv().is_err());
+    assert!(entries.try_recv().is_err());
+}
+
+/// BSM-054: an unknown account is refused after the procedures are judged, and
+/// leaves no group behind.
+#[tokio::test]
+async fn test_712_bsm_054_an_unknown_account_leaves_no_group() {
+    let (orchestrator, pool) = setup().await;
+    seed_712(&pool).await;
+
+    let err = orchestrator
+        .create_fund_wire_from_procedures(
+            "no-such-account".to_string(),
+            "2026-03-20".to_string(),
+            "fund-712".to_string(),
+            vec!["p-january".to_string()],
+        )
+        .await
+        .expect_err("an unknown account");
+
+    assert!(matches!(
+        err,
+        BankManualMatchError::Bank(BankError::BankAccountNotFound { .. })
+    ));
+    assert_eq!(
+        count(&pool, "fund_payment_group").await,
+        1,
+        "the seeded group only"
+    );
+}
+
+/// BSM-054: a recorded wire publishes the three events.
+#[tokio::test]
+async fn test_712_bsm_054_a_recorded_wire_publishes_its_three_events() {
+    let (orchestrator, pool, bus) = setup_with_bus().await;
+    seed_712(&pool).await;
+    let mut procedures = bus.subscribe::<ProcedureUpdated>().expect("subscribe");
+    let mut groups = bus
+        .subscribe::<FundPaymentGroupUpdated>()
+        .expect("subscribe");
+    let mut entries = bus.subscribe::<BankEntryUpdated>().expect("subscribe");
+
+    orchestrator
+        .create_fund_wire_from_procedures(
+            "bank-acc".to_string(),
+            "2026-03-20".to_string(),
+            "fund-712".to_string(),
+            vec!["p-march".to_string()],
+        )
+        .await
+        .expect("the wire is recorded");
+
+    assert!(procedures.try_recv().is_ok());
+    assert!(groups.try_recv().is_ok());
+    assert!(entries.try_recv().is_ok());
+}
+
+/// BSM-055: deleting such a wire leaves an ordinary group — `Active`, its
+/// procedures `Reconciled` (R8, R1's declared exception).
+#[tokio::test]
+async fn test_712_bsm_055_deleting_the_wire_leaves_an_active_group_and_reconciled_procedures() {
+    let (orchestrator, pool) = setup().await;
+    seed_712(&pool).await;
+    let result = orchestrator
+        .create_fund_wire_from_procedures(
+            "bank-acc".to_string(),
+            "2026-03-20".to_string(),
+            "fund-712".to_string(),
+            vec!["p-march".to_string()],
+        )
+        .await
+        .expect("the wire is recorded");
+
+    orchestrator
+        .delete_fund_transfer(result.transfer_id)
+        .await
+        .expect("the wire is deleted");
+
+    let status: String =
+        sqlx::query_scalar("SELECT status FROM fund_payment_group WHERE id <> 'group-712'")
+            .fetch_one(&pool)
+            .await
+            .expect("the group stays");
+    assert_eq!(status, "ACTIVE");
+    let procedure: String =
+        sqlx::query_scalar(r#"SELECT payment_status FROM "procedure" WHERE id = 'p-march'"#)
+            .fetch_one(&pool)
+            .await
+            .expect("the procedure");
+    assert_eq!(procedure, "RECONCILIATED");
+    assert_eq!(bank_entry_count(&pool).await, 0);
+}
+
+/// BSM-054: a write that fails after the group is inserted leaves no group, no
+/// line, no wire, and publishes nothing.
+#[tokio::test]
+async fn test_712_bsm_054_a_failed_write_leaves_no_group_and_publishes_nothing() {
+    let (orchestrator, pool, bus) = setup_with_bus().await;
+    seed_712(&pool).await;
+    // The last write refuses: the new group becoming bank paid.
+    sqlx::query(
+        "CREATE TRIGGER refuse_group BEFORE UPDATE ON fund_payment_group
+         WHEN NEW.status = 'BANK_PAYED' BEGIN SELECT RAISE(ABORT, 'refused'); END",
+    )
+    .execute(&pool)
+    .await
+    .expect("trigger");
+    let mut procedures = bus.subscribe::<ProcedureUpdated>().expect("subscribe");
+    let mut groups = bus
+        .subscribe::<FundPaymentGroupUpdated>()
+        .expect("subscribe");
+    let mut entries = bus.subscribe::<BankEntryUpdated>().expect("subscribe");
+
+    let result = orchestrator
+        .create_fund_wire_from_procedures(
+            "bank-acc".to_string(),
+            "2026-03-20".to_string(),
+            "fund-712".to_string(),
+            vec!["p-january".to_string()],
+        )
+        .await;
+
+    assert!(result.is_err());
+    assert_eq!(
+        count(&pool, "fund_payment_group").await,
+        1,
+        "the seeded group only"
+    );
+    assert_eq!(count(&pool, "fund_payment_line").await, 1);
+    assert_eq!(bank_entry_count(&pool).await, 0);
+    let status: String =
+        sqlx::query_scalar(r#"SELECT payment_status FROM "procedure" WHERE id = 'p-january'"#)
+            .fetch_one(&pool)
+            .await
+            .expect("the procedure");
+    assert_eq!(status, "CREATED");
+    assert!(procedures.try_recv().is_err());
+    assert!(groups.try_recv().is_err());
+    assert!(entries.try_recv().is_err());
+}
+
+/// BSM-055: such a wire is edited as any fund's wire — a new date moves the
+/// confirmed payment date of its group's procedures (BSM-035).
+#[tokio::test]
+async fn test_712_bsm_055_the_wire_is_edited_as_any_fund_wire() {
+    let (orchestrator, pool) = setup().await;
+    seed_712(&pool).await;
+    let result = orchestrator
+        .create_fund_wire_from_procedures(
+            "bank-acc".to_string(),
+            "2026-03-20".to_string(),
+            "fund-712".to_string(),
+            vec!["p-march".to_string()],
+        )
+        .await
+        .expect("the wire is recorded");
+    let group: String = sqlx::query_scalar(
+        "SELECT fund_payment_group_id FROM bank_transfer_fund_group_link WHERE bank_transfer_id = ?",
+    )
+    .bind(&result.transfer_id)
+    .fetch_one(&pool)
+    .await
+    .expect("its group");
+
+    let edit = orchestrator
+        .update_fund_transfer(
+            result.transfer_id.clone(),
+            "2026-03-25".to_string(),
+            vec![group],
+        )
+        .await
+        .expect("the edit");
+
+    assert!(matches!(edit, BankEntryEdit::Updated { .. }));
+    let (status, confirmed): (String, Option<String>) = sqlx::query_as(
+        r#"SELECT payment_status, confirmed_payment_date FROM "procedure" WHERE id = 'p-march'"#,
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("the procedure");
+    assert_eq!(
+        (status.as_str(), confirmed.as_deref()),
+        ("FUND_PAYED", Some("2026-03-25"))
+    );
+}

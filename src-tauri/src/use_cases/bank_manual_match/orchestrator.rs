@@ -55,6 +55,15 @@ pub struct DirectPaymentProcedureCandidate {
     pub billed_amount: i64,
 }
 
+/// An open procedure of a fund, for a wire with no bordereau (BSM-050)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct FundWireProcedureCandidate {
+    pub procedure_id: String,
+    pub patient_name: String,
+    pub procedure_date: String,
+    pub billed_amount: i64,
+}
+
 /// Result of creating a bank transfer with links
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct BankManualMatchResult {
@@ -115,7 +124,7 @@ impl BankManualMatchOrchestrator {
     /// (ADR-003), then notify through the owning services.
     async fn write_entry(&self, writes: BankEntryWrites) -> Result<(), BankManualMatchError> {
         let procedures_changed = !writes.procedures.is_empty();
-        let groups_changed = !writes.group_statuses.is_empty();
+        let groups_changed = writes.new_group.is_some() || !writes.group_statuses.is_empty();
         write_bank_entry(self.bank_entry_writes.as_ref(), writes)
             .await
             .map_err(|e| {
@@ -297,10 +306,107 @@ impl BankManualMatchOrchestrator {
             .await?;
         let linked_count = group_ids.len();
         self.write_entry(BankEntryWrites {
+            new_group: None,
             entry: BankEntryChange::New(transfer),
             selection: BankEntrySelection::FundGroups(group_ids),
             procedures,
             group_statuses,
+        })
+        .await?;
+
+        Ok(BankManualMatchResult {
+            transfer_id,
+            linked_count,
+        })
+    }
+
+    /// BSM-050 — The open procedures of a fund (BAS-112), oldest first: what
+    /// a wire of a fund with no bordereau can settle.
+    pub async fn get_open_procedures_of_fund(
+        &self,
+        fund_id: &str,
+    ) -> Result<Vec<FundWireProcedureCandidate>, BankManualMatchError> {
+        let open = self
+            .procedure_service
+            .find_open_by_fund_with_patient(fund_id)
+            .await?;
+        Ok(open
+            .into_iter()
+            .map(|p| FundWireProcedureCandidate {
+                procedure_id: p.procedure_id,
+                patient_name: p.patient_name.unwrap_or_default(),
+                procedure_date: p.procedure_date.format("%Y-%m-%d").to_string(),
+                billed_amount: p.billed_amount,
+            })
+            .collect())
+    }
+
+    /// BSM-051 — Record a fund's wire on open procedures of one fund: their
+    /// group is created and settled by the wire in one write (BSM-054).
+    pub async fn create_fund_wire_from_procedures(
+        &self,
+        bank_account_id: String,
+        transfer_date: String,
+        fund_id: String,
+        procedure_ids: Vec<String>,
+    ) -> Result<BankManualMatchResult, BankManualMatchError> {
+        // BSM-052 — the form's fields first, nothing read before.
+        let procedure_ids = distinct(procedure_ids);
+        let wire_date =
+            BankEntry::read_form(Some(&bank_account_id), &transfer_date, procedure_ids.len())?;
+        let transfer_date = wire_date.format("%Y-%m-%d").to_string();
+
+        // BSM-053 — every selected procedure is an open procedure of the fund,
+        // judged in the selection's order by the one definition of open (BAS-112).
+        let open: HashMap<String, i64> = self
+            .procedure_service
+            .find_open_by_fund_with_patient(&fund_id)
+            .await?
+            .into_iter()
+            .map(|p| (p.procedure_id, p.billed_amount))
+            .collect();
+        let mut total_amount = 0;
+        for procedure_id in &procedure_ids {
+            let billed =
+                open.get(procedure_id)
+                    .ok_or_else(|| BankManualMatchTask::ProcedureNotOpen {
+                        procedure_id: procedure_id.clone(),
+                    })?;
+            total_amount += billed;
+        }
+
+        let transfer = self
+            .bank_transfer_service
+            .prepare_transfer(
+                transfer_date.clone(),
+                total_amount,
+                BankEntryType::FundWire,
+                bank_account_id,
+            )
+            .await?;
+        let transfer_id = transfer.id.clone();
+
+        // BSM-051 — the group as BAS-115 maps it, born Active then settled.
+        let group =
+            FundPaymentGroup::new(fund_id, transfer_date, total_amount, procedure_ids.clone())?;
+        let mut settled = group.clone();
+        settled.confirm_bank_payment()?;
+        let mut procedures = Vec::with_capacity(procedure_ids.len());
+        for procedure in self
+            .procedure_service
+            .read_procedures_by_ids(procedure_ids.clone())
+            .await?
+        {
+            procedures.push(procedure.settle_by_fund_wire(wire_date)?);
+        }
+
+        let linked_count = procedure_ids.len();
+        self.write_entry(BankEntryWrites {
+            entry: BankEntryChange::New(transfer),
+            selection: BankEntrySelection::FundGroups(vec![group.id.clone()]),
+            procedures,
+            group_statuses: vec![(group.id.clone(), settled.status)],
+            new_group: Some(group),
         })
         .await?;
 
@@ -366,6 +472,7 @@ impl BankManualMatchOrchestrator {
             .await?;
         let linked_count = new_group_ids.len();
         self.write_entry(BankEntryWrites {
+            new_group: None,
             entry: BankEntryChange::Edited(updated),
             selection: BankEntrySelection::FundGroups(new_group_ids),
             procedures,
@@ -522,6 +629,7 @@ impl BankManualMatchOrchestrator {
             .await?;
         let linked_count = procedure_ids.len();
         self.write_entry(BankEntryWrites {
+            new_group: None,
             entry: BankEntryChange::New(transfer),
             selection: BankEntrySelection::Procedures(procedure_ids),
             procedures,
@@ -622,6 +730,7 @@ impl BankManualMatchOrchestrator {
             .await?;
         let linked_count = new_procedure_ids.len();
         self.write_entry(BankEntryWrites {
+            new_group: None,
             entry: BankEntryChange::Edited(updated),
             selection: BankEntrySelection::Procedures(new_procedure_ids),
             procedures,

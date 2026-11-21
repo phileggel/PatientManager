@@ -1,7 +1,7 @@
 # Contract — Bank Statement Manual Match
 
 > Domain: bank-statement-manual-match
-> Last updated by: `bank-statement-manual-match` spec (rule references and status names, ticket #644)
+> Last updated by: `bank-statement-manual-match` spec (BSM-050 to BSM-055, ticket #712)
 
 > Wire errors are the composite `BankManualMatchError` (untagged union of `BankError`, `FundError`, `ProcedureError`, and the use-case `BankManualMatchTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
@@ -74,6 +74,26 @@ Returns the IDs of groups currently linked to a fund wire. Used alongside `get_f
 - **Args:** `transfer_id: String`
 - **Returns:** `Vec<String>`
 - **Errors:** `DatabaseError`
+
+---
+
+### `get_open_procedures_of_fund` — BSM-050
+
+Returns the open procedures of a fund (BAS-112's definition and order: the oldest procedure date first, then the procedure id), with no date bound: what a wire of a fund with no bordereau can settle. An unknown fund answers an empty list.
+
+- **Args:** `fund_id: String`
+- **Returns:** `Vec<FundWireProcedureCandidate>`
+- **Errors:** `DatabaseError`
+
+---
+
+### `create_fund_wire_from_procedures` — BSM-051, BSM-052, BSM-053, BSM-054, BSM-056, BSM-028
+
+Records a `FundWire` bank entry on open procedures of one fund: creates the fund's payment group (dated on the wire, total = Σ billed, one line per procedure), settles it with the wire (`BankPaid`, locked) and moves each procedure `Created` → `FundPaid` (`payment_method` `BankTransfer`, `confirmed_payment_date` and `fund_reconciliation_date` = the wire's date, `paid_amount` = billed). The group, its lines, the wire, its link and the procedures are one unit of work (BSM-054).
+
+- **Args:** `bank_account_id: String, transfer_date: String, fund_id: String, procedure_ids: Vec<String>`
+- **Returns:** `BankManualMatchResult` — `linked_count` is the number of procedures
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-052, answered first, nothing read), `ProcedureNotOpen { procedure_id }` (BSM-053; an unknown or missing fund has no open procedure; answered before the account is read), `ProcedureStatusNotCreated { procedure_id }` (defensive: a procedure paid between the check and the write), `BankAccountNotFound` (a technical account included, BAC-055A), `DatabaseError`
 
 ---
 
@@ -179,10 +199,18 @@ struct DirectPaymentProcedureCandidate {
     billed_amount: Option<i64>,  // absent if not yet set
 }
 
-// R7, R10, R11, R15, R18, R19 — result of a create/update operation with linked items
+// BSM-050 — an open procedure of a fund, for a wire with no bordereau
+struct FundWireProcedureCandidate {
+    procedure_id: String,
+    patient_name: String,    // the patient's display name; empty when the patient has none
+    procedure_date: String,  // ISO date YYYY-MM-DD
+    billed_amount: i64,      // thousandths of a euro, always positive
+}
+
+// R7, R10, R11, R15, R18, R19, BSM-051 — result of a create/update operation with linked items
 struct BankManualMatchResult {
     transfer_id: String,
-    linked_count: u32,  // number of groups or procedures linked after the operation
+    linked_count: u32,  // number of groups or procedures linked; for BSM-051, the procedures of the created group
 }
 
 // BSM-031 — what an edit did; wire: { outcome: "Updated", result } | { outcome: "Unchanged" }
@@ -205,14 +233,15 @@ enum BankEntryInvalidReason {
 
 An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed (BSM-034), or a failed deletion (BSM-040), publishes none of them.
 
-| Event                     | Trigger                                                                                         |
-| ------------------------- | ----------------------------------------------------------------------------------------------- |
-| `ProcedureUpdated`        | After create/update/delete of either transfer type — procedure status or payment fields changed |
-| `FundPaymentGroupUpdated` | After create/update/delete of a fund wire — group status or lock state changed                  |
-| `BankEntryUpdated`        | After any write operation — `BankEntry` records created or removed                              |
+| Event                     | Trigger                                                                                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ProcedureUpdated`        | After create/update/delete of either transfer type — procedure status or payment fields changed                                                 |
+| `FundPaymentGroupUpdated` | After create/update/delete of a fund wire — group status or lock state changed; a group created by `create_fund_wire_from_procedures` (BSM-051) |
+| `BankEntryUpdated`        | After any write operation — `BankEntry` records created or removed                                                                              |
 
 ## Changelog
 
+- 2026-11-21 — #712: added `get_open_procedures_of_fund` (BSM-050) and `create_fund_wire_from_procedures` (BSM-051 to BSM-054), with `FundWireProcedureCandidate` and the `ProcedureNotOpen` code.
 - 2026-11-21 — #644: status, field and bank entry names as the glossary spells them; R12, R20 and R21 are now backend rules of the spec; `AmountNotPositive` is BSM-029; no signature change.
 - 2026-11-14 — #640: `create_fund_transfer` and `update_fund_transfer` refuse a group already settled or locked (`BankPaymentAlreadyConfirmed`, BSM-037); `create_direct_transfer` refuses `FundWire` (`WrongTransferType`, BSM-027); both direct commands refuse a procedure not `Created` (`ProcedureStatusNotCreated`, BSM-039); the four create and update commands take a repeated id once (BSM-028); storage keeps one bank entry per group (BSM-038), and an upgrade over a double link stops (BSM-038A).
 - 2026-11-07 — BSM-040 (#601): the two delete commands write in one unit of work; a failed deletion publishes no event.

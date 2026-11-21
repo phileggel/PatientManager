@@ -21,6 +21,9 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
     // --- BankManualMatchTask (use-case guard) ---
     case "WrongTransferType":
       return { key: "bank:errors.wrong_transfer_type" };
+    // BSM-053 — a selected procedure that is not an open procedure of the wire's fund.
+    case "ProcedureNotOpen":
+      return { key: "bank:errors.procedure_not_open", params: { id: err.procedure_id } };
 
     // --- reachable bank-BC errors ---
     case "TransferNotFound":

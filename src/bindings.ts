@@ -638,6 +638,29 @@ async createFundTransfer(bankAccountId: string, transferDate: string, groupIds: 
 }
 },
 /**
+ * BSM-050 — Return the open procedures of a fund (BAS-112), oldest first.
+ */
+async getOpenProceduresOfFund(fundId: string) : Promise<Result<FundWireProcedureCandidate[], BankManualMatchError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_open_procedures_of_fund", { fundId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * BSM-051 — Record a fund's wire on open procedures: their group is created
+ * and settled by the wire.
+ */
+async createFundWireFromProcedures(bankAccountId: string, transferDate: string, fundId: string, procedureIds: string[]) : Promise<Result<BankManualMatchResult, BankManualMatchError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_fund_wire_from_procedures", { bankAccountId, transferDate, fundId, procedureIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * R9 — Update a FUND transfer: change date and/or linked groups.
  */
 async updateFundTransfer(transferId: string, newTransferDate: string, newGroupIds: string[]) : Promise<Result<BankEntryEdit, BankManualMatchError>> {
@@ -1179,7 +1202,12 @@ export type BankManualMatchTask =
  * to a direct-payment operation, which only the refund's cancellation
  * removes (REF-210). The matching command must be used instead.
  */
-{ code: "WrongTransferType" }
+{ code: "WrongTransferType" } | 
+/**
+ * BSM-053 — a procedure selected for a fund's wire with no bordereau is
+ * not an open procedure of the given fund (BAS-112).
+ */
+{ code: "ProcedureNotOpen"; procedure_id: string }
 /**
  * BAS-068 — one ranked candidate group for an unresolved or partial line.
  */
@@ -1972,6 +2000,10 @@ export type FundPaymentReconciliationTask =
  */
 export type FundPaymentValidationStatus = "VALID" | "INVALID"
 /**
+ * An open procedure of a fund, for a wire with no bordereau (BSM-050)
+ */
+export type FundWireProcedureCandidate = { procedure_id: string; patient_name: string; procedure_date: string; billed_amount: number }
+/**
  * Where a fund payment group comes from, set once at creation (REF-240).
  */
 export type GroupOrigin = 
@@ -1989,19 +2021,18 @@ export type GroupOrigin =
  */
 export type ImportExecutionResult = { patients_created: number; patients_reused: number; funds_created: number; funds_reused: number; procedures_created: number; 
 /**
- * Counter of skipped procedures. Covers parse-time mapping skips (R25)
- * AND execute-time row skips (EXI-280/281); only the latter are
- * itemised in `skipped_procedures` below.
+ * Counter of the rows the import skipped (EXI-210): a row of an
+ * unselected sheet is only counted; every other one is also itemised in
+ * `skipped_procedures` below.
  */
 procedures_skipped: number; procedures_deleted: number; 
 /**
- * Months (YYYY-MM) that were blocked: they hold a procedure with a blocking status (EXI-160) or a fund payment line (EXI-161).
+ * Months (YYYY-MM) that were blocked: they hold a procedure with a blocking status (EXI-160), or one a fund payment line, a bank entry or a procedure refund names (EXI-161).
  */
 blocked_months: string[]; 
 /**
- * EXI-290 — per-row execute-time skip report (reuses the EXI-220 `SkippedRow` shape).
- * Each entry: source sheet name + 1-based row number + human-readable reason
- * authored on the backend in the user's runtime locale.
+ * EXI-290 — every skipped row of a selected sheet (the EXI-220 `SkippedRow`
+ * shape): source sheet name, 1-based row number and a typed reason.
  */
 skipped_procedures: SkippedRow[] }
 /**

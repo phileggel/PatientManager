@@ -7,7 +7,7 @@ use crate::context::bank::BankEntryType;
 use super::error::BankManualMatchError;
 use super::orchestrator::{
     BankEntryEdit, BankManualMatchOrchestrator, BankManualMatchResult,
-    DirectPaymentProcedureCandidate, FundGroupCandidate,
+    DirectPaymentProcedureCandidate, FundGroupCandidate, FundWireProcedureCandidate,
 };
 
 // ======================================================================
@@ -44,6 +44,32 @@ pub async fn create_fund_transfer(
 ) -> Result<BankManualMatchResult, BankManualMatchError> {
     orchestrator
         .create_fund_transfer(bank_account_id, transfer_date, group_ids)
+        .await
+}
+
+/// BSM-050 — Return the open procedures of a fund (BAS-112), oldest first.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_open_procedures_of_fund(
+    fund_id: String,
+    orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
+) -> Result<Vec<FundWireProcedureCandidate>, BankManualMatchError> {
+    orchestrator.get_open_procedures_of_fund(&fund_id).await
+}
+
+/// BSM-051 — Record a fund's wire on open procedures: their group is created
+/// and settled by the wire.
+#[tauri::command]
+#[specta::specta]
+pub async fn create_fund_wire_from_procedures(
+    bank_account_id: String,
+    transfer_date: String,
+    fund_id: String,
+    procedure_ids: Vec<String>,
+    orchestrator: State<'_, Arc<BankManualMatchOrchestrator>>,
+) -> Result<BankManualMatchResult, BankManualMatchError> {
+    orchestrator
+        .create_fund_wire_from_procedures(bank_account_id, transfer_date, fund_id, procedure_ids)
         .await
 }
 

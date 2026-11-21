@@ -280,6 +280,7 @@
     "payment_group_not_found": "Fund payment group not found (id: {{id}})",
     "payment_group_already_settled": "This fund payment group is already settled by a bank transfer (id: {{id}})",
     "procedure_not_created": "This procedure is no longer in the created state (id: {{id}})",
+    "procedure_not_open": "This procedure is no longer an open procedure of this fund (id: {{id}})",
     "unexpected": "An unexpected error occurred",
     "database_error": "An unexpected database error occurred"
   },
