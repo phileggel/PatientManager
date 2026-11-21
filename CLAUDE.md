@@ -9,7 +9,7 @@ After cloning: `git config core.hooksPath .githooks` — the hooks refuse a comm
 ## Who decides what
 
 - The **human** confirms a feature or bug issue and approves the batch (`method.md` § 2), validates a **design** before anything the user sees changes, validates the vocabulary, and publishes **releases**.
-- The **agent** files the issues of every kind (GitHub, Project 4 — no commit touches the backlog), does the task end to end and merges on green. No pull request waits for a human.
+- The **agent** files the issues of every kind (GitHub issues on this project board — no commit touches the backlog), does the task end to end and merges on green. No pull request waits for a human.
 - The **harness** (`just harness` locally, the required checks in CI) proves the code.
 
 A question only the human can answer is never guessed: headless, it goes on the issue with `needs-owner`; in chat, through `AskUserQuestion`, one per call, with the context to answer it cold — before the work, and during it for what that reading could not show (`method.md` § 2). A trivial choice is the agent's, only an ambiguity or a deep choice the owner's; state assumptions and name what is unclear.
