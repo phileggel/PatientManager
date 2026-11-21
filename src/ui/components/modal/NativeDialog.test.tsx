@@ -70,4 +70,22 @@ describe("NativeDialog", () => {
     outer.unmount();
     expect(document.body.style.overflow).toBe("unset");
   });
+
+  // #693 — the dialog adds no background of its own over the caller's panel class.
+  it("keeps the caller's background as the only one on the dialog", () => {
+    render(
+      <NativeDialog
+        id="panel-dialog"
+        onClose={vi.fn()}
+        className="bg-m3-surface-container-lowest/85"
+      >
+        <p>content</p>
+      </NativeDialog>,
+    );
+
+    const classes = (document.getElementById("panel-dialog")?.className ?? "").split(/\s+/);
+    expect(classes.filter((c) => c.startsWith("bg-"))).toEqual([
+      "bg-m3-surface-container-lowest/85",
+    ]);
+  });
 });
