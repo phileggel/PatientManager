@@ -2712,7 +2712,7 @@ mod tests {
         );
     }
 
-    // BAS-066 — linking a label to the fund it already has changes nothing.
+    // BAS-066C — linking a label to the fund it already has drops nothing.
     #[test]
     fn bas_066c_link_to_the_same_fund_keeps_the_settlement() {
         let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);

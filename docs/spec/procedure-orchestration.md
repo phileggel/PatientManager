@@ -92,7 +92,7 @@ raises at most one `ProcedureUpdated` event, regardless of batch size (EXI-177).
 
 ### Patient tracking
 
-**PRO-260 (R19) — Patient tracking on creation (backend)**: After a successful creation (single or batch), if
+**PRO-260 (R19) — Patient tracking on creation (backend)**: A successful creation (single or batch) also updates the patient's tracking (written together: PRO-260A; a batch, EXI-175): if
 `procedure_date > patient.latest_date` (or `latest_date` is null), the patient's tracking
 fields are updated: `latest_date`, `latest_procedure_type`, `latest_fund`,
 `latest_procedure_amount`. In batch mode, the most recent procedure of the batch is
@@ -101,7 +101,7 @@ no fund (a direct-payment procedure), `latest_fund` is cleared. A single creatio
 
 **PRO-260A — A creation and its tracking are written together (backend)**: A single creation writes the procedure and PRO-260's tracking update together: a failed update leaves no procedure, rejects the creation with an error and raises neither `ProcedureUpdated` nor `PatientUpdated` (#705).
 
-**PRO-270 (R20) — Patient tracking on deletion (backend)**: After a procedure is deleted, the patient's four tracking fields follow their most recent remaining procedure; with none left, they are cleared. Every deletion that recomputes them raises the `PatientUpdated` event (#606); the procedures of a month an import replaces (EXI-170) follow EXI-175 and EXI-177 instead, their patients' tracking following the imported procedures only (EXI-190).
+**PRO-270 (R20) — Patient tracking on deletion (backend)**: A deletion also updates the patient's tracking (written together, PRO-270A): the patient's four tracking fields follow their most recent remaining procedure; with none left, they are cleared. Every deletion that recomputes them raises the `PatientUpdated` event (#606); the procedures of a month an import replaces (EXI-170) follow EXI-175 and EXI-177 instead, their patients' tracking following the imported procedures only (EXI-190).
 
 **PRO-270A — A deletion and its tracking are written together (backend)**: A deletion and PRO-270's tracking update are written together: a failed update leaves the procedure stored, rejects the deletion with an error and raises neither `ProcedureUpdated` nor `PatientUpdated` (#705).
 
@@ -160,17 +160,18 @@ This feature sets a procedure's **initial** status; the transitions after it are
 
 ### Transitions handled by other features
 
-| From                             | To                                            | Owner feature                                               |
-| -------------------------------- | --------------------------------------------- | ----------------------------------------------------------- |
-| `Created`                        | `Reconciled` / `PartiallyReconciled`          | fund-payment-auto-match, fund-payment-manual-match          |
-| `Created`                        | `DirectlyPaid`                                | bank-statement-manual-match                                 |
-| `Reconciled`                     | `FundPaid`                                    | bank-statement-auto-match, bank-statement-manual-match      |
-| `PartiallyReconciled`            | `PartiallyFundPaid`                           | bank-statement-auto-match, bank-statement-manual-match      |
-| `FundPaid`                       | → `Reconciled` (rollback)                     | Transfer deletion — bank-statement-manual-match (R8)        |
-| `PartiallyFundPaid`              | → `PartiallyReconciled` (rollback)            | Transfer deletion — bank-statement-manual-match (R8)        |
-| `DirectlyPaid`                   | → `Created` (rollback)                        | Direct-payment deletion — bank-statement-manual-match (R16) |
-| `FundPaid` / `PartiallyFundPaid` | `Overpaid`                                    | Refund recording — overpayment (REF-160)                    |
-| `Overpaid`                       | → `FundPaid` / `PartiallyFundPaid` (rollback) | Refund cancellation — overpayment (REF-210)                 |
+| From                             | To                                            | Owner feature                                                              |
+| -------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------- |
+| `Created`                        | `Reconciled` / `PartiallyReconciled`          | fund-payment-auto-match, fund-payment-manual-match                         |
+| `Created`                        | `DirectlyPaid`                                | bank-statement-manual-match                                                |
+| `Created`                        | `FundPaid` (no bordereau)                     | bank-statement-auto-match (BAS-115), bank-statement-manual-match (BSM-051) |
+| `Reconciled`                     | `FundPaid`                                    | bank-statement-auto-match, bank-statement-manual-match                     |
+| `PartiallyReconciled`            | `PartiallyFundPaid`                           | bank-statement-auto-match, bank-statement-manual-match                     |
+| `FundPaid`                       | → `Reconciled` (rollback)                     | Transfer deletion — bank-statement-manual-match (R8)                       |
+| `PartiallyFundPaid`              | → `PartiallyReconciled` (rollback)            | Transfer deletion — bank-statement-manual-match (R8)                       |
+| `DirectlyPaid`                   | → `Created` (rollback)                        | Direct-payment deletion — bank-statement-manual-match (R16)                |
+| `FundPaid` / `PartiallyFundPaid` | `Overpaid`                                    | Refund recording — overpayment (REF-160)                                   |
+| `Overpaid`                       | → `FundPaid` / `PartiallyFundPaid` (rollback) | Refund cancellation — overpayment (REF-210)                                |
 
 ### Allowed actions per status (this feature)
 

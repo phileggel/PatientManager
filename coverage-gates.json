@@ -17,6 +17,6 @@
       "src-tauri/src/shared/domain/*"
     ],
     "exclude": ["*/api.rs", "*/mod.rs"],
-    "lines": 91.2
+    "lines": 92.3
   }
 }

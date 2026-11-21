@@ -170,7 +170,7 @@ sqlx types in its public signature.
 **B24** — Use cases MAY depend on any domain abstraction: repository traits, domain entities,
 or bounded context services. They MUST NOT depend on infrastructure: concrete repository
 implementations, `sqlx::Pool`, `sqlx::Transaction`, `sqlx::query!`, or any other sqlx type
-(one exception: a unit of work's SQLite file, `sqlx_uow.rs`, B26). Checked by `just arch-check`.
+(two exceptions: `sqlx_uow.rs`, B26; a test module — owner, #720). Checked by `just arch-check`.
 
 **B25** — For write operations that must emit an event, use cases SHOULD go through the BC Application Service rather than the repository trait directly to ensure the event is properly fired.
 

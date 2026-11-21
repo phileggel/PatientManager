@@ -200,4 +200,4 @@ The tree is **F0** in `docs/frontend-rules.md`.
 | Per-feature business rules       | `docs/spec/*.md`              |
 | Per-domain contracts             | `docs/contracts/*.md`         |
 | Architecture decisions           | `docs/adr/*.md`               |
-| Backlog and recorded smells      | GitHub issues, Project 4      |
+| Backlog and recorded smells      | GitHub issues, this board     |
