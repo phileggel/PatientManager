@@ -131,7 +131,7 @@
       "source": {
         "source": "github",
         "repo": "phileggel/daneel",
-        "ref": "app--v0.9.0"
+        "ref": "app--v0.11.3"
       }
     }
   }
