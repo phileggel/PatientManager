@@ -8,6 +8,6 @@ pub mod secure_path;
 mod specta_builder;
 pub mod uow;
 
-pub use db::Database;
+pub use db::{Database, PreMigrationStep};
 #[cfg(feature = "app")]
 pub use specta_builder::{bindings_path, create_specta_builder};
