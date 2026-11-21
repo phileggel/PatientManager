@@ -8,8 +8,7 @@ what is this project's; where it and they disagree on what they state, they are 
 
 ## Issues and the Project
 
-- **The Project** is github.com/users/phileggel/projects/4: `gh project item-add 4 --owner
-phileggel --url <url>`. An old `TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` is found by searching
+- **This project board** — never "project 4"; "the PatientManager board" beside another board (owner, 2026-11-01, #578) — is github.com/users/phileggel/projects/4; `4` is only the `gh` identifier: `gh project item-add 4 --owner phileggel --url <url>`. An old `TODO-NNN`, `DEBT-NNN` or `FLOW-NNN` is found by searching
   the issues for `Migrated from <id>`. A spec rule is `TRIGRAM-NNN`
   ([`spec/README.md`](spec/README.md)).
 - **Its own labels**, beside a kind, never in its place (owner, 2026-10-18): `spec`, a spec,

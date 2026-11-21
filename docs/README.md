@@ -17,7 +17,7 @@ ID is defined twice, or when a guide grows past its ceiling (`workflow.md` § Th
 - **Contracts** — `contracts/`: the wire record of each command; its `README.md` holds the
   rules and the format.
 - **Workflow** — `workflow.md`: what this project adds to the plugins' method and loop; the backlog itself
-  is on GitHub (issues and Project 4), never in the repository.
+  is on GitHub (issues and this project board), never in the repository.
 - **Records** — `../CHANGELOG.md`: what was shipped.
 - **Reference** — `ddd-reference.md`: background an agent reads when a task needs it.
 - **Map** — `../ARCHITECTURE.md`: where code lives.
