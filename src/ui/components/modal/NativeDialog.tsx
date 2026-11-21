@@ -8,7 +8,7 @@ interface NativeDialogProps {
   onClose: () => void;
   /** Blocks Escape and backdrop-click dismissal. */
   disableClose?: boolean;
-  /** Panel styling applied to the <dialog> element itself. */
+  /** Panel styling applied to the <dialog> element itself, its background included (#693). */
   className: string;
   "aria-labelledby"?: string;
   children: ReactNode;
@@ -59,7 +59,10 @@ export function NativeDialog({
       id={id}
       ref={ref}
       aria-labelledby={labelledBy}
-      className={`m-auto bg-transparent p-0 [&::backdrop]:bg-m3-scrim/50 [&::backdrop]:backdrop-blur-[2px] ${className}`}
+      // #693 — no background of its own: the caller's panel class paints it. A
+      // base `bg-transparent` on the same element won over the caller's, and the
+      // page showed through every window.
+      className={`m-auto p-0 [&::backdrop]:bg-m3-scrim/50 [&::backdrop]:backdrop-blur-[2px] ${className}`}
       onCancel={(e) => {
         // Escape — keep React state authoritative instead of letting the
         // platform close the element out from under the `isOpen` prop.
