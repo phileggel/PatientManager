@@ -208,6 +208,18 @@
       "date_required": "Transfer date is required",
       "date_invalid": "Enter a valid date",
       "bank_account_required": "Bank account is required"
+    },
+    "scope": {
+      "groups": "Payment groups",
+      "procedures": "Procedures"
+    },
+    "open_procedures": {
+      "fund": "Fund",
+      "select_fund": "Select a fund",
+      "label": "Open procedures of the fund",
+      "choose_fund": "Choose the fund to see its open procedures.",
+      "loading": "Loading procedures...",
+      "note": "On save, a payment group of the fund is created with these procedures and settled by this wire."
     }
   },
   "account": {

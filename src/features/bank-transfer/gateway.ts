@@ -7,6 +7,7 @@ import type {
   BankManualMatchResult,
   DirectPaymentProcedureCandidate,
   FundGroupCandidate,
+  FundWireProcedureCandidate,
 } from "@/bindings";
 import { commands } from "@/bindings";
 import { logger } from "@/infra/logger";
@@ -136,6 +137,51 @@ export async function createFundTransfer(
     return { success: false, error: result.error };
   } catch (e) {
     logger.error("[bank-transfer] createFundTransfer exception", { error: e });
+    return { success: false, error: INFRA_FAILURE };
+  }
+}
+
+/** BSM-050 — the open procedures of a fund, oldest first. */
+export async function getOpenProceduresOfFund(
+  fundId: string,
+): Promise<ServiceResult<FundWireProcedureCandidate[], BankManualMatchError>> {
+  logger.debug("[bank-transfer] getOpenProceduresOfFund");
+  try {
+    const result = await commands.getOpenProceduresOfFund(fundId);
+    if (result.status === "ok") return { success: true, data: result.data };
+    logger.error("[bank-transfer] getOpenProceduresOfFund failed", { code: result.error.code });
+    return { success: false, error: result.error };
+  } catch (e) {
+    logger.error("[bank-transfer] getOpenProceduresOfFund exception", { error: e });
+    return { success: false, error: INFRA_FAILURE };
+  }
+}
+
+/** BSM-051 — a fund's wire recorded on open procedures: their group is created and settled. */
+export async function createFundWireFromProcedures(
+  bankAccountId: string,
+  transferDate: string,
+  fundId: string,
+  procedureIds: string[],
+): Promise<ServiceResult<BankManualMatchResult, BankManualMatchError>> {
+  logger.info("[bank-transfer] createFundWireFromProcedures", {
+    transferDate,
+    count: procedureIds.length,
+  });
+  try {
+    const result = await commands.createFundWireFromProcedures(
+      bankAccountId,
+      transferDate,
+      fundId,
+      procedureIds,
+    );
+    if (result.status === "ok") return { success: true, data: result.data };
+    logger.error("[bank-transfer] createFundWireFromProcedures failed", {
+      code: result.error.code,
+    });
+    return { success: false, error: result.error };
+  } catch (e) {
+    logger.error("[bank-transfer] createFundWireFromProcedures exception", { error: e });
     return { success: false, error: INFRA_FAILURE };
   }
 }

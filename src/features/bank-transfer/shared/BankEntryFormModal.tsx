@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -16,9 +16,10 @@ import {
 } from "@/ui/components";
 import { useFormatters } from "@/ui/format/formatters";
 import { SelectFundGroupsPanel } from "../select_items_panel/SelectFundGroupsPanel";
+import { SelectOpenProceduresPanel } from "../select_items_panel/SelectOpenProceduresPanel";
 import { SelectProceduresPanel } from "../select_items_panel/SelectProceduresPanel";
 import type { BankEntryFieldErrorKeys } from "./errorPresenter";
-import type { BankEntryKind } from "./presenter";
+import type { BankEntryKind, FundWireScope } from "./presenter";
 
 const PAYMENT_METHODS: { value: BankEntryType; labelKey: string }[] = [
   { value: "PATIENT_CHECK", labelKey: "transfer.type_check" },
@@ -44,6 +45,12 @@ interface BankEntryFormModalProps {
   bankAccountOptions: { value: string; label: string }[];
   /** Absent when editing: a wire's account is shown, not changed (BSM-033). */
   onBankAccountChange?: (value: string) => void;
+  /** #712 — what a new fund wire settles; absent when editing or for a direct payment. */
+  scope?: FundWireScope;
+  onScopeChange?: (scope: FundWireScope) => void;
+  fundId?: string;
+  fundOptions?: { value: string; label: string }[];
+  onFundChange?: (value: string) => void;
   selectedGroupIds: string[];
   selectedProcedureIds: string[];
   currentGroups?: FundGroupCandidate[];
@@ -77,7 +84,11 @@ export function BankEntryFormModal(props: BankEntryFormModalProps) {
   };
 
   const isFund = kind === "fund";
-  const selectionCount = isFund ? props.selectedGroupIds.length : props.selectedProcedureIds.length;
+  // #712 — a new fund wire on the open procedures of one fund (BSM-051).
+  const onOpenProcedures =
+    isFund && props.onScopeChange !== undefined && props.scope === "procedures";
+  const selectionCount =
+    isFund && !onOpenProcedures ? props.selectedGroupIds.length : props.selectedProcedureIds.length;
   const verb = mode === "add" ? "save" : "update";
   const submitLabel =
     selectionCount > 0
@@ -85,6 +96,24 @@ export function BankEntryFormModal(props: BankEntryFormModalProps) {
       : t(`transfer.${kind}.${verb}`);
   const formId = `${id}-form`;
   const titleId = `${id}-title`;
+
+  // The switch of the import's « Rapprocher » window, for consistency (#712).
+  const scopeSegment = (value: FundWireScope, label: string, first: boolean) => (
+    <button
+      type="button"
+      id={`${id}-scope-${value}`}
+      aria-pressed={props.scope === value}
+      onClick={() => props.onScopeChange?.(value)}
+      className={`flex flex-1 items-center justify-center gap-2 px-4 py-2 text-sm font-medium ${
+        props.scope === value
+          ? "bg-m3-secondary-container text-m3-on-secondary-container"
+          : "text-m3-on-surface"
+      } ${first ? "border-r border-m3-outline" : ""}`}
+    >
+      {props.scope === value && <Check size={16} />}
+      {label}
+    </button>
+  );
 
   return (
     <>
@@ -154,7 +183,33 @@ export function BankEntryFormModal(props: BankEntryFormModalProps) {
             />
           )}
 
-          {isFund ? (
+          {isFund && props.onScopeChange && (
+            <div className="flex shrink-0 overflow-hidden rounded-full border border-m3-outline">
+              {scopeSegment("groups", t("transfer.scope.groups"), true)}
+              {scopeSegment("procedures", t("transfer.scope.procedures"), false)}
+            </div>
+          )}
+
+          {onOpenProcedures ? (
+            <>
+              <SelectField
+                id={`${id}-fund`}
+                label={t("transfer.open_procedures.fund")}
+                value={props.fundId ?? ""}
+                onChange={(e) => props.onFundChange?.(e.target.value)}
+                options={[
+                  { value: "", label: t("transfer.open_procedures.select_fund") },
+                  ...(props.fundOptions ?? []),
+                ]}
+              />
+              <SelectOpenProceduresPanel
+                idPrefix={`${id}-open-procedures`}
+                fundId={props.fundId ?? ""}
+                selectedProcedureIds={props.selectedProcedureIds}
+                onSelectionChange={props.onProceduresChange}
+              />
+            </>
+          ) : isFund ? (
             <SelectFundGroupsPanel
               transferDate={props.transferDate}
               selectedGroupIds={props.selectedGroupIds}
