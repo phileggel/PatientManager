@@ -77,7 +77,7 @@ export function ListModal({
       )}
 
       {/* List Content (Scrollable) */}
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">{children}</div>
+      <div className="min-h-0 flex-auto overflow-y-auto p-6 flex flex-col gap-4">{children}</div>
 
       {/* Stats/Footer (Fixed) */}
       {footer && <div className="border-t border-neutral-30 bg-neutral-5 p-4">{footer}</div>}

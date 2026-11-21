@@ -272,7 +272,7 @@ export default function ProcedurePage() {
       </PageContent>
 
       {/* FAB — open create modal (PRO-110) */}
-      <FAB onClick={openCreateModal} label={t("action.fab_aria_label")} />
+      <FAB id="fab-create-procedure" onClick={openCreateModal} label={t("action.fab_aria_label")} />
 
       {/* Unified create/edit modal (PRO-040, PRO-110) */}
       <ProcedureFormModal

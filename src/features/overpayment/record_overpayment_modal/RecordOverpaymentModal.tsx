@@ -112,7 +112,7 @@ export function RecordOverpaymentModal({
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+      <div className="min-h-0 flex-auto overflow-y-auto p-5 flex flex-col gap-4">
         {!showConfirmation ? (
           /* ── Step 1: Form ── */
           <>

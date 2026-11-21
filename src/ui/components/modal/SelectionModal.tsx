@@ -69,7 +69,7 @@ export function SelectionModal({
       </div>
 
       {/* Content - Scrollable */}
-      <div className="overflow-y-auto flex-1 custom-scrollbar">{children}</div>
+      <div className="min-h-0 flex-auto overflow-y-auto custom-scrollbar">{children}</div>
     </NativeDialog>
   );
 }
