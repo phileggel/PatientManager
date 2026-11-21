@@ -83,7 +83,7 @@ A **bank statement label** is the label of a bank statement line, remembered per
 
 **BAS-053 (R13) — Already-reconciled groups excluded (backend)**: A group already linked to a bank transfer is excluded from the matching pool.
 
-**BAS-053A — A settled group is no longer auto-matched at validate (backend)**: Validate computes the draft again (BAS-064). A line auto-matched to a group that another bank entry settled since the draft is no longer matched to it: validate skips the line (BAS-063).
+**BAS-053A — A settled group is no longer auto-matched at validate (backend)**: Validate computes the draft again (BAS-064). A line auto-matched to a group that another bank entry settled since the draft is no longer matched to it: validate skips the line (BAS-063) unless the recompute matches it to another group.
 
 **BAS-053B — A stale assignment refuses the validate (backend)**: When a correction assigns a group settled since the draft, or a procedure no longer open (BAS-112), the validate is rejected with a specific error and nothing is written.
 

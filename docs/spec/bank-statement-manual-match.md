@@ -44,7 +44,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **R2 — Bank entry types (backend)**: Four types are recorded here: `FundWire` (a fund's wire) and the direct payments `PatientCheck`, `PatientCreditCard` and `PatientCash`. `FundOutgoingWire` is reserved for the overpayment-refund flow and cannot be created via this flow (REF-080).
 
-**R3 — Bank entry fields (backend)**: A bank entry is defined by a bank account, a date and a type. Its amount is the sum of the items it holds — the total amounts of its groups, or the billed amounts of its procedures — and is never entered. An entry whose amount is not positive is rejected with a specific error. The account is not chosen for a direct payment (R13).
+**R3 — Bank entry fields (backend)**: A bank entry is defined by a bank account, a date and a type. Its amount is the sum of the items it holds — the total amounts of its groups, or the billed amounts of its procedures — and is never entered. The account is not chosen for a direct payment (R13).
 
 **R4 — Immutable type (backend)**: A bank entry's type cannot be changed once defined. Editing or deleting, as a fund's wire, an entry that is not a `FundWire`, or, as a direct payment, an entry that is not one — a refund's entry included (REF-110) — is rejected with a specific error.
 
@@ -61,6 +61,8 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 **R21 — What a bank entry holds (backend)**: The groups a fund's wire holds, or the procedures a direct payment holds, can be read with their date and amount, although settled or paid: they are no longer in R12's or R20's set.
 
 **BSM-028 — A selection is a set (backend)**: A group or procedure repeated in the selection of a bank entry, created or edited, counts once: in its amount, its links and the changes to statuses, as BSM-031 already compares a selection as a set.
+
+**BSM-029 — An amount that is not positive (backend)**: Creating or editing a bank entry whose amount (R3) is not positive is rejected with a specific error, and nothing is written (BSM-034).
 
 **BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9).
 
@@ -182,6 +184,7 @@ A refused creation, edit or deletion changes nothing (BSM-034, BSM-040).
 
 ## Open Questions
 
+- [ ] Where does BSM-029's refusal come among those of BSM-036, BSM-037 and BSM-039? Today after an unknown group or procedure.
 - [ ] In what order are the groups and procedures of R6, R12, R14 and R20 returned? Today the order is not set; the screens sort them.
 - [ ] May one fund's wire hold groups of several funds (R9)? Today it may; the import refuses it per line (BAS-090A).
 - [ ] Which of `BankEntryUpdated`, `FundPaymentGroupUpdated` and `ProcedureUpdated` does a successful creation, edit or deletion publish? BSM-031, BSM-034 and BSM-040 name them only for what is refused or unchanged.

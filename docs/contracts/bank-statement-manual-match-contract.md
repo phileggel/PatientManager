@@ -37,7 +37,7 @@ Returns `FundGroupCandidate` details for a given set of IDs. Used in the fund wi
 
 ---
 
-### `create_fund_transfer` — R6, R7, BSM-020, BSM-021, BSM-028, BSM-034, BSM-037, BSM-038
+### `create_fund_transfer` — R6, R7, BSM-020, BSM-021, BSM-028, BSM-029, BSM-034, BSM-037, BSM-038
 
 Creates a `FundWire` bank entry linked to the given group IDs. On success: procedures move `Reconciled` → `FundPaid` / `PartiallyReconciled` → `PartiallyFundPaid`; groups move to `BankPaid` and become locked; procedures' `confirmed_payment_date` is set to the transfer date and `payment_method` to `BankTransfer`.
 
@@ -47,7 +47,7 @@ Creates a `FundWire` bank entry linked to the given group IDs. On success: proce
 
 ---
 
-### `update_fund_transfer` — R9, R10, R11, BSM-028, BSM-030, BSM-031, BSM-034, BSM-035, BSM-037, BSM-038
+### `update_fund_transfer` — R9, R10, R11, BSM-028, BSM-029, BSM-030, BSM-031, BSM-034, BSM-035, BSM-037, BSM-038
 
 Updates the date and/or group composition of an existing fund wire. Newly added groups receive the same status effects as creation (R10 → R7); removed groups are rolled back as in deletion (R11 → R8). Amount recomputed from the final group set.
 
@@ -107,7 +107,7 @@ Returns `DirectPaymentProcedureCandidate` details for a given set of IDs. Used i
 
 ---
 
-### `create_direct_transfer` — R13, R14, R15, BSM-020, BSM-021, BSM-026, BSM-027, BSM-028, BSM-034, BSM-036, BSM-039
+### `create_direct_transfer` — R13, R14, R15, BSM-020, BSM-021, BSM-026, BSM-027, BSM-028, BSM-029, BSM-034, BSM-036, BSM-039
 
 Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or `PATIENT_CASH`) linked to the given procedure IDs. The backend stores it on the technical account of its type (`cash-account-default`, `check-account-default` or `card-account-default`), whatever `bank_account_id` it is sent, even an unknown one (BSM-026, BAC-056); the screen sends an empty one. On success: each procedure moves to `DirectlyPaid`; `payment_method`, `confirmed_payment_date`, and `paid_amount` are set according to the type mapping in `BankEntryType`.
 
@@ -119,7 +119,7 @@ Creates a direct payment bank entry (`PATIENT_CHECK`, `PATIENT_CREDIT_CARD`, or 
 
 ---
 
-### `update_direct_transfer` — R17, R18, R19, BSM-028, BSM-030, BSM-031, BSM-034, BSM-035, BSM-036, BSM-039
+### `update_direct_transfer` — R17, R18, R19, BSM-028, BSM-029, BSM-030, BSM-031, BSM-034, BSM-035, BSM-036, BSM-039
 
 Updates the date and/or procedure composition of an existing direct payment. Newly added procedures receive the same effects as creation (R18); removed procedures are rolled back as in deletion (R19). Amount recomputed.
 
@@ -213,7 +213,7 @@ An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed 
 
 ## Changelog
 
-- 2026-11-21 — #644: status, field and bank entry names as the glossary spells them; R12, R20 and R21 are now backend rules of the spec; no signature change.
+- 2026-11-21 — #644: status, field and bank entry names as the glossary spells them; R12, R20 and R21 are now backend rules of the spec; `AmountNotPositive` is BSM-029; no signature change.
 - 2026-11-14 — #640: `create_fund_transfer` and `update_fund_transfer` refuse a group already settled or locked (`BankPaymentAlreadyConfirmed`, BSM-037); `create_direct_transfer` refuses `FundWire` (`WrongTransferType`, BSM-027); both direct commands refuse a procedure not `Created` (`ProcedureStatusNotCreated`, BSM-039); the four create and update commands take a repeated id once (BSM-028); storage keeps one bank entry per group (BSM-038), and an upgrade over a double link stops (BSM-038A).
 - 2026-11-07 — BSM-040 (#601): the two delete commands write in one unit of work; a failed deletion publishes no event.
 - 2026-11-01 — BSM-034 to BSM-036 (#461): the four create and update commands write in one unit of work; a refused or failed command publishes no event; a direct selection with an unknown or deleted procedure answers `ProcedureNotFound { procedure_id }`.
