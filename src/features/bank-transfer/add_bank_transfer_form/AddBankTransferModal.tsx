@@ -10,7 +10,8 @@ interface AddBankTransferModalProps {
 
 /**
  * #642 — the (+) window of a page: a direct payment ticks procedures (R14), a fund wire
- * its groups (R6); the amount is the selection's (R3). Abandoned or saved, it starts
+ * its groups (R6) or, #712, the open procedures of one fund (BSM-051); the amount is the
+ * selection's (R3). Abandoned or saved, it starts
  * empty next time.
  */
 export function AddBankTransferModal({ kind, isOpen, onClose }: AddBankTransferModalProps) {
@@ -34,6 +35,11 @@ export function AddBankTransferModal({ kind, isOpen, onClose }: AddBankTransferM
       bankAccount={form.bankAccount}
       bankAccountOptions={form.bankAccountOptions}
       onBankAccountChange={form.setBankAccount}
+      scope={form.scope}
+      onScopeChange={kind === "fund" ? form.handleScopeChange : undefined}
+      fundId={form.fundId}
+      fundOptions={form.fundOptions}
+      onFundChange={form.setFundId}
       selectedGroupIds={form.selectedGroupIds}
       selectedProcedureIds={form.selectedProcedureIds}
       onGroupsChange={form.handleFundGroupSelectionChange}

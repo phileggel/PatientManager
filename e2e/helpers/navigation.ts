@@ -3,7 +3,7 @@
  *
  * Selectors target stable `id` attributes — locale-invariant (E4).
  */
-import { $ } from "@wdio/globals";
+import { $, browser } from "@wdio/globals";
 
 /** #711 — the menu of the management window that holds each entry. */
 const MENU_OF_ENTRY: Record<string, string> = {
@@ -39,4 +39,25 @@ export async function openManagementPage(cardId: string, readySelector: string):
   await card.click();
 
   await $(readySelector).waitForExist({ timeout: 10000 });
+}
+
+/**
+ * Click an element of a list that is redrawn while it loads: the element is looked
+ * up again on every try, so a reference gone stale between the lookup and the click
+ * is not an error. `selector` is an `id` selector (E4).
+ */
+export async function clickWhenSettled(selector: string, timeout = 8000): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      try {
+        const element = await $(selector);
+        if (!(await element.isExisting())) return false;
+        await element.click();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { timeout, timeoutMsg: `${selector} could not be clicked within ${timeout} ms` },
+  );
 }

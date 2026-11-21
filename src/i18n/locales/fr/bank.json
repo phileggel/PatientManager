@@ -208,6 +208,18 @@
       "date_required": "La date du virement est obligatoire",
       "date_invalid": "Saisissez une date valide",
       "bank_account_required": "Le compte bancaire est obligatoire"
+    },
+    "scope": {
+      "groups": "Groupes de paiement",
+      "procedures": "Actes"
+    },
+    "open_procedures": {
+      "fund": "Caisse",
+      "select_fund": "Sélectionner une caisse",
+      "label": "Actes ouverts de la caisse",
+      "choose_fund": "Choisissez la caisse pour voir ses actes ouverts.",
+      "loading": "Chargement des actes...",
+      "note": "À l'enregistrement, un groupe de paiement de la caisse est créé avec ces actes et réglé par ce virement."
     }
   },
   "account": {

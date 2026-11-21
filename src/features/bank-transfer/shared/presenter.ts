@@ -9,6 +9,9 @@ const DIRECT_PAYMENT_TYPES: ReadonlySet<BankEntry["transfer_type"]> = new Set([
 /** #642 — the two pages a bank entry received is listed on. */
 export type BankEntryKind = "direct" | "fund";
 
+/** #712 — what a new fund wire settles: existing groups, or a fund's open procedures (BSM-056). */
+export type FundWireScope = "groups" | "procedures";
+
 /**
  * #642 — the page that lists a bank entry: a patient's payment by check, card or cash on
  * « Paiements directs », a fund's wire on « Virements de caisse »; an overpayment refund

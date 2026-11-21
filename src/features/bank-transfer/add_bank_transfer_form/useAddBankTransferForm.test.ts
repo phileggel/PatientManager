@@ -7,6 +7,7 @@ import { toastService } from "@/ui/components/snackbar";
 vi.mock("../gateway", () => ({
   createFundTransfer: vi.fn(),
   createDirectTransfer: vi.fn(),
+  createFundWireFromProcedures: vi.fn(),
 }));
 
 import * as gateway from "../gateway";
@@ -348,5 +349,104 @@ describe("useAddBankTransferForm — the add window of a page (#642)", () => {
     });
 
     expect(onSaved).not.toHaveBeenCalled();
+  });
+});
+
+describe("useAddBankTransferForm — #712, a fund wire on open procedures", () => {
+  const submit = { preventDefault: vi.fn() } as unknown as React.FormEvent;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCacheStore.setState({ bankAccounts: [], funds: [] });
+  });
+
+  it("BSM-051: sends the account, the date, the fund and the ticked procedures", async () => {
+    vi.mocked(gateway.createFundWireFromProcedures).mockResolvedValue({
+      success: true,
+      data: { transfer_id: "t-1", linked_count: 2 },
+    });
+    const onSaved = vi.fn();
+    const { result } = renderHook(() => useAddBankTransferForm("fund", onSaved));
+    act(() => result.current.setBankAccount("acc-1"));
+    act(() => result.current.setTransferDate("2026-03-20"));
+    act(() => result.current.handleScopeChange("procedures"));
+    act(() => result.current.setFundId("fund-1"));
+    act(() => result.current.handleProcedureSelectionChange(["p-1", "p-2"], 92000));
+
+    await act(async () => {
+      await result.current.handleSubmit(submit);
+    });
+
+    expect(gateway.createFundWireFromProcedures).toHaveBeenCalledWith(
+      "acc-1",
+      "2026-03-20",
+      "fund-1",
+      ["p-1", "p-2"],
+    );
+    expect(gateway.createFundTransfer).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledOnce();
+    expect(result.current.scope).toBe("groups");
+    expect(result.current.fundId).toBe("");
+  });
+
+  it("BSM-056: switching side empties the selection, never both", () => {
+    const { result } = renderHook(() => useAddBankTransferForm("fund"));
+    act(() => result.current.handleFundGroupSelectionChange(["g-1"], 5000));
+
+    act(() => result.current.handleScopeChange("procedures"));
+
+    expect(result.current.selectedGroupIds).toHaveLength(0);
+    expect(result.current.totalAmountMillis).toBe(0);
+    expect(result.current.isDirty).toBe(true);
+
+    act(() => result.current.handleProcedureSelectionChange(["p-1"], 46000));
+    act(() => result.current.handleScopeChange("groups"));
+
+    expect(result.current.selectedProcedureIds).toHaveLength(0);
+    expect(result.current.totalAmountMillis).toBe(0);
+  });
+
+  it("another fund has other open procedures: the selection is emptied", () => {
+    const { result } = renderHook(() => useAddBankTransferForm("fund"));
+    act(() => result.current.handleScopeChange("procedures"));
+    act(() => result.current.setFundId("fund-1"));
+    act(() => result.current.handleProcedureSelectionChange(["p-1"], 46000));
+
+    act(() => result.current.setFundId("fund-2"));
+
+    expect(result.current.selectedProcedureIds).toHaveLength(0);
+    expect(result.current.totalAmountMillis).toBe(0);
+  });
+
+  it("BSM-050: open procedures have no date bound, so a new date keeps them ticked", () => {
+    const { result } = renderHook(() => useAddBankTransferForm("fund"));
+    act(() => result.current.handleScopeChange("procedures"));
+    act(() => result.current.setFundId("fund-1"));
+    act(() => result.current.handleProcedureSelectionChange(["p-1"], 46000));
+
+    act(() => result.current.setTransferDate("2026-03-21"));
+
+    expect(result.current.selectedProcedureIds).toEqual(["p-1"]);
+    expect(result.current.totalAmountMillis).toBe(46000);
+  });
+
+  it("BSM-053: a refused wire keeps the window and what was ticked", async () => {
+    vi.mocked(gateway.createFundWireFromProcedures).mockResolvedValue({
+      success: false,
+      error: { code: "ProcedureNotOpen", procedure_id: "p-1" },
+    });
+    const onSaved = vi.fn();
+    const { result } = renderHook(() => useAddBankTransferForm("fund", onSaved));
+    act(() => result.current.handleScopeChange("procedures"));
+    act(() => result.current.setFundId("fund-1"));
+    act(() => result.current.handleProcedureSelectionChange(["p-1"], 46000));
+
+    await act(async () => {
+      await result.current.handleSubmit(submit);
+    });
+
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(result.current.selectedProcedureIds).toEqual(["p-1"]);
+    expect(toastService.show).toHaveBeenCalledWith("error", expect.stringContaining("p-1"));
   });
 });

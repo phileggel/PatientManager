@@ -10,13 +10,13 @@ import { useCacheStore } from "@/infra/cache/store";
 import { logger } from "@/infra/logger";
 import type { ServiceResult } from "@/types/api";
 import { toastService } from "@/ui/components/snackbar";
-import { createDirectTransfer, createFundTransfer } from "../gateway";
+import { createDirectTransfer, createFundTransfer, createFundWireFromProcedures } from "../gateway";
 import {
   type BankEntryFieldErrorKeys,
   bankEntryFieldErrorKeys,
   formatBankManualMatchError,
 } from "../shared/errorPresenter";
-import type { BankEntryKind } from "../shared/presenter";
+import type { BankEntryKind, FundWireScope } from "../shared/presenter";
 
 /** #642 — the type a new entry starts with: a fund's wire, or a payment by check. */
 const INITIAL_TYPE: Record<BankEntryKind, BankEntryType> = {
@@ -32,10 +32,14 @@ export function useAddBankTransferForm(kind: BankEntryKind, onSaved?: () => void
   const { t } = useTranslation("bank");
 
   const bankAccounts = useCacheStore((state) => state.bankAccounts);
+  const funds = useCacheStore((state) => state.funds);
 
   const [transferDate, setTransferDateState] = useState<string>("");
   const [transferType, setTransferType] = useState<BankEntryType>(INITIAL_TYPE[kind]);
   const [bankAccount, setBankAccountState] = useState<string>("");
+  // #712 — a fund wire settles groups, or the open procedures of one fund (BSM-056).
+  const [scope, setScope] = useState<FundWireScope>("groups");
+  const [fundId, setFundIdState] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [selectedProcedureIds, setSelectedProcedureIds] = useState<string[]>([]);
   const [totalAmountMillis, setTotalAmountMillis] = useState<number>(0);
@@ -44,6 +48,9 @@ export function useAddBankTransferForm(kind: BankEntryKind, onSaved?: () => void
   const [fieldErrors, setFieldErrors] = useState<BankEntryFieldErrorKeys>({});
 
   const isFund = transferType === "FUND_WIRE";
+  const onOpenProcedures = isFund && scope === "procedures";
+
+  const fundOptions = funds.map((fund) => ({ value: fund.id, label: fund.name }));
 
   // BAC-050A — the store holds the user's accounts only: a direct payment asks for none.
   const bankAccountOptions = bankAccounts.map((acc: BankAccount) => ({
@@ -53,16 +60,34 @@ export function useAddBankTransferForm(kind: BankEntryKind, onSaved?: () => void
 
   const setTransferDate = (value: string) => {
     setTransferDateState(value);
-    // Reset selection when date changes
-    setSelectedGroupIds([]);
-    setSelectedProcedureIds([]);
-    setTotalAmountMillis(0);
+    // The date's window offers other items; open procedures have no date bound (BSM-050).
+    if (!onOpenProcedures) {
+      setSelectedGroupIds([]);
+      setSelectedProcedureIds([]);
+      setTotalAmountMillis(0);
+    }
     setFieldErrors((prev) => ({ ...prev, transferDate: undefined }));
   };
 
   const setBankAccount = (value: string) => {
     setBankAccountState(value);
     setFieldErrors((prev) => ({ ...prev, bankAccount: undefined }));
+  };
+
+  // #712 — switching side empties the selection, as « Rapprocher » does: never both.
+  const handleScopeChange = (next: FundWireScope) => {
+    if (next === scope) return;
+    setScope(next);
+    setSelectedGroupIds([]);
+    setSelectedProcedureIds([]);
+    setTotalAmountMillis(0);
+  };
+
+  // #712 — another fund has other open procedures.
+  const setFundId = (value: string) => {
+    setFundIdState(value);
+    setSelectedProcedureIds([]);
+    setTotalAmountMillis(0);
   };
 
   // #642 — the payment method of a direct payment; its procedures stay ticked, every
@@ -89,6 +114,8 @@ export function useAddBankTransferForm(kind: BankEntryKind, onSaved?: () => void
     setTransferDateState("");
     setTransferType(INITIAL_TYPE[kind]);
     setBankAccountState("");
+    setScope("groups");
+    setFundIdState("");
     setSelectedGroupIds([]);
     setSelectedProcedureIds([]);
     setTotalAmountMillis(0);
@@ -105,7 +132,14 @@ export function useAddBankTransferForm(kind: BankEntryKind, onSaved?: () => void
     try {
       let result: ServiceResult<BankManualMatchResult, BankManualMatchError>;
 
-      if (isFund) {
+      if (onOpenProcedures) {
+        result = await createFundWireFromProcedures(
+          bankAccount,
+          transferDate,
+          fundId,
+          selectedProcedureIds,
+        );
+      } else if (isFund) {
         result = await createFundTransfer(bankAccount, transferDate, selectedGroupIds);
       } else {
         result = await createDirectTransfer(
@@ -138,6 +172,8 @@ export function useAddBankTransferForm(kind: BankEntryKind, onSaved?: () => void
     transferDate !== "" ||
     bankAccount !== "" ||
     transferType !== INITIAL_TYPE[kind] ||
+    scope !== "groups" ||
+    fundId !== "" ||
     selectedGroupIds.length > 0 ||
     selectedProcedureIds.length > 0;
 
@@ -148,6 +184,11 @@ export function useAddBankTransferForm(kind: BankEntryKind, onSaved?: () => void
     handleTypeChange,
     bankAccount,
     setBankAccount,
+    scope,
+    handleScopeChange,
+    fundId,
+    setFundId,
+    fundOptions,
     selectedGroupIds,
     selectedProcedureIds,
     totalAmountMillis,

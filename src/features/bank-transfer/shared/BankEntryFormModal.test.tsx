@@ -11,6 +11,11 @@ vi.mock("../select_items_panel/SelectProceduresPanel", () => ({
 vi.mock("../select_items_panel/SelectFundGroupsPanel", () => ({
   SelectFundGroupsPanel: () => <div data-testid="groups-panel" />,
 }));
+vi.mock("../select_items_panel/SelectOpenProceduresPanel", () => ({
+  SelectOpenProceduresPanel: ({ fundId }: { fundId: string }) => (
+    <div data-testid="open-procedures-panel" data-fund={fundId} />
+  ),
+}));
 
 type Props = ComponentProps<typeof BankEntryFormModal>;
 
@@ -128,5 +133,58 @@ describe("BankEntryFormModal (#642)", () => {
     renderWindow();
 
     expect(document.getElementById("direct-payment-add-account")).toBeNull();
+  });
+});
+
+describe("BankEntryFormModal (#712, a fund wire on open procedures)", () => {
+  const fundWire: Partial<Props> = {
+    id: "fund-wire-add",
+    kind: "fund",
+    transferType: "FUND_WIRE",
+    scope: "groups",
+    onScopeChange: vi.fn(),
+    fundId: "",
+    fundOptions: [{ value: "fund-1", label: "RATP" }],
+    onFundChange: vi.fn(),
+  };
+
+  it("offers groups or procedures on a new wire, groups first", async () => {
+    const props = renderWindow(fundWire);
+
+    expect(screen.getByTestId("groups-panel")).toBeInTheDocument();
+    expect(document.getElementById("fund-wire-add-fund")).toBeNull();
+    expect(document.getElementById("fund-wire-add-scope-groups")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await userEvent.click(document.getElementById("fund-wire-add-scope-procedures") as HTMLElement);
+
+    expect(props.onScopeChange).toHaveBeenCalledWith("procedures");
+  });
+
+  it("on procedures, asks for the fund and counts the ticked procedures", async () => {
+    const props = renderWindow({
+      ...fundWire,
+      scope: "procedures",
+      fundId: "fund-1",
+      selectedProcedureIds: ["p-1"],
+      totalAmountMillis: 46000,
+    });
+
+    expect(screen.queryByTestId("groups-panel")).toBeNull();
+    expect(screen.getByTestId("open-procedures-panel")).toHaveAttribute("data-fund", "fund-1");
+    expect(document.getElementById("fund-wire-add-submit")).toBeEnabled();
+
+    await userEvent.selectOptions(
+      document.getElementById("fund-wire-add-fund") as HTMLElement,
+      "fund-1",
+    );
+    expect(props.onFundChange).toHaveBeenCalledWith("fund-1");
+  });
+
+  it("offers no such choice when editing a wire, nor on a direct payment", () => {
+    renderWindow({ ...fundWire, mode: "edit", onScopeChange: undefined });
+    expect(document.getElementById("fund-wire-add-scope-procedures")).toBeNull();
   });
 });

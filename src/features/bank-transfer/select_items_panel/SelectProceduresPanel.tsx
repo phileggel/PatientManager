@@ -103,6 +103,7 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
               className="flex items-center gap-3 px-3 py-3 hover:bg-m3-surface-container-high cursor-pointer transition-colors"
             >
               <input
+                id={`bank-transfer-procedure-candidate-check-${proc.procedure_id}`}
                 type="checkbox"
                 checked={selectedProcedureIds.includes(proc.procedure_id)}
                 onChange={() => toggleProcedure(proc)}
