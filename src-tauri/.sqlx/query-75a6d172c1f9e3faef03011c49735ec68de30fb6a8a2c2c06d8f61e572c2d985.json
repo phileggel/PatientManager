@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT l.id, l.bank_transfer_id, l.fund_payment_group_id\n         FROM bank_transfer_fund_group_link l\n         JOIN bank_transfer bt ON bt.id = l.bank_transfer_id\n         WHERE l.fund_payment_group_id IN (\n             SELECT fund_payment_group_id FROM bank_transfer_fund_group_link\n             GROUP BY fund_payment_group_id HAVING COUNT(*) > 1)\n         ORDER BY l.fund_payment_group_id, bt.transfer_date DESC, l.rowid DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer_fund_group_link",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "bank_transfer_id",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer_fund_group_link",
+            "name": "bank_transfer_id"
+          }
+        }
+      },
+      {
+        "name": "fund_payment_group_id",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bank_transfer_fund_group_link",
+            "name": "fund_payment_group_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "75a6d172c1f9e3faef03011c49735ec68de30fb6a8a2c2c06d8f61e572c2d985"
+}

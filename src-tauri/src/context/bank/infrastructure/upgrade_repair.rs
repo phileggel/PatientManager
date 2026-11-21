@@ -6,17 +6,13 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use sqlx::SqlitePool;
 
 use crate::BACKEND;
 
 /// The migration that gives a fund payment group one bank entry at most.
 const ONE_BANK_ENTRY_PER_GROUP_VERSION: i64 = 20261114;
-
-/// Every group linked more than once.
-const LINKED_TWICE: &str = "SELECT fund_payment_group_id FROM bank_transfer_fund_group_link
-                            GROUP BY fund_payment_group_id HAVING COUNT(*) > 1";
 
 /// The step `Database::new_with_steps` runs before the migrations.
 pub fn unlink_group_double_links(
@@ -33,7 +29,8 @@ async fn unlink_if_pending(pool: &SqlitePool) -> Result<()> {
          WHERE type = 'table' AND name = 'bank_transfer_fund_group_link'",
     )
     .fetch_optional(pool)
-    .await?;
+    .await
+    .context("reading whether the link table exists")?;
     if link_table.is_none() {
         return Ok(());
     }
@@ -42,7 +39,8 @@ async fn unlink_if_pending(pool: &SqlitePool) -> Result<()> {
     )
     .bind(ONE_BANK_ENTRY_PER_GROUP_VERSION)
     .fetch_optional(pool)
-    .await?;
+    .await
+    .context("reading whether migration 20261114 is applied")?;
     if applied.is_some() {
         return Ok(());
     }
@@ -57,15 +55,21 @@ async fn unlink_if_pending(pool: &SqlitePool) -> Result<()> {
 /// - BSM-038D — every other entry only loses its link to the group;
 /// - BSM-038E — the group and its procedures are not touched.
 async fn unlink(pool: &SqlitePool) -> Result<()> {
-    let mut tx = pool.begin().await?;
+    let mut tx = pool
+        .begin()
+        .await
+        .context("opening the repair's transaction")?;
 
-    let missing = sqlx::query(sqlx::AssertSqlSafe(format!(
+    let missing = sqlx::query!(
         "DELETE FROM bank_transfer_fund_group_link
          WHERE bank_transfer_id NOT IN (SELECT id FROM bank_transfer)
-           AND fund_payment_group_id IN ({LINKED_TWICE})"
-    )))
+           AND fund_payment_group_id IN (
+               SELECT fund_payment_group_id FROM bank_transfer_fund_group_link
+               GROUP BY fund_payment_group_id HAVING COUNT(*) > 1)"
+    )
     .execute(&mut *tx)
-    .await?
+    .await
+    .context("removing the links to a missing bank entry")?
     .rows_affected();
     if missing > 0 {
         tracing::warn!(
@@ -76,18 +80,23 @@ async fn unlink(pool: &SqlitePool) -> Result<()> {
     }
 
     // The entry that goes on settling each group comes first.
-    let links: Vec<(String, String, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+    let links = sqlx::query!(
         "SELECT l.id, l.bank_transfer_id, l.fund_payment_group_id
          FROM bank_transfer_fund_group_link l
          JOIN bank_transfer bt ON bt.id = l.bank_transfer_id
-         WHERE l.fund_payment_group_id IN ({LINKED_TWICE})
+         WHERE l.fund_payment_group_id IN (
+             SELECT fund_payment_group_id FROM bank_transfer_fund_group_link
+             GROUP BY fund_payment_group_id HAVING COUNT(*) > 1)
          ORDER BY l.fund_payment_group_id, bt.transfer_date DESC, l.rowid DESC"
-    )))
+    )
     .fetch_all(&mut *tx)
-    .await?;
+    .await
+    .context("reading the groups linked to several bank entries")?;
 
     let mut kept: Option<(String, String)> = None; // (group, entry)
-    for (link_id, entry_id, group_id) in links {
+    for link in links {
+        let (link_id, entry_id, group_id) =
+            (link.id, link.bank_transfer_id, link.fund_payment_group_id);
         let keeper = match &kept {
             Some((group, entry)) if *group == group_id => entry.clone(),
             _ => {
@@ -95,10 +104,13 @@ async fn unlink(pool: &SqlitePool) -> Result<()> {
                 continue;
             }
         };
-        sqlx::query("DELETE FROM bank_transfer_fund_group_link WHERE id = ?")
-            .bind(&link_id)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query!(
+            "DELETE FROM bank_transfer_fund_group_link WHERE id = ?",
+            link_id
+        )
+        .execute(&mut *tx)
+        .await
+        .context("unlinking a bank entry from its group")?;
         tracing::warn!(
             target: BACKEND,
             fund_payment_group_id = %group_id,
@@ -108,7 +120,7 @@ async fn unlink(pool: &SqlitePool) -> Result<()> {
         );
     }
 
-    tx.commit().await?;
+    tx.commit().await.context("committing the repair")?;
     Ok(())
 }
 
