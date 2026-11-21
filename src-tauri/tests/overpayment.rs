@@ -23,6 +23,7 @@ use patient_manager_app::{
         },
     },
     shared::event_bus::EventBus,
+    shared::uow::SqlxTransactionManager,
     use_cases::overpayment::{CreateOverpaymentRequest, OverpaymentOrchestrator},
     use_cases::procedure_orchestration::ProcedureOrchestrationService,
 };
@@ -105,6 +106,7 @@ async fn build_ctx_paid_as(status: &str) -> Ctx {
         fund_repo,
         refund_repo.clone(),
         patient_service.clone(),
+        Arc::new(SqlxTransactionManager::new(pool.clone())),
     );
 
     let patient = patient_service

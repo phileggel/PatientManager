@@ -99,7 +99,11 @@ fields are updated: `latest_date`, `latest_procedure_type`, `latest_fund`,
 identified per patient and a single update is applied per patient. If the new procedure has
 no fund (a direct-payment procedure), `latest_fund` is cleared. A single creation that updates them raises the `PatientUpdated` event; a batch follows PRO-300 and EXI-177 (#606).
 
+**PRO-260A — A creation and its tracking are written together (backend)**: A single creation writes the procedure and PRO-260's tracking update together: a failed update leaves no procedure, rejects the creation with an error and raises neither `ProcedureUpdated` nor `PatientUpdated` (#705).
+
 **PRO-270 (R20) — Patient tracking on deletion (backend)**: After a procedure is deleted, the patient's four tracking fields follow their most recent remaining procedure; with none left, they are cleared. Every deletion that recomputes them raises the `PatientUpdated` event (#606).
+
+**PRO-270A — A deletion and its tracking are written together (backend)**: A deletion and PRO-270's tracking update are written together: a failed update leaves the procedure stored, rejects the deletion with an error and raises neither `ProcedureUpdated` nor `PatientUpdated` (#705).
 
 **PRO-280 (R21) — Cascading clear on procedure-type deletion (backend)**: When a procedure type is deleted,
 any patient whose `latest_procedure_type` references this type has

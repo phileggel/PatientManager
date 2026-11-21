@@ -136,6 +136,7 @@ mod tests {
                 fund_repo,
                 Arc::new(SqliteProcedureRefundRepository::new(pool.clone())),
                 Arc::new(PatientService::new(patient_repo.clone(), bus.clone())),
+                Arc::new(SqlxTransactionManager::new(pool.clone())),
             )),
             Arc::new(SqlxTransactionManager::new(pool.clone())),
         )

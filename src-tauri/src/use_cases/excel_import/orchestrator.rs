@@ -706,6 +706,10 @@ mod tests {
             Arc::new(mocks.orch_fund_repo),
             Arc::new(mocks.orch_refund_repo),
             patient_svc.clone(),
+            // A creation this test never reaches: a lazy pool opens no connection.
+            Arc::new(crate::shared::uow::SqlxTransactionManager::new(
+                sqlx::SqlitePool::connect_lazy("sqlite::memory:").expect("lazy pool"),
+            )),
         ));
         ExcelImportOrchestrator::new(
             patient_svc,
