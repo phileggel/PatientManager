@@ -468,6 +468,10 @@ fn apply_link_fund(
                 line.rejected = false;
             }
             FundAssignment::Rejected => {
+                // BAS-066C — a rejected line rejected again keeps what it has.
+                if line.rejected {
+                    continue;
+                }
                 // Release any previously assigned settlement items and reject
                 // the line.
                 for gid in line.assigned_group_ids.drain(..) {
@@ -858,10 +862,14 @@ fn build_recap(lines: &[BankStatementLine], period: Option<&str>) -> BankStateme
     }
 }
 
+/// The two dates of a period, compiled once rather than on every recompute.
+static PERIOD_DATES: std::sync::LazyLock<Option<regex::Regex>> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(r"(\d{2}/\d{2}/\d{4})\D+(\d{2}/\d{2}/\d{4})").ok()
+});
+
 /// The two dates of the parser's period, `du DD/MM/YYYY au DD/MM/YYYY` (BAS-020).
 fn period_dates(period: &str) -> Option<(NaiveDate, NaiveDate)> {
-    let re = regex::Regex::new(r"(\d{2}/\d{2}/\d{4})\D+(\d{2}/\d{2}/\d{4})").ok()?;
-    let caps = re.captures(period)?;
+    let caps = PERIOD_DATES.as_ref()?.captures(period)?;
     let parse = |i: usize| NaiveDate::parse_from_str(caps.get(i)?.as_str(), "%d/%m/%Y").ok();
     Some((parse(1)?, parse(2)?))
 }
@@ -1396,7 +1404,7 @@ mod tests {
     }
 
     #[test]
-    fn bas_062c_marking_the_label_rejected_ends_the_hold() {
+    fn bas_066b_marking_the_label_rejected_ends_the_hold() {
         let line = after_corrections(&[
             unassign(),
             BankStatementCorrection::LinkFund {
@@ -2059,7 +2067,7 @@ mod tests {
     // list without the correction that caused an exclusion cascade gives back
     // the pre-exclusion state (here: the original auto-match).
     #[test]
-    fn exclusion_revert_restores_pre_exclusion_auto_match_state() {
+    fn without_the_exclusion_the_auto_match_comes_back() {
         let mappings = vec![BankFundLabelMapping {
             id: "m1".to_string(),
             bank_account_id: "acc-1".to_string(),
@@ -2110,13 +2118,13 @@ mod tests {
         let with_procedure = compute_reconciliation(&parse_result, &repos, &corrections).unwrap();
         assert!(with_procedure.lines[0].assigned_group_ids.is_empty());
 
-        // Revert: drop the correction and recompute.
-        let reverted = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
+        // Without the correction, recompute.
+        let recomputed = compute_reconciliation(&parse_result, &repos, &[]).unwrap();
         assert_eq!(
-            reverted.lines[0].assigned_group_ids, before.lines[0].assigned_group_ids,
+            recomputed.lines[0].assigned_group_ids, before.lines[0].assigned_group_ids,
             "without the correction, the auto-match is back (BAS-064/113)"
         );
-        assert_eq!(reverted.lines[0].status, BankStatementLineStatus::Matched);
+        assert_eq!(recomputed.lines[0].status, BankStatementLineStatus::Matched);
     }
 
     // BAS-066 amendment — re-linking a label to a different fund drops any
@@ -2309,9 +2317,7 @@ mod tests {
     // AcknowledgeRemainder placed AFTER the line's last assignment survives
     // the BAS-113 cascade and resolves the line. (The cascade only removes an
     // acknowledgment that PRECEDES a later assignment — see
-    // assign_procedures_resets_previously_acknowledged_remainder; revert
-    // safety comes from the stored correction list being compacted at apply
-    // time, a frontend concern pinned by the P4/P5 tests.)
+    // assign_procedures_resets_previously_acknowledged_remainder.)
     #[test]
     fn acknowledge_after_procedure_assignment_survives_and_resolves_the_line() {
         let mappings = vec![BankFundLabelMapping {
@@ -2596,7 +2602,7 @@ mod tests {
     // BAS-090 (owner, 2026-11-15) — a group of another fund is refused, and the
     // draft is unchanged.
     #[test]
-    fn test_695_bas_090a_group_of_another_fund_is_refused() {
+    fn bas_090a_group_of_another_fund_is_refused() {
         let parse_result = statement(vec![line_on("2026-01-15", "CPAM93", 100_000)]);
         let mappings = vec![mapping("CPAM93", Some("fund-93"))];
         let groups = vec![group("grp-75", "fund-75", "2026-01-15", 100_000)];
@@ -2629,7 +2635,7 @@ mod tests {
     // the lines' assigned groups, returns them to the pool and re-runs the
     // auto-match under the new fund.
     #[test]
-    fn test_695_bas_066b_relink_to_another_fund_drops_assigned_groups() {
+    fn bas_066b_relink_to_another_fund_drops_assigned_groups() {
         let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
         let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
         let groups = vec![
@@ -2669,7 +2675,7 @@ mod tests {
     // BAS-066 / BAS-062A — a changed link ends the hold of a left-aside line:
     // its empty assignment and its acknowledgment are dropped.
     #[test]
-    fn test_695_bas_066b_relink_drops_left_aside_and_ends_the_hold() {
+    fn bas_066b_relink_drops_left_aside_and_ends_the_hold() {
         let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
         let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
         let groups = vec![group("grp-b", "fund-b", "2026-01-14", 100_000)];
@@ -2708,7 +2714,7 @@ mod tests {
 
     // BAS-066 — linking a label to the fund it already has changes nothing.
     #[test]
-    fn test_695_bas_066c_link_to_the_same_fund_keeps_the_settlement() {
+    fn bas_066c_link_to_the_same_fund_keeps_the_settlement() {
         let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
         let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
         let groups = vec![group("grp-a", "fund-a", "2026-01-10", 60_000)];
@@ -2736,9 +2742,100 @@ mod tests {
         assert_eq!(line.status, BankStatementLineStatus::Matched);
     }
 
+    // #632 — after any link, the auto-match is re-attempted on every free line, whatever
+    // its label: linking X frees nothing on X's held line, and Y's line, missed while the
+    // group was taken, gets it.
+    #[test]
+    fn bas_066a_a_link_auto_matches_a_free_line_of_another_label() {
+        let parse_result = statement(vec![
+            line_on("2026-01-15", "VIR X", 100_000),
+            line_on("2026-01-16", "VIR Y", 100_000),
+        ]);
+        let mappings = vec![
+            mapping("VIR X", Some("fund-a")),
+            mapping("VIR Y", Some("fund-a")),
+        ];
+        let groups = vec![group("grp-a", "fund-a", "2026-01-10", 100_000)];
+        let funds = vec![fund("fund-a", "1", "Mutuelle A")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+
+        let recon = compute_reconciliation(
+            &parse_result,
+            &repos,
+            &[assign_groups("line-0", &[]), link("VIR X", "fund-a")],
+        )
+        .unwrap();
+
+        assert!(
+            recon.lines[0].assigned_group_ids.is_empty(),
+            "line-0 is held empty (BAS-062A)"
+        );
+        assert_eq!(recon.lines[1].assigned_group_ids, vec!["grp-a".to_string()]);
+        assert_eq!(recon.lines[1].status, BankStatementLineStatus::Matched);
+    }
+
+    // BAS-066C — marking a rejected label rejected again drops nothing: its line stays
+    // rejected and the other labels keep their settlement.
+    #[test]
+    fn bas_066c_rejecting_a_rejected_label_again_drops_nothing() {
+        let parse_result = statement(vec![
+            line_on("2026-01-15", "VIR MUT", 100_000),
+            line_on("2026-01-16", "LOYER", 75_000),
+        ]);
+        let mappings = vec![mapping("VIR MUT", Some("fund-a")), mapping("LOYER", None)];
+        let groups = vec![group("grp-a", "fund-a", "2026-01-10", 100_000)];
+        let funds = vec![fund("fund-a", "1", "Mutuelle A")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+        let reject_again = BankStatementCorrection::LinkFund {
+            bank_label: "LOYER".to_string(),
+            assignment: FundAssignment::Rejected,
+        };
+
+        let recon = compute_reconciliation(&parse_result, &repos, &[reject_again]).unwrap();
+
+        assert_eq!(recon.lines[0].assigned_group_ids, vec!["grp-a".to_string()]);
+        assert_eq!(recon.lines[0].status, BankStatementLineStatus::Matched);
+        assert_eq!(recon.lines[1].status, BankStatementLineStatus::Rejected);
+    }
+
+    // BAS-066C — a rejected line rejected again keeps its acknowledgment.
+    #[test]
+    fn bas_066c_rejecting_again_keeps_the_acknowledgment() {
+        let parse_result = statement(vec![line_on("2026-01-16", "LOYER", 75_000)]);
+        let mappings = vec![mapping("LOYER", None)];
+        let funds = vec![fund("fund-a", "1", "Mutuelle A")];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &[],
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+        let reject = || BankStatementCorrection::LinkFund {
+            bank_label: "LOYER".to_string(),
+            assignment: FundAssignment::Rejected,
+        };
+
+        let recon =
+            compute_reconciliation(&parse_result, &repos, &[acknowledge("line-0"), reject()])
+                .unwrap();
+
+        assert!(recon.lines[0].remainder_acknowledged);
+        assert_eq!(recon.lines[0].status, BankStatementLineStatus::Rejected);
+    }
+
     // BAS-066 — the other labels' lines keep their settlement.
     #[test]
-    fn test_695_bas_066b_relink_leaves_other_labels_alone() {
+    fn bas_066b_relink_leaves_other_labels_alone() {
         let parse_result = statement(vec![
             line_on("2026-01-15", "VIR MUT", 100_000),
             line_on("2026-01-16", "CPAM93", 50_000),
@@ -2783,7 +2880,7 @@ mod tests {
     // BAS-064A — a correction dropped by a changed link never comes back, even
     // when the label is linked back to its first fund.
     #[test]
-    fn test_695_bas_064a_dropped_correction_never_comes_back() {
+    fn bas_064a_dropped_correction_never_comes_back() {
         let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
         let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
         let groups = vec![group("grp-a", "fund-a", "2026-01-10", 60_000)];
@@ -2816,10 +2913,10 @@ mod tests {
         assert_eq!(line.status, BankStatementLineStatus::NeedsGroup);
     }
 
-    // BAS-062C / BAS-066 — marking the label rejected drops the settlement;
+    // BAS-066B / BAS-066 — marking the label rejected drops the settlement;
     // a later link of that label re-attempts the auto-match.
     #[test]
-    fn test_695_bas_062c_rejection_then_link_reattempts_the_auto_match() {
+    fn bas_066b_rejection_then_link_reattempts_the_auto_match() {
         let parse_result = statement(vec![line_on("2026-01-15", "VIR MUT", 100_000)]);
         let mappings = vec![mapping("VIR MUT", Some("fund-a"))];
         let groups = vec![
@@ -2857,7 +2954,7 @@ mod tests {
     // amount, and the lines partly paid. A left-aside line and a rejected one
     // are not counted.
     #[test]
-    fn test_695_recap() {
+    fn test_recap_counts_each_kind_of_line() {
         let parse_result = statement(vec![
             line_on("2026-01-15", "CPAM93", 100_000), // auto-matched
             line_on("2026-01-16", "CPAM93", 80_000),  // partly paid
@@ -2907,7 +3004,7 @@ mod tests {
     // it drops: an unassign on its line, then that group taken by another
     // line, then the label linked to another fund.
     #[test]
-    fn test_695_bas_066b_changed_link_after_the_group_moved_is_not_refused() {
+    fn bas_066b_changed_link_after_the_group_moved_is_not_refused() {
         let parse_result = statement(vec![
             line_on("2026-01-15", "X", 100_000),
             line_on("2026-03-01", "Y", 100_000),
@@ -2944,7 +3041,7 @@ mod tests {
     // a procedure assignment, taken by another line, then the first line
     // assigned another group.
     #[test]
-    fn test_695_bas_113_replacing_assignment_after_the_group_moved_is_not_refused() {
+    fn bas_113_replacing_assignment_after_the_group_moved_is_not_refused() {
         let parse_result = statement(vec![
             line_on("2026-01-15", "X", 100_000),
             line_on("2026-03-01", "Y", 100_000),
@@ -2992,7 +3089,7 @@ mod tests {
     // BAS-067 / BAS-066B — a group released by a changed link can be assigned
     // to another line.
     #[test]
-    fn test_695_bas_067_group_released_by_a_changed_link_goes_to_another_line() {
+    fn bas_067_group_released_by_a_changed_link_goes_to_another_line() {
         let parse_result = statement(vec![
             line_on("2026-01-15", "X", 100_000),
             line_on("2026-03-01", "Y", 100_000),
@@ -3024,7 +3121,7 @@ mod tests {
     // an empty assignment and an acknowledgment made while it was unlinked are
     // dropped, and the auto-match runs.
     #[test]
-    fn test_695_bas_066b_first_link_of_an_unassigned_label_starts_its_lines() {
+    fn bas_066b_first_link_of_an_unassigned_label_starts_its_lines() {
         let parse_result = statement(vec![line_on("2026-01-15", "NEW", 100_000)]);
         let groups = vec![group("grp-a", "fund-a", "2026-01-14", 100_000)];
         let funds = vec![fund("fund-a", "1", "Mutuelle A")];

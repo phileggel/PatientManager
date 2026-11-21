@@ -85,15 +85,11 @@
     "upload_aria_label": "Télécharger un relevé bancaire PDF",
     "modal": {
       "loading": "Analyse du relevé bancaire...",
-      "matching": "Rapprochement en cours...",
       "close_aria": "Fermer",
       "cancel": "Annuler",
       "close": "Fermer",
       "validate": "Valider le rapprochement",
-      "creating": "Création...",
-      "no_credit": "Aucune ligne de crédit n'a pu être associée à un organisme.",
       "no_iban": "Aucun IBAN trouvé dans le relevé bancaire.",
-      "no_transfer": "Aucun virement n'a été sélectionné.",
       "no_vir_sepa_lines": "Le relevé ne contient aucune ligne VIR SEPA. Vérifiez que le fichier est bien un relevé de compte comportant des virements SEPA.",
       "create_account": {
         "title": "Créer le compte bancaire manquant",

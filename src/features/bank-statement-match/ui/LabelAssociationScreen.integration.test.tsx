@@ -156,16 +156,24 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
   it("tags each label by where its link comes from", () => {
     renderScreen();
 
-    expect(element("label-assoc-chip-KNOWN").textContent).toBe("label_association.chip.known");
-    expect(element("label-assoc-chip-NEW").textContent).toBe("label_association.chip.new");
-    expect(element("label-assoc-chip-TODO").textContent).toBe("label_association.chip.todo");
-    expect(element("label-assoc-chip-IGNORED").textContent).toBe("label_association.chip.ignored");
+    expect(element("bank-statement-label-association-chip-KNOWN").textContent).toBe(
+      "label_association.chip.known",
+    );
+    expect(element("bank-statement-label-association-chip-NEW").textContent).toBe(
+      "label_association.chip.new",
+    );
+    expect(element("bank-statement-label-association-chip-TODO").textContent).toBe(
+      "label_association.chip.todo",
+    );
+    expect(element("bank-statement-label-association-chip-IGNORED").textContent).toBe(
+      "label_association.chip.ignored",
+    );
   });
 
   it("counts the origins in the header", () => {
     renderScreen();
 
-    const counter = element("label-assoc-counter").textContent ?? "";
+    const counter = element("bank-statement-label-association-counter").textContent ?? "";
     expect(counter).toContain('label_association.counter.known:{"count":1}');
     expect(counter).toContain('label_association.counter.todo:{"count":1}');
     expect(counter).toContain('label_association.counter.ignored:{"count":1}');
@@ -174,8 +182,10 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
   it("shows a suggestion under the field of a label to link, and a note under an ignored one", () => {
     renderScreen();
 
-    expect(element("label-assoc-suggestion-TODO").textContent).toContain("CPAM 75");
-    expect(element("label-assoc-row-IGNORED").textContent).toContain(
+    expect(element("bank-statement-label-association-suggestion-TODO").textContent).toContain(
+      "CPAM 75",
+    );
+    expect(element("bank-statement-label-association-row-IGNORED").textContent).toContain(
       "label_association.ignored_note",
     );
   });
@@ -185,7 +195,7 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
     const onApplyCorrection = vi.fn().mockResolvedValue(true);
     renderScreen({ onApplyCorrection });
 
-    await user.click(element("label-assoc-ignore-TODO"));
+    await user.click(element("bank-statement-label-association-ignore-TODO"));
 
     expect(onApplyCorrection).toHaveBeenCalledWith({
       type: "LinkFund",
@@ -199,11 +209,15 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
     const onApplyCorrection = vi.fn().mockResolvedValue(true);
     renderScreen({ lines: [KNOWN, IGNORED], initial: [KNOWN, IGNORED], onApplyCorrection });
 
-    await user.click(element("label-assoc-ignore-IGNORED"));
+    await user.click(element("bank-statement-label-association-ignore-IGNORED"));
 
     expect(onApplyCorrection).not.toHaveBeenCalled();
-    expect(element("label-assoc-chip-IGNORED").textContent).toBe("label_association.chip.todo");
-    expect((element("label-assoc-continue") as HTMLButtonElement).disabled).toBe(true);
+    expect(element("bank-statement-label-association-chip-IGNORED").textContent).toBe(
+      "label_association.chip.todo",
+    );
+    expect(
+      (element("bank-statement-label-association-continue") as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("links a label to the fund picked", async () => {
@@ -211,7 +225,7 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
     const onApplyCorrection = vi.fn().mockResolvedValue(true);
     renderScreen({ onApplyCorrection });
 
-    await user.selectOptions(element("label-assoc-fund-TODO"), "fund-2");
+    await user.selectOptions(element("bank-statement-label-association-fund-TODO"), "fund-2");
 
     expect(onApplyCorrection).toHaveBeenCalledWith({
       type: "LinkFund",
@@ -222,12 +236,18 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
 
   it("keeps « Continuer › » off while a label is to link, on once every label is decided", () => {
     const { unmount } = renderScreen();
-    expect((element("label-assoc-continue") as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (element("bank-statement-label-association-continue") as HTMLButtonElement).disabled,
+    ).toBe(true);
     unmount();
 
     renderScreen({ lines: [KNOWN, NEW, IGNORED], initial: [KNOWN, NEW, IGNORED] });
-    expect((element("label-assoc-continue") as HTMLButtonElement).disabled).toBe(false);
-    expect(element("label-assoc-continue").textContent).toBe("label_association.continue");
+    expect(
+      (element("bank-statement-label-association-continue") as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(element("bank-statement-label-association-continue").textContent).toBe(
+      "label_association.continue",
+    );
   });
 
   it("back from the matching, returns there and says which link changed (BAS-066B)", async () => {
@@ -244,11 +264,15 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
       ]),
     });
 
-    expect(element("label-assoc-changed-NEW").textContent).toContain('"count":1');
-    expect(document.getElementById("label-assoc-changed-KNOWN")).toBeNull();
-    expect(element("label-assoc-continue").textContent).toBe("label_association.back_to_matching");
+    expect(element("bank-statement-label-association-changed-NEW").textContent).toContain(
+      '"count":1',
+    );
+    expect(document.getElementById("bank-statement-label-association-changed-KNOWN")).toBeNull();
+    expect(element("bank-statement-label-association-continue").textContent).toBe(
+      "label_association.back_to_matching",
+    );
 
-    await user.click(element("label-assoc-continue"));
+    await user.click(element("bank-statement-label-association-continue"));
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 
@@ -257,7 +281,7 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
     const onCancel = vi.fn();
     renderScreen({ onCancel });
 
-    await user.click(element("label-assoc-cancel"));
+    await user.click(element("bank-statement-label-association-cancel"));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });

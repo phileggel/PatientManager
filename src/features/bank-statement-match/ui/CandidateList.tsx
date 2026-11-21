@@ -5,7 +5,7 @@ import { useFormatters } from "@/ui/format/formatters";
 
 interface GroupCandidateRowsProps {
   candidates: BankStatementCandidate[];
-  /** F25 — id namespace of the host (`assign-groups`). */
+  /** F25 — id namespace of the host (`bank-statement-assign-groups`). */
   idPrefix: string;
   selected: string[];
   onToggle: (groupId: string) => void;

@@ -274,10 +274,10 @@ The correction of a fund PDF line with no matching procedure that creates one pr
 
 ### Bank statement label (« Libellé de relevé »)
 
-The label of a bank statement line, remembered per bank account together with its assignment: a fund, or ignored (« rejected » in BAS-030–035 — same value). Saved by the import flow at validate (BAS-035) and reviewed from the management screen (BAS-041–046). Deleting the bank account deletes its labels.
+The label of a bank statement line, remembered per bank account together with its assignment: a fund, or rejected (`Rejected`; the screen says « Ignoré »; owner, 2026-11-21, #706). Saved by the import flow at validate (BAS-035) and reviewed from the management screen (BAS-041–046). Deleting the bank account deletes its labels.
 
 > ⚠️ Code discrepancy: `BankFundLabelMapping` (table `bank_fund_label_mapping`) — keep the code name; use this term in specs, screens and new prose.
-> Status: confirmed (2026-09-29)
+> Status: confirmed (2026-09-29; reworded 2026-11-21, #706)
 
 ### Diagnostic report (« Rapport de diagnostic »)
 

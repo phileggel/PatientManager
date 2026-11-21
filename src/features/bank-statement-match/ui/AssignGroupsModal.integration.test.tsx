@@ -116,8 +116,8 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     // Each candidate has a stable row id
-    const candidateRow1 = document.getElementById("assign-groups-candidate-group-1");
-    const candidateRow2 = document.getElementById("assign-groups-candidate-group-2");
+    const candidateRow1 = document.getElementById("bank-statement-assign-groups-candidate-group-1");
+    const candidateRow2 = document.getElementById("bank-statement-assign-groups-candidate-group-2");
     expect(candidateRow1).not.toBeNull();
     expect(candidateRow2).not.toBeNull();
 
@@ -126,13 +126,13 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     // The wire order (backend: most recent payment first) renders as-is —
     // no client-side re-sort.
-    const allRows = document.querySelectorAll("[id^='assign-groups-candidate-']");
-    expect(allRows[0]?.id).toBe("assign-groups-candidate-group-1");
-    expect(allRows[1]?.id).toBe("assign-groups-candidate-group-2");
+    const allRows = document.querySelectorAll("[id^='bank-statement-assign-groups-candidate-']");
+    expect(allRows[0]?.id).toBe("bank-statement-assign-groups-candidate-group-1");
+    expect(allRows[1]?.id).toBe("bank-statement-assign-groups-candidate-group-2");
 
     // The exact-amount candidate carries the flag; the partial one does not.
-    expect(document.getElementById("assign-groups-exact-group-1")).not.toBeNull();
-    expect(document.getElementById("assign-groups-exact-group-2")).toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-exact-group-1")).not.toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-exact-group-2")).toBeNull();
   });
 
   // BAS-110 — the assign dialog mounts the correction context header.
@@ -141,7 +141,7 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    const header = document.getElementById("assign-groups-context");
+    const header = document.getElementById("bank-statement-assign-groups-context");
     expect(header).not.toBeNull();
     expect(header?.textContent).toContain("CPAM75");
   });
@@ -155,13 +155,13 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />);
 
     // Select group-1 via its checkbox/row
-    const checkbox = document.getElementById("assign-groups-check-group-1");
+    const checkbox = document.getElementById("bank-statement-assign-groups-check-group-1");
     expect(checkbox).not.toBeNull();
     if (!checkbox) throw new Error("candidate checkbox missing");
 
     await user.click(checkbox);
 
-    const submitBtn = document.getElementById("assign-groups-submit");
+    const submitBtn = document.getElementById("bank-statement-assign-groups-submit");
     expect(submitBtn).not.toBeNull();
     if (!submitBtn) throw new Error("submit button missing");
 
@@ -183,21 +183,21 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    const balanceEl = document.getElementById("assign-groups-balance");
+    const balanceEl = document.getElementById("bank-statement-assign-groups-balance");
     expect(balanceEl).not.toBeNull();
 
     // Initially covered_amount=0 (no selection); the balance element exists
     expect(balanceEl?.textContent).toBeTruthy();
 
     // Select the partial group — balance should reflect 80000 covered
-    const checkbox = document.getElementById("assign-groups-check-group-2");
+    const checkbox = document.getElementById("bank-statement-assign-groups-check-group-2");
     if (!checkbox) throw new Error("candidate checkbox missing");
     await user.click(checkbox);
 
     // Balance element still present and updated (exact text is i18n-formatted, so
     // we assert presence + that the element now includes "80" somewhere — the
     // currency formatter will output something containing this amount)
-    const updatedBalance = document.getElementById("assign-groups-balance");
+    const updatedBalance = document.getElementById("bank-statement-assign-groups-balance");
     expect(updatedBalance?.textContent).toMatch(/80/);
   });
 
@@ -221,14 +221,16 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
     // Select both groups — 100000 + 80000 = 180000 > 150000
-    const cb1 = document.getElementById("assign-groups-check-group-2");
-    const cb2 = document.getElementById("assign-groups-check-group-3");
+    const cb1 = document.getElementById("bank-statement-assign-groups-check-group-2");
+    const cb2 = document.getElementById("bank-statement-assign-groups-check-group-3");
     if (!cb1 || !cb2) throw new Error("candidate checkboxes missing");
 
     await user.click(cb1);
     await user.click(cb2);
 
-    const submitBtn = document.getElementById("assign-groups-submit") as HTMLButtonElement | null;
+    const submitBtn = document.getElementById(
+      "bank-statement-assign-groups-submit",
+    ) as HTMLButtonElement | null;
     expect(submitBtn).not.toBeNull();
     expect(submitBtn?.disabled).toBe(true);
   });
@@ -245,13 +247,16 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    const seeded = document.getElementById("assign-groups-check-group-1") as HTMLInputElement;
+    const seeded = document.getElementById(
+      "bank-statement-assign-groups-check-group-1",
+    ) as HTMLInputElement;
     expect(seeded?.checked).toBe(true);
     await user.click(seeded);
 
-    expect((document.getElementById("assign-groups-submit") as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (document.getElementById("bank-statement-assign-groups-submit") as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 
   // BAS-090 (#695, owner 2026-11-15) — no cross-fund match: the dialog offers
@@ -266,8 +271,8 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       />,
     );
 
-    expect(document.getElementById("assign-groups-scope-fund")).not.toBeNull();
-    expect(document.getElementById("assign-groups-scope-all")).toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-scope-fund")).not.toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-scope-all")).toBeNull();
   });
 
   // BAS-068 — the selection is seeded with the line's current assignment so
@@ -281,15 +286,21 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    const seeded = document.getElementById("assign-groups-check-group-2") as HTMLInputElement;
+    const seeded = document.getElementById(
+      "bank-statement-assign-groups-check-group-2",
+    ) as HTMLInputElement;
     expect(seeded?.checked).toBe(true);
-    const other = document.getElementById("assign-groups-check-group-1") as HTMLInputElement;
+    const other = document.getElementById(
+      "bank-statement-assign-groups-check-group-1",
+    ) as HTMLInputElement;
     expect(other?.checked).toBe(false);
     // The former standalone acknowledge affordance is removed (2026-07-31
     // wireframe review) — the remainder is informational text only, and
     // acknowledging happens via the "Rapprocher avec reliquat" footer action.
-    expect(document.getElementById("assign-groups-acknowledge-remainder")).toBeNull();
-    expect(document.getElementById("assign-groups-remainder-info")).not.toBeNull();
+    expect(
+      document.getElementById("bank-statement-assign-groups-acknowledge-remainder"),
+    ).toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-remainder-info")).not.toBeNull();
   });
 
   // BAS-090 — unchecking a selected candidate removes it from the submission.
@@ -299,14 +310,17 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-    const check = document.getElementById("assign-groups-check-group-1") as HTMLInputElement;
+    const check = document.getElementById(
+      "bank-statement-assign-groups-check-group-1",
+    ) as HTMLInputElement;
     await user.click(check);
     await user.click(check);
 
     expect(check.checked).toBe(false);
-    expect((document.getElementById("assign-groups-submit") as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (document.getElementById("bank-statement-assign-groups-submit") as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 
   it("calls onCancel and does not call onSubmit when cancel is clicked", async () => {
@@ -317,7 +331,7 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
     render(<AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={onCancel} />);
 
-    const cancelBtn = document.getElementById("assign-groups-cancel");
+    const cancelBtn = document.getElementById("bank-statement-assign-groups-cancel");
     expect(cancelBtn).not.toBeNull();
     if (!cancelBtn) throw new Error("cancel button missing");
 
@@ -337,8 +351,10 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-      expect(document.getElementById("assign-groups-scope-fund")).not.toBeNull();
-      expect(document.getElementById("assign-groups-scope-procedures")).not.toBeNull();
+      expect(document.getElementById("bank-statement-assign-groups-scope-fund")).not.toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-scope-procedures"),
+      ).not.toBeNull();
     });
 
     it("does not offer the procedure scope when the line's fund is unknown (rejected/unlinked label)", () => {
@@ -351,7 +367,7 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-      expect(document.getElementById("assign-groups-scope-procedures")).toBeNull();
+      expect(document.getElementById("bank-statement-assign-groups-scope-procedures")).toBeNull();
     });
 
     it("defaults to the fund-filtered group scope when group candidates exist", () => {
@@ -360,11 +376,17 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
       expect(
-        document.getElementById("assign-groups-scope-fund")?.getAttribute("aria-pressed"),
+        document
+          .getElementById("bank-statement-assign-groups-scope-fund")
+          ?.getAttribute("aria-pressed"),
       ).toBe("true");
       // Group candidates render immediately, procedure candidates do not.
-      expect(document.getElementById("assign-groups-candidate-group-1")).not.toBeNull();
-      expect(document.getElementById("assign-groups-candidate-proc-proc-1")).toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-candidate-group-1"),
+      ).not.toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-candidate-proc-proc-1"),
+      ).toBeNull();
     });
 
     it("defaults to the procedure scope when the fund-filtered group scope is empty and procedure candidates exist (no-bordereau case)", () => {
@@ -376,9 +398,13 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
       expect(
-        document.getElementById("assign-groups-scope-procedures")?.getAttribute("aria-pressed"),
+        document
+          .getElementById("bank-statement-assign-groups-scope-procedures")
+          ?.getAttribute("aria-pressed"),
       ).toBe("true");
-      expect(document.getElementById("assign-groups-candidate-proc-proc-1")).not.toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-candidate-proc-proc-1"),
+      ).not.toBeNull();
     });
 
     it("reopens on the procedure scope with assigned procedures pre-checked", () => {
@@ -395,11 +421,17 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
       expect(
-        document.getElementById("assign-groups-scope-procedures")?.getAttribute("aria-pressed"),
+        document
+          .getElementById("bank-statement-assign-groups-scope-procedures")
+          ?.getAttribute("aria-pressed"),
       ).toBe("true");
-      const seeded = document.getElementById("assign-groups-check-proc-proc-1") as HTMLInputElement;
+      const seeded = document.getElementById(
+        "bank-statement-assign-groups-check-proc-proc-1",
+      ) as HTMLInputElement;
       expect(seeded?.checked).toBe(true);
-      const other = document.getElementById("assign-groups-check-proc-proc-2") as HTMLInputElement;
+      const other = document.getElementById(
+        "bank-statement-assign-groups-check-proc-proc-2",
+      ) as HTMLInputElement;
       expect(other?.checked).toBe(false);
     });
 
@@ -412,25 +444,27 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
       );
 
-      const groupCheck = document.getElementById("assign-groups-check-group-1");
+      const groupCheck = document.getElementById("bank-statement-assign-groups-check-group-1");
       if (!groupCheck) throw new Error("group checkbox missing");
       await user.click(groupCheck);
 
-      const procScope = document.getElementById("assign-groups-scope-procedures");
+      const procScope = document.getElementById("bank-statement-assign-groups-scope-procedures");
       if (!procScope) throw new Error("procedure scope control missing");
       await user.click(procScope);
 
-      const fundScope = document.getElementById("assign-groups-scope-fund");
+      const fundScope = document.getElementById("bank-statement-assign-groups-scope-fund");
       if (!fundScope) throw new Error("fund scope control missing");
       await user.click(fundScope);
 
       // Selection made before switching away must not silently survive.
       expect(
-        (document.getElementById("assign-groups-check-group-1") as HTMLInputElement).checked,
+        (document.getElementById("bank-statement-assign-groups-check-group-1") as HTMLInputElement)
+          .checked,
       ).toBe(false);
-      expect((document.getElementById("assign-groups-submit") as HTMLButtonElement).disabled).toBe(
-        true,
-      );
+      expect(
+        (document.getElementById("bank-statement-assign-groups-submit") as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
       expect(onSubmit).not.toHaveBeenCalled();
     });
   });
@@ -448,15 +482,15 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-      const procScope = document.getElementById("assign-groups-scope-procedures");
+      const procScope = document.getElementById("bank-statement-assign-groups-scope-procedures");
       if (!procScope) throw new Error("procedure scope control missing");
       await user.click(procScope);
 
-      const row1 = document.getElementById("assign-groups-candidate-proc-proc-1");
+      const row1 = document.getElementById("bank-statement-assign-groups-candidate-proc-proc-1");
       expect(row1).not.toBeNull();
       expect(row1?.textContent).toContain("Jean Dupont");
 
-      const row2 = document.getElementById("assign-groups-candidate-proc-proc-2");
+      const row2 = document.getElementById("bank-statement-assign-groups-candidate-proc-proc-2");
       expect(row2).not.toBeNull();
       expect(row2?.textContent).toContain("Marie Curie");
     });
@@ -472,15 +506,15 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         <AssignGroupsModal line={line} isOpen={true} onSubmit={onSubmit} onCancel={vi.fn()} />,
       );
 
-      const procScope = document.getElementById("assign-groups-scope-procedures");
+      const procScope = document.getElementById("bank-statement-assign-groups-scope-procedures");
       if (!procScope) throw new Error("procedure scope control missing");
       await user.click(procScope);
 
-      const check1 = document.getElementById("assign-groups-check-proc-proc-1");
+      const check1 = document.getElementById("bank-statement-assign-groups-check-proc-proc-1");
       if (!check1) throw new Error("procedure checkbox missing");
       await user.click(check1);
 
-      const submitBtn = document.getElementById("assign-groups-submit");
+      const submitBtn = document.getElementById("bank-statement-assign-groups-submit");
       if (!submitBtn) throw new Error("submit button missing");
       await user.click(submitBtn);
 
@@ -501,12 +535,14 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-      const procScope = document.getElementById("assign-groups-scope-procedures");
+      const procScope = document.getElementById("bank-statement-assign-groups-scope-procedures");
       if (!procScope) throw new Error("procedure scope control missing");
       await user.click(procScope);
 
-      expect(document.getElementById("assign-groups-exact-proc-proc-1")).not.toBeNull();
-      expect(document.getElementById("assign-groups-exact-proc-proc-2")).toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-exact-proc-proc-1"),
+      ).not.toBeNull();
+      expect(document.getElementById("bank-statement-assign-groups-exact-proc-proc-2")).toBeNull();
     });
   });
 
@@ -525,7 +561,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         />,
       );
 
-      const submit = document.getElementById("assign-groups-submit") as HTMLButtonElement;
+      const submit = document.getElementById(
+        "bank-statement-assign-groups-submit",
+      ) as HTMLButtonElement;
       expect(submit.disabled).toBe(true);
       expect(submit.textContent).toContain("reconciliation.assign_groups.submit");
     });
@@ -542,13 +580,17 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         />,
       );
 
-      const exact = document.getElementById("assign-groups-check-group-1");
+      const exact = document.getElementById("bank-statement-assign-groups-check-group-1");
       if (!exact) throw new Error("candidate checkbox missing");
       await user.click(exact);
-      expect(document.getElementById("assign-groups-cover-bar")?.dataset.tone).toBe("exact");
-      expect(document.getElementById("assign-groups-remainder-info")).toBeNull();
+      expect(document.getElementById("bank-statement-assign-groups-cover-bar")?.dataset.tone).toBe(
+        "exact",
+      );
+      expect(document.getElementById("bank-statement-assign-groups-remainder-info")).toBeNull();
 
-      await user.click(document.getElementById("assign-groups-submit") as HTMLElement);
+      await user.click(
+        document.getElementById("bank-statement-assign-groups-submit") as HTMLElement,
+      );
 
       expect(onSubmit).toHaveBeenCalledTimes(1);
       expect(onSubmit).toHaveBeenCalledWith({
@@ -570,12 +612,16 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         />,
       );
 
-      const partial = document.getElementById("assign-groups-check-group-2");
+      const partial = document.getElementById("bank-statement-assign-groups-check-group-2");
       if (!partial) throw new Error("candidate checkbox missing");
       await user.click(partial);
-      expect(document.getElementById("assign-groups-cover-bar")?.dataset.tone).toBe("short");
-      expect(document.getElementById("assign-groups-remainder-info")).not.toBeNull();
-      const submit = document.getElementById("assign-groups-submit") as HTMLButtonElement;
+      expect(document.getElementById("bank-statement-assign-groups-cover-bar")?.dataset.tone).toBe(
+        "short",
+      );
+      expect(document.getElementById("bank-statement-assign-groups-remainder-info")).not.toBeNull();
+      const submit = document.getElementById(
+        "bank-statement-assign-groups-submit",
+      ) as HTMLButtonElement;
       expect(submit.textContent).toContain("reconciliation.assign_groups.submit_with_remainder");
 
       await user.click(submit);
@@ -601,15 +647,22 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         />,
       );
 
-      await user.click(document.getElementById("assign-groups-check-group-1") as HTMLElement);
-      await user.click(document.getElementById("assign-groups-check-group-2") as HTMLElement);
-
-      expect(document.getElementById("assign-groups-cover-bar")?.dataset.tone).toBe("over");
-      expect(document.getElementById("assign-groups-overflow-info")).not.toBeNull();
-      expect(document.getElementById("assign-groups-remainder-info")).toBeNull();
-      expect((document.getElementById("assign-groups-submit") as HTMLButtonElement).disabled).toBe(
-        true,
+      await user.click(
+        document.getElementById("bank-statement-assign-groups-check-group-1") as HTMLElement,
       );
+      await user.click(
+        document.getElementById("bank-statement-assign-groups-check-group-2") as HTMLElement,
+      );
+
+      expect(document.getElementById("bank-statement-assign-groups-cover-bar")?.dataset.tone).toBe(
+        "over",
+      );
+      expect(document.getElementById("bank-statement-assign-groups-overflow-info")).not.toBeNull();
+      expect(document.getElementById("bank-statement-assign-groups-remainder-info")).toBeNull();
+      expect(
+        (document.getElementById("bank-statement-assign-groups-submit") as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
     });
 
     it("says when the fund has no open payment group (#357)", () => {
@@ -622,7 +675,7 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         />,
       );
 
-      expect(document.getElementById("assign-groups-groups-empty")).not.toBeNull();
+      expect(document.getElementById("bank-statement-assign-groups-groups-empty")).not.toBeNull();
     });
 
     it("does not acknowledge the remainder when the assignment is rejected (BAS-064)", async () => {
@@ -637,8 +690,12 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         />,
       );
 
-      await user.click(document.getElementById("assign-groups-check-group-2") as HTMLElement);
-      await user.click(document.getElementById("assign-groups-submit") as HTMLElement);
+      await user.click(
+        document.getElementById("bank-statement-assign-groups-check-group-2") as HTMLElement,
+      );
+      await user.click(
+        document.getElementById("bank-statement-assign-groups-submit") as HTMLElement,
+      );
 
       await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     });
@@ -655,7 +712,9 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         />,
       );
 
-      await user.click(document.getElementById("assign-groups-leave-aside") as HTMLElement);
+      await user.click(
+        document.getElementById("bank-statement-assign-groups-leave-aside") as HTMLElement,
+      );
 
       await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
       const calls = onSubmit.mock.calls.map((call) => call[0] as BankStatementCorrection);
@@ -679,7 +738,7 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-      const procScope = document.getElementById("assign-groups-scope-procedures");
+      const procScope = document.getElementById("bank-statement-assign-groups-scope-procedures");
       if (!procScope) throw new Error("procedure scope control missing");
       await user.click(procScope);
 
@@ -694,7 +753,7 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-      const procScope = document.getElementById("assign-groups-scope-procedures");
+      const procScope = document.getElementById("bank-statement-assign-groups-scope-procedures");
       if (!procScope) throw new Error("procedure scope control missing");
       await user.click(procScope);
 
@@ -716,12 +775,14 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
 
       render(<AssignGroupsModal line={line} isOpen={true} onSubmit={vi.fn()} onCancel={vi.fn()} />);
 
-      const scrollzone = document.getElementById("assign-groups-scrollzone");
+      const scrollzone = document.getElementById("bank-statement-assign-groups-scrollzone");
       expect(scrollzone).not.toBeNull();
       expect(scrollzone?.className).toContain("overflow-y-auto");
-      expect(scrollzone?.contains(document.getElementById("assign-groups-candidate-group-1"))).toBe(
-        true,
-      );
+      expect(
+        scrollzone?.contains(
+          document.getElementById("bank-statement-assign-groups-candidate-group-1"),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -760,17 +821,25 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
       // Default scope evaluates the UNFILTERED pool (BAS-118A) — the dialog
       // opens on the procedure scope even though the filtered list is empty.
       expect(
-        document.getElementById("assign-groups-scope-procedures")?.getAttribute("aria-pressed"),
+        document
+          .getElementById("bank-statement-assign-groups-scope-procedures")
+          ?.getAttribute("aria-pressed"),
       ).toBe("true");
-      expect(document.getElementById("assign-groups-candidate-proc-proc-old")).toBeNull();
-      expect(document.getElementById("assign-groups-procedures-windowed-empty")).not.toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-candidate-proc-proc-old"),
+      ).toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-procedures-windowed-empty"),
+      ).not.toBeNull();
 
-      const showOlder = document.getElementById("assign-groups-show-older");
+      const showOlder = document.getElementById("bank-statement-assign-groups-show-older");
       if (!showOlder) throw new Error("show-older override missing");
       await user.click(showOlder);
 
       // The override reveals the full pool for this dialog instance only.
-      expect(document.getElementById("assign-groups-candidate-proc-proc-old")).not.toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-candidate-proc-proc-old"),
+      ).not.toBeNull();
     });
 
     it("filters the procedure list by the window while keeping in-window candidates", () => {
@@ -800,8 +869,12 @@ describe("AssignGroupsModal — BAS-068/090/091/094", () => {
         />,
       );
 
-      expect(document.getElementById("assign-groups-candidate-proc-proc-recent")).not.toBeNull();
-      expect(document.getElementById("assign-groups-candidate-proc-proc-old")).toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-candidate-proc-proc-recent"),
+      ).not.toBeNull();
+      expect(
+        document.getElementById("bank-statement-assign-groups-candidate-proc-proc-old"),
+      ).toBeNull();
     });
   });
 });

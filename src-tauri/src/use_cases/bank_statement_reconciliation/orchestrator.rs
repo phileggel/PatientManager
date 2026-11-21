@@ -1797,7 +1797,7 @@ mod tests {
     }
 
     // =========================================================================
-    // compute_reconciliation — pure-function / revert semantics (BAS-064/065)
+    // compute_reconciliation — a pure function of its corrections (BAS-064/065)
     // =========================================================================
 
     // BAS-064/065: compute_reconciliation is a pure function of (parse_result, corrections).
@@ -1851,17 +1851,17 @@ mod tests {
             .await;
 
         // The same statement without the correction — must equal reconciliation_before.
-        let reconciliation_reverted = orchestrator
+        let reconciliation_recomputed = orchestrator
             .compute_reconciliation("acc-1", &parse_result, &[])
             .await
             .unwrap();
 
         assert_eq!(
             reconciliation_before.lines.len(),
-            reconciliation_reverted.lines.len()
+            reconciliation_recomputed.lines.len()
         );
         assert_eq!(
-            reconciliation_before.lines[0].status, reconciliation_reverted.lines[0].status,
+            reconciliation_before.lines[0].status, reconciliation_recomputed.lines[0].status,
             "without the correction, the reconciliation equals the pre-correction state (BAS-064)"
         );
     }
