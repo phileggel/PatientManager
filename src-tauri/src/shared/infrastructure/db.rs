@@ -1034,7 +1034,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_725_bsm_038a_a_link_to_a_missing_entry_is_removed_and_the_upgrade_runs() {
+    async fn test_725_bsm_038b_a_link_to_a_missing_entry_is_removed_and_the_upgrade_runs() {
         let pool = pool_before_one_bank_entry_per_group().await;
         seed_group(&pool, "group-1", 10_000).await;
         seed_entry(&pool, "entry-live", "2026-02-01", 10_000).await;
@@ -1055,7 +1055,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_725_bsm_038a_the_most_recent_entry_keeps_the_group_and_a_duplicate_is_deleted() {
+    async fn test_725_bsm_038c_038d_the_most_recent_entry_keeps_the_group_and_the_other_is_deleted()
+    {
         let pool = pool_before_one_bank_entry_per_group().await;
         seed_group(&pool, "group-1", 10_000).await;
         seed_entry(&pool, "entry-old", "2026-02-01", 10_000).await;
@@ -1072,13 +1073,24 @@ mod tests {
             "the duplicate goes"
         );
         assert_eq!(amount_of(&pool, "entry-new").await, Some(10_000));
+        // BSM-038G — the group is as it was.
+        let group: (String, i64, String) = sqlx::query_as(
+            "SELECT payment_date, total_amount, status FROM fund_payment_group WHERE id = 'group-1'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            group,
+            ("2026-01-01".to_string(), 10_000, "ACTIVE".to_string())
+        );
         run_one_bank_entry_per_group(&pool)
             .await
             .expect("the upgrade runs after the repair");
     }
 
     #[tokio::test]
-    async fn test_725_bsm_038a_an_entry_with_other_groups_keeps_them_for_a_lower_amount() {
+    async fn test_725_bsm_038e_an_entry_with_other_groups_keeps_them_for_a_lower_amount() {
         let pool = pool_before_one_bank_entry_per_group().await;
         seed_group(&pool, "group-1", 10_000).await;
         seed_group(&pool, "group-2", 4_000).await;
@@ -1096,7 +1108,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_725_bsm_038a_on_one_date_the_link_recorded_last_keeps_the_group() {
+    async fn test_725_bsm_038c_on_one_date_the_link_recorded_last_keeps_the_group() {
         let pool = pool_before_one_bank_entry_per_group().await;
         seed_group(&pool, "group-1", 10_000).await;
         seed_entry(&pool, "entry-a", "2026-02-01", 10_000).await;
@@ -1110,7 +1122,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_725_bsm_038a_an_entry_that_pays_procedures_is_kept() {
+    async fn test_725_bsm_038f_an_entry_that_pays_procedures_is_kept() {
         let pool = pool_before_one_bank_entry_per_group().await;
         seed_group(&pool, "group-1", 10_000).await;
         seed_entry(&pool, "entry-old", "2026-02-01", 10_000).await;
@@ -1120,6 +1132,31 @@ mod tests {
         sqlx::query(
             "INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id)
              VALUES ('pl-1', 'entry-old', 'procedure-1')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        repair(&pool).await;
+
+        assert_eq!(entries_of(&pool, "group-1").await, vec!["entry-new"]);
+        assert_eq!(amount_of(&pool, "entry-old").await, Some(10_000));
+    }
+
+    #[tokio::test]
+    async fn test_725_bsm_038f_an_entry_that_pays_a_refund_is_kept() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_group(&pool, "group-1", 10_000).await;
+        seed_entry(&pool, "entry-old", "2026-02-01", 10_000).await;
+        seed_entry(&pool, "entry-new", "2026-02-09", 10_000).await;
+        seed_link(&pool, "link-1", "entry-old", "group-1").await;
+        seed_link(&pool, "link-2", "entry-new", "group-1").await;
+        sqlx::query(
+            "INSERT INTO procedure_refund (id, source_procedure_id, refund_procedure_id,
+                 refund_fund_payment_group_id, refund_bank_transfer_id, refund_date,
+                 previous_payment_status)
+             VALUES ('refund-1', 'procedure-1', 'procedure-2', 'group-1', 'entry-old',
+                 '2026-02-01', 'FUND_PAYED')",
         )
         .execute(&pool)
         .await
@@ -1198,6 +1235,16 @@ mod tests {
             .await
             .expect("the application starts");
 
+        let backups = fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with("patient_manager.backup-pre-v")
+            })
+            .count();
+        assert_eq!(backups, 1, "the backup is taken before the repair");
         assert!(entries_of(db.get_pool(), "group-1").await.len() <= 1);
         assert_eq!(
             entries_of(db.get_pool(), "group-2").await,
