@@ -114,6 +114,7 @@ export const Drawer = ({
           </li>
           <li>
             <button
+              id="nav-procedures"
               type="button"
               className={navItemClasses}
               onClick={() => onNavigate?.("procedures")}

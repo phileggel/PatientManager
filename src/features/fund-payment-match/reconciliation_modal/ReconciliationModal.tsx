@@ -126,7 +126,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
 
       {/* Content */}
       {isReportStep ? (
-        <div className="flex-1 overflow-y-auto p-6 print:overflow-visible">
+        <div className="min-h-0 flex-auto overflow-y-auto p-6 print:overflow-visible">
           <UnreconciledReportView
             procedures={unreconciledReport}
             startDate={reportDateRange.start}
@@ -136,7 +136,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="min-h-0 flex-auto overflow-y-auto px-6 py-5">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center gap-3 py-20 text-m3-on-surface-variant">
                 <Loader2 size={32} className="animate-spin text-m3-primary" />

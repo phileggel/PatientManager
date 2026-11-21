@@ -25,6 +25,10 @@ interface ModalContainerProps {
  * - Escape key handling
  *
  * Use this for simple modals or as a wrapper for more complex patterns.
+ *
+ * Its height follows its content up to `maxHeight` (unless `fixedHeight`): the
+ * scrolling child takes `min-h-0 flex-auto`, never `flex-1` — a zero basis gets no
+ * height under WebKit in a dialog whose height is not set (#738).
  */
 export function ModalContainer({
   id,
