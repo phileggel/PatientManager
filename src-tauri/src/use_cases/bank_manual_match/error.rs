@@ -22,6 +22,11 @@ pub enum BankManualMatchTask {
     /// removes (REF-210). The matching command must be used instead.
     #[error("Transfer type does not match the requested operation")]
     WrongTransferType,
+
+    /// BSM-053 — a procedure selected for a fund's wire with no bordereau is
+    /// not an open procedure of the given fund (BAS-112).
+    #[error("Procedure is not an open procedure of the fund: {procedure_id}")]
+    ProcedureNotOpen { procedure_id: String },
 }
 
 /// Composite error for the manual bank-transfer matching use case.
@@ -62,6 +67,15 @@ mod tests {
         assert_eq!(
             to_value(&wrong_type).unwrap(),
             json!({ "code": "WrongTransferType" }),
+        );
+
+        let not_open: BankManualMatchError = BankManualMatchTask::ProcedureNotOpen {
+            procedure_id: "proc-9".into(),
+        }
+        .into();
+        assert_eq!(
+            to_value(&not_open).unwrap(),
+            json!({ "code": "ProcedureNotOpen", "procedure_id": "proc-9" }),
         );
 
         // BC-wrapped variants flatten through the untagged composite, payload intact.

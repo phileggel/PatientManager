@@ -14,6 +14,6 @@ pub use api::*;
 pub use error::{BankManualMatchError, BankManualMatchTask};
 pub use orchestrator::{
     BankEntryEdit, BankManualMatchOrchestrator, BankManualMatchResult,
-    DirectPaymentProcedureCandidate, FundGroupCandidate,
+    DirectPaymentProcedureCandidate, FundGroupCandidate, FundWireProcedureCandidate,
 };
 pub use uow::{BankEntryOperation, BankEntryTransactionManager, BankEntryUnitOfWork};

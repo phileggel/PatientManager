@@ -49,6 +49,13 @@ describe("formatBankManualMatchError", () => {
     ).toEqual({ key: "bank:errors.procedure_not_created", params: { id: "p-1" } });
   });
 
+  it("#712 BSM-053: a procedure that is not open for the wire's fund is named", () => {
+    expect(formatBankManualMatchError({ code: "ProcedureNotOpen", procedure_id: "p-9" })).toEqual({
+      key: "bank:errors.procedure_not_open",
+      params: { id: "p-9" },
+    });
+  });
+
   it("maps the shared infra catch-all to database_error", () => {
     expect(formatBankManualMatchError({ code: "DatabaseError" }).key).toBe(
       "bank:errors.database_error",

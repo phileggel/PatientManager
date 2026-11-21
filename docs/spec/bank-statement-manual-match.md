@@ -38,7 +38,7 @@ A bank entry also holds the fund-payment groups a fund's wire settles, or the pr
 
 A fund-payment group becomes locked as soon as one of its procedures reaches Stage 2 of the fund lifecycle — it can no longer be edited or deleted. It is unlocked as R8 and R11 say.
 
-> **Declared exception (2026-07-31)** — bank-born groups (`bank-statement-auto-match` BAS-115) fold Stage 1 into the bank validate (`Created` → `FundPaid` in one step). After validate they are ordinary groups: deleting their bank entry (R8) reverts them like any other (procedures → `Reconciled`, group `Active`).
+> **Declared exception (2026-07-31)** — bank-born groups (`bank-statement-auto-match` BAS-115, and BSM-051 here) fold Stage 1 into the bank settlement (`Created` → `FundPaid` in one step). After their settlement they are ordinary groups: deleting their bank entry (R8) reverts them like any other (procedures → `Reconciled`, group `Active`).
 
 ### Rules common to all bank entries
 
@@ -56,7 +56,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-026 — A direct payment is on its technical account (backend)**: A patient's direct payment — a `PatientCash`, `PatientCheck` or `PatientCreditCard` bank entry created here — is recorded as BAC-056 says (owner, 2026-11-07, #518).
 
-**BSM-027 — A fund's wire pays no procedure directly (backend)**: Recording a `FundWire` entry that would pay procedures directly is refused with a specific error, after the field refusals (BSM-021) and before any selected procedure is judged (BSM-036, BSM-039); nothing is written (owner, 2026-11-07, #634).
+**BSM-027 — A fund's wire pays no procedure directly (backend)**: Recording, as a direct payment (R14, R15), an entry of type `FundWire` is refused with a specific error, after the field refusals (BSM-021) and before any selected procedure is judged (BSM-036, BSM-039); nothing is written (owner, 2026-11-07, #634). A fund's wire settles a procedure that is in no group only through the group BSM-051 creates for it.
 
 **R21 — What a bank entry holds (backend)**: The groups a fund's wire holds, or the procedures a direct payment holds, can be read with their date and amount, although settled or paid: they are no longer in R12's or R20's set.
 
@@ -128,6 +128,22 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 | Group     | `status`                 | `BankPaid` → `Active`                                                   |
 | Group     | `is_locked`              | → false                                                                 |
 
+### A fund's wire with no bordereau (050–059)
+
+**BSM-050 — The open procedures of a fund (backend)**: The procedures offered for a wire recorded on open procedures (BSM-051) are the given fund's open procedures, defined and ordered as `bank-statement-auto-match` BAS-112 says — the oldest procedure date first, then the procedure's identifier; they are not bounded by the wire's date. A missing or unknown fund has none.
+
+**BSM-051 — A wire recorded on open procedures creates their group (backend)**: Recording a `FundWire` on open procedures of one fund creates a fund-payment group of that fund and settles it with the wire, with the values of BAS-115 (owner, 2026-11-21, #712): the group is dated on the wire's date, totals the billed amounts and holds one line per procedure; it is `BankPaid` and locked. Each procedure goes from `Created` to `FundPaid`, paid by bank transfer on the wire's date for its billed amount, its fund reconciliation dated the same day. The wire's amount is the group's total (R3).
+
+**BSM-052 — Its refusals come first for its fields (backend)**: Such a wire is refused as BSM-020 says — its account missing, its date missing or invalid, no procedure selected — every reason in one answer, before any other check (BSM-021).
+
+**BSM-053 — Every selected procedure is open (backend)**: Such a wire whose selection holds a procedure that is not an open procedure of the given fund — unknown, of another fund, not `Created`, already in a group, or with no positive billed amount — is rejected with a specific error naming the first such procedure in the selection's order, before its account is looked up. A missing or unknown fund has no open procedure (BSM-050), so it is refused the same way. A repeated procedure counts once (BSM-028).
+
+**BSM-054 — The group and the wire are one write (backend)**: The group, its lines, the wire, its link and the procedures' changes are written together (BSM-034): a refused or failed recording leaves none of them, and publishes none of `BankEntryUpdated`, `FundPaymentGroupUpdated`, `ProcedureUpdated`.
+
+**BSM-055 — Once recorded, an ordinary wire (backend)**: A wire recorded under BSM-051 settles an ordinary group: it is edited and deleted as any fund's wire (R8 to R11), and deleting it leaves the group `Active` with its procedures `Reconciled` (R1's declared exception).
+
+**BSM-056 — Groups or open procedures, never both (backend)**: A wire is recorded on existing groups (R7) or on open procedures of any one fund (BSM-051): one recorded on open procedures is recorded on the group it creates alone.
+
 ### Direct payments
 
 **R13 — Automatic account for a direct payment (backend)**: No account is chosen for a `PatientCash`, `PatientCheck` or `PatientCreditCard` bank entry: BSM-026 places it (owner, 2026-11-07, #518).
@@ -187,6 +203,9 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 [It is deleted]
   → procedures → Created (R16)
 
+[A fund's wire is recorded on open procedures: account, date, fund, procedures]
+  → their group is created, BankPaid, locked; procedures → FundPaid (BSM-051)
+
 A refused creation, edit or deletion changes nothing (BSM-034, BSM-040).
 ```
 
@@ -199,6 +218,7 @@ A refused creation, edit or deletion changes nothing (BSM-034, BSM-040).
 - [ ] A group whose links all point to bank entries that no longer exist loses them all (BSM-038B) and stays `BankPaid` with no bank entry: should it go back to `Active` (R8)? Today it does not.
 - [ ] Is the user told which wires the repair unlinked? Today only the log names them; #733 asks for a view of the wires with no group.
 - [ ] After BSM-038C, should the procedures' confirmed payment date follow the entry that goes on settling the group (BSM-035)? Today it is left as it is (BSM-038E).
+- [ ] A procedure that stops being open between BSM-053's check and the write (BSM-054) is still refused, by the procedure itself, with the error of BSM-039: should BSM-053's error answer instead?
 - [ ] In what order are the groups and procedures of R6, R12, R14 and R20 returned? Today the order is not set; the screens sort them.
 - [ ] May one fund's wire hold groups of several funds (R9)? Today it may; the import refuses it per line (BAS-090A).
 - [ ] Which of `BankEntryUpdated`, `FundPaymentGroupUpdated` and `ProcedureUpdated` does a successful creation, edit or deletion publish? BSM-031, BSM-034 and BSM-040 name them only for what is refused or unchanged.

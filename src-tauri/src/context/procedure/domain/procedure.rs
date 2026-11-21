@@ -400,6 +400,23 @@ impl Procedure {
         Ok(self.with_payment_info(payment_method, Some(confirmed_date), Some(amount)))
     }
 
+    /// BSM-051, BAS-115 — Settled by a fund's wire that came with no bordereau:
+    /// `FundPaid` in one step, paid by bank transfer on the wire's date for its
+    /// billed amount, its fund reconciliation dated the same day. Only a
+    /// `Created` procedure is settled so.
+    pub fn settle_by_fund_wire(mut self, wire_date: NaiveDate) -> Result<Self, ProcedureError> {
+        if self.payment_status != ProcedureStatus::Created {
+            return Err(ProcedureError::ProcedureStatusNotCreated {
+                procedure_id: self.id,
+            });
+        }
+        self.payment_status = ProcedureStatus::FundPaid;
+        let amount = self.billed_amount;
+        Ok(self
+            .with_payment_info(PaymentMethod::BankTransfer, Some(wire_date), Some(amount))
+            .with_fund_reconciliation_date(Some(wire_date)))
+    }
+
     /// R16 — Its direct payment gone: `Created` again, payment info cleared.
     pub fn revert_direct_payment(mut self) -> Self {
         self.payment_status = ProcedureStatus::Created;
@@ -808,6 +825,26 @@ mod tests {
         let id = paid.id.clone();
         assert!(matches!(
             paid.pay_directly(PaymentMethod::Check, date),
+            Err(ProcedureError::ProcedureStatusNotCreated { procedure_id }) if procedure_id == id
+        ));
+    }
+
+    #[test]
+    fn test_712_bsm_051_settle_by_fund_wire_takes_a_created_procedure_only() {
+        let date = NaiveDate::from_ymd_opt(2026, 3, 20).unwrap();
+        let settled = make_new("p", "t")
+            .unwrap()
+            .settle_by_fund_wire(date)
+            .expect("a created procedure");
+        assert_eq!(settled.payment_status, ProcedureStatus::FundPaid);
+        assert_eq!(settled.payment_method, PaymentMethod::BankTransfer);
+        assert_eq!(settled.confirmed_payment_date, Some(date));
+        assert_eq!(settled.fund_reconciliation_date, Some(date));
+        assert_eq!(settled.paid_amount, Some(100_000));
+
+        let id = settled.id.clone();
+        assert!(matches!(
+            settled.settle_by_fund_wire(date),
             Err(ProcedureError::ProcedureStatusNotCreated { procedure_id }) if procedure_id == id
         ));
     }

@@ -4,7 +4,7 @@
 use anyhow::Context;
 
 use crate::context::bank::{BankEntry, SqliteBankEntryLinkRepository, SqliteBankEntryRepository};
-use crate::context::fund::{FundPaymentGroupStatus, SqliteFundPaymentRepository};
+use crate::context::fund::{FundPaymentGroup, FundPaymentGroupStatus, SqliteFundPaymentRepository};
 use crate::context::procedure::{Procedure, SqliteProcedureRepository};
 use crate::shared::uow::SqlxTransactionManager;
 
@@ -16,6 +16,10 @@ struct SqlxBankEntryUnitOfWork {
 
 #[async_trait::async_trait]
 impl BankEntryUnitOfWork for SqlxBankEntryUnitOfWork {
+    async fn insert_group(&mut self, group: &FundPaymentGroup) -> anyhow::Result<()> {
+        SqliteFundPaymentRepository::insert_group_in(&mut self.tx, group).await
+    }
+
     async fn insert_entry(&mut self, entry: &BankEntry) -> anyhow::Result<()> {
         SqliteBankEntryRepository::insert_in(&mut self.tx, entry).await
     }

@@ -8,7 +8,7 @@
 //! owning services once it has committed.
 
 use crate::context::bank::BankEntry;
-use crate::context::fund::FundPaymentGroupStatus;
+use crate::context::fund::{FundPaymentGroup, FundPaymentGroupStatus};
 use crate::context::procedure::Procedure;
 use crate::shared::uow::UnitOfWorkFuture;
 
@@ -26,6 +26,9 @@ pub enum BankEntrySelection {
 
 /// Everything a creation or an edit changes, decided before any write.
 pub struct BankEntryWrites {
+    /// The group a wire recorded on open procedures creates (BSM-051); its
+    /// status then follows `group_statuses`.
+    pub new_group: Option<FundPaymentGroup>,
     pub entry: BankEntryChange,
     pub selection: BankEntrySelection,
     pub procedures: Vec<Procedure>,
@@ -35,6 +38,8 @@ pub struct BankEntryWrites {
 /// The writes of a bank entry creation or edit, on one transaction.
 #[async_trait::async_trait]
 pub trait BankEntryUnitOfWork: Send {
+    async fn insert_group(&mut self, group: &FundPaymentGroup) -> anyhow::Result<()>;
+
     async fn insert_entry(&mut self, entry: &BankEntry) -> anyhow::Result<()>;
 
     async fn update_entry(&mut self, entry: &BankEntry) -> anyhow::Result<()>;
@@ -82,6 +87,9 @@ pub async fn write_bank_entry(
     manager
         .write(Box::new(move |uow| {
             Box::pin(async move {
+                if let Some(group) = &writes.new_group {
+                    uow.insert_group(group).await?;
+                }
                 let entry_id = match &writes.entry {
                     BankEntryChange::New(entry) => {
                         uow.insert_entry(entry).await?;

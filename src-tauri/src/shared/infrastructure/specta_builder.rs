@@ -49,6 +49,7 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<bank_statement_reconciliation::FundAssignment>()
         .typ::<bank_manual_match::FundGroupCandidate>()
         .typ::<bank_manual_match::DirectPaymentProcedureCandidate>()
+        .typ::<bank_manual_match::FundWireProcedureCandidate>()
         .typ::<bank_manual_match::BankManualMatchResult>()
         .typ::<patient_duplicates::DuplicatePair>()
         .typ::<overpayment::CreateOverpaymentRequest>()
@@ -115,6 +116,8 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             bank_manual_match::get_unsettled_fund_groups,
             bank_manual_match::get_all_unsettled_fund_groups,
             bank_manual_match::create_fund_transfer,
+            bank_manual_match::get_open_procedures_of_fund,
+            bank_manual_match::create_fund_wire_from_procedures,
             bank_manual_match::update_fund_transfer,
             bank_manual_match::delete_fund_transfer,
             bank_manual_match::get_eligible_procedures_for_direct_payment,
