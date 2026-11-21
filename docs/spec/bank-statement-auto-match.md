@@ -4,7 +4,7 @@
 
 A practitioner receives bank statements (PDF) issued by their bank, listing transfers received from health-insurance funds. This feature **automatically reconciles** these transfers with existing fund-payment groups, completing the procedure-payment lifecycle (Stage 2).
 
-This document covers the **automatic flow** — PDF parsing, fund-label resolution, the matching algorithm, the reconciliation draft and its corrections, and the creation of bank transfers — and the **review of saved bank statement labels** outside that flow (BAS-041–046). The flow runs in four steps (owner, 2026-11-15, #692): the import, the labels (each linked to a fund or rejected), the matching of the lines, and a recap from which the flow is validated or closed. The recap is a view of the draft's lines, with no rule of its own (owner, 2026-11-15). The screens of the flow are described by their validated mocks (`docs/workflow.md` § Design).
+This document covers the **automatic flow** — PDF parsing, fund-label resolution, the matching algorithm, the reconciliation draft and its corrections, and the creation of bank transfers — and the **review of saved bank statement labels** outside that flow (BAS-041–046). The flow's corrections come in any order, each recomputing the draft (BAS-064); its recap is a view of the draft's lines, with no rule of its own (owner, 2026-11-15); the screens of the flow are described by their validated mocks (`docs/workflow.md` § Design).
 
 ## Entity Definition
 
@@ -14,7 +14,7 @@ This document covers the **automatic flow** — PDF parsing, fund-label resoluti
 | ------------ | ---------------------------------------------------- |
 | bank account | The account whose statements carry the label         |
 | label        | The label text of a bank statement line, as imported |
-| assignment   | A fund, or ignored (BAS-030); stored as no fund      |
+| assignment   | A fund, or rejected (BAS-030); stored as no fund     |
 
 ---
 
@@ -53,7 +53,7 @@ The suggestion, if any, is informational: it is never the label's assignment (BA
 
 ### Bank statement label review (041–049)
 
-A **bank statement label** is the label of a bank statement line, remembered per bank account with its assignment: a fund, or ignored (BAS-030). The import flow creates and updates them (BAS-031, BAS-035); these rules let the user review them outside that flow. Changes here are saved immediately — there is no validate step.
+A **bank statement label** is the label of a bank statement line, remembered per bank account with its assignment: a fund, or rejected (BAS-030). The import flow creates and updates them (BAS-031, BAS-035); these rules let the user review them outside that flow. Changes here are saved immediately — there is no validate step.
 
 **BAS-041 — Review list (backend)**: The saved bank statement labels of every bank account can be listed, one entry each: its account, its label, and its assigned fund or rejected (BAS-030). No label is created from the list.
 
@@ -102,9 +102,7 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 **BAS-062 — Correcting a line (backend)**: A line linked to a fund can be assigned one or more groups (BAS-090) or procedures (BAS-113), or its remainder acknowledged (BAS-092), within BAS-064's refusals; its label is linked or rejected through BAS-066. A line already matched or assigned can be **overridden** — reassigned to a different group, or unassigned. An explicit group-assignment correction on a line (including assigning an empty set to unassign) takes precedence over the line's auto-match for the rest of the recompute (BAS-062A). The override goes through the same corrections and cascade (BAS-066–067).
 
-**BAS-062A — An assignment correction holds the line (backend)**: While an assignment correction, even an empty one, applies to a line, no link brings the auto-match back on it: neither a link of another label nor a link of its own label to the fund it already has (BAS-066C). A left-aside line stays left aside. The hold ends when the line's own label is linked to another fund or marked rejected (BAS-066B, BAS-062C).
-
-**BAS-062C — A rejection ends the hold (backend)**: Marking the label rejected (BAS-030) ends the hold: a later link of that label re-attempts the auto-match.
+**BAS-062A — An assignment correction holds the line (backend)**: While an assignment correction, even an empty one, applies to a line, no link brings the auto-match back on it: neither a link of another label nor a link of its own label to the fund it already has (BAS-066C). A left-aside line stays left aside. The hold ends when the line's own label is linked to another fund or marked rejected (BAS-066B).
 
 **BAS-063 (R18) — Validate is skip-based (backend)**: Validate never refuses undecided lines: only resolved lines produce transfers (BAS-070); unresolved/needs-\* lines are simply skipped. A rejected line produces no transfer by design.
 
@@ -112,15 +110,15 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 **BAS-064 — Draft computed by recompute (backend)**: The reconciliation draft (the full line list with per-line status and candidate proposals) is a pure function of the parsed statement plus the ordered list of applied corrections. The draft is **ephemeral** — no draft state is persisted; closing the flow discards it. Each correction triggers a recompute that replays all corrections in order and answers the complete recomputed draft synchronously. A correction that cannot be honored is rejected with a specific error and the draft is unchanged: a correction on an unknown line; a link to an unknown fund; a non-empty assignment on a line not linked to a fund (unlinked or rejected); an unknown group, one of another fund (BAS-090A), or one already settled (BAS-053, BAS-090) or already consumed by another line (BAS-067); an assignment that would overflow the line amount (BAS-094).
 
-**BAS-064A — Corrections replace, in order (backend)**: The draft replays the corrections in the order they were made. An assignment of groups or procedures replaces the line's earlier assignment of either kind and its acknowledged remainder (BAS-113, BAS-092); an acknowledgment adds to the line's current assignment; a link that changes its label's assignment replaces what its lines had (BAS-066B), and one that does not changes nothing (BAS-066C). A replaced correction never comes back, and no correction is refused for what it replaces.
+**BAS-064A — Corrections replace, in order (backend)**: The draft replays the corrections in the order they were made. An assignment of groups or procedures replaces the line's earlier assignment of either kind and its acknowledged remainder (BAS-113, BAS-092); an acknowledgment adds to the line's current assignment; a link that changes its label's assignment replaces what its lines had (BAS-066B), and one that does not drops nothing (BAS-066C). A replaced correction never comes back, and no correction is refused for what it replaces.
 
-**BAS-066 — Link-fund correction and cascade (backend)**: Linking a label to a fund — or marking it rejected (BAS-030) — resolves **all** lines sharing that label in one action. Lines that, once their fund is known, match an eligible group (BAS-050–054) auto-resolve to **matched**, except a line an assignment correction holds (BAS-062A); the rest are re-flagged **needs-group** or **unresolved**.
+**BAS-066 — Link-fund correction and cascade (backend)**: A link that changes a label's assignment — to a fund, or marking it rejected (BAS-030) — decides the status of **all** lines sharing that label in one action (BAS-066B). On a link to a fund, lines that match an eligible group (BAS-050–054) auto-resolve to **matched** and the rest are flagged **needs-group** or **unresolved**; on a rejection, they are **rejected** (BAS-061).
 
 **BAS-066A — Every link re-attempts the auto-match (backend)**: After a link or a rejection, the auto-match (BAS-050–054) is re-attempted on every line, whatever its label, that has no settlement item and no hold (BAS-062A). An existing auto-match is kept, but on the lines BAS-066B starts again.
 
 **BAS-066B — A changed link starts its lines again (backend)**: Linking a label to another fund than the one it has — a label that had none or was rejected included — or marking it rejected starts its lines again (owner, 2026-11-15, #692): their auto-match and every correction made on them before — an assignment of groups or procedures, an empty one included, an acknowledged remainder — are dropped, and their groups and procedures return to their pools. On a link to a fund, the auto-match is then re-attempted under that fund; a rejected line is never matched (BAS-030). Such a link is never refused for what it drops. The lines of the other labels keep what they have.
 
-**BAS-066C — Linking to the same assignment changes nothing (backend)**: Linking a label to the fund it already has, or marking a rejected label rejected again, leaves its lines as they are.
+**BAS-066C — Linking to the same assignment drops nothing (backend)**: Linking a label to the fund it already has, or marking a rejected label rejected again, keeps what its lines have — no settlement item or correction is dropped; the auto-match is still re-attempted on every line with no settlement item and no hold (BAS-062A), the label's own included when it is linked to a fund (BAS-066A; owner, 2026-11-21, #632).
 
 **BAS-067 — Group consumption (backend)**: Assigning a group to a line removes that group from every other line's candidate proposals (a group settles at most one line; BAS-054). Replacing or emptying the assignment, or dropping it (BAS-066B), returns the group to the candidate pool.
 
@@ -219,19 +217,14 @@ One bank transfer is created and linked as for any group (BAS-070/093). A failed
   → every line with its status (BAS-061)
           │
           ▼
-[Labels] — each label linked to a fund or rejected (BAS-066); each correction
-           recomputes the draft (BAS-064)
+[Corrections, in any order] — each recomputes the draft (BAS-064)
+  → link a label to a fund or reject it (BAS-066–066C); a changed link starts its
+    lines again (BAS-066B)
+  → assign groups of the line's fund (BAS-090) or procedures (BAS-113)
+  → acknowledge a remainder / leave a line aside (BAS-092, BAS-123B)
           │
           ▼
-[Matching] — assign groups of the line's fund (BAS-090) or procedures (BAS-113);
-             acknowledge a remainder / leave a line aside (BAS-092, BAS-123B);
-             back to [Labels]: a changed link starts its lines again (BAS-066B)
-          │
-          ▼
-[Recap] — close the flow (nothing persisted) or validate
-          │
-          ▼
-[Validate] (BAS-063)
+[Validate] (BAS-063) — or close: nothing persisted
   → persist label assignments (BAS-035)
   → birth bank-born groups from assigned procedures (BAS-115)
   → create bank transfers (N per multi-group line, BAS-093)
@@ -245,7 +238,7 @@ One bank transfer is created and linked as for any group (BAS-070/093). A failed
 
 - **Non-atomic validate (deferred UoW)**: validate saves the labels, births the groups of the lines settled by procedures, then for each group creates its transfer and link and settles it with its procedures in one unit of work (ADR-003); the groups are not one transaction. A failure mid-validate leaves the groups before it committed, part of a multi-group line included; a bank-born group created before its transfer stays `Active` with no transfer (visible in the fund flows, repairable there), and the transfers already committed publish no `BankEntryUpdated` or `ProcedureUpdated` (BAS-070). Accepted for now — single-user desktop makes the window practically unobservable, and failures are loud, never silent (see `docs/techdebt.md` 2026-05-19 "Non-atomic bank-reconciliation writes" and ADR-003). To be revisited when UoW infrastructure lands.
 - **Unbilled procedures are not settleable from the bank flow**: BAS-112 requires a positive billed amount, so a procedure whose amount was never entered cannot be selected — enter its amount (or use the fund-PDF flow) first. Accepted.
-- **Remainder is not recorded**: an acknowledged remainder (BAS-092) — including a left-aside line (BAS-123B) — leaves no trace after the flow closes; it is a session-only acknowledgment, not an audit record. Label-level ignores DO persist (BAS-035); line-level leave-asides do not. A persisted "dismissed credit" concept is intentionally out of scope (deferred).
+- **Remainder is not recorded**: an acknowledged remainder (BAS-092) — including a left-aside line (BAS-123B) — leaves no trace after the flow closes; it is a session-only acknowledgment, not an audit record. Label-level rejections DO persist (BAS-035); line-level leave-asides do not. A persisted "dismissed credit" concept is intentionally out of scope (deferred).
 
 ## Open questions
 

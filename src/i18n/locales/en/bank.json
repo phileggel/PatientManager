@@ -85,15 +85,11 @@
     "upload_aria_label": "Upload bank statement PDF",
     "modal": {
       "loading": "Analysing bank statement...",
-      "matching": "Reconciling...",
       "close_aria": "Close",
       "cancel": "Cancel",
       "close": "Close",
       "validate": "Confirm reconciliation",
-      "creating": "Creating...",
-      "no_credit": "No credit lines could be matched to a fund.",
       "no_iban": "No IBAN found in the bank statement.",
-      "no_transfer": "No transfer has been selected.",
       "no_vir_sepa_lines": "The statement contains no VIR SEPA lines. Please check that the file is a bank statement with SEPA transfers.",
       "create_account": {
         "title": "Create the missing bank account",

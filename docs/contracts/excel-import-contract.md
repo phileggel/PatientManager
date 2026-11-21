@@ -1,7 +1,7 @@
 # Contract — Excel Import
 
 > Domain: excel-import
-> Last updated by: excel-import spec, every row left out reported (#621), 2026-11-15
+> Last updated by: excel-import spec, the default type never refused (#706), 2026-11-21
 
 ## Commands
 
@@ -23,7 +23,7 @@ Executes the import from a previously parsed response. Resolves and creates pati
 
 - **Args:** `parsed_data: ParseExcelResponse, procedure_type_mapping: Map<String, String>, selected_sheets: Vec<String>` — `selected_sheets` carries canonical sheet names (`"Jan"`, `"Fév"`, …) matching `ExcelProcedure.sheet_month`.
 - **Returns:** `ImportExecutionResult`
-- **Errors:** `ProcedureTypeNotFound { procedure_type_id }` — the mapping names a type that does not exist, deleted since or never created, whatever rows use it (EXI-151); `PatientInvalid`, `FundInvalid` — the domain refused a patient or fund of the workbook (EXI-179); `ImportFailed` — catch-all, a read or a write failed. A skipped row is counted in `procedures_skipped`; one of a selected sheet also gets a `skipped_procedures` entry (EXI-290). On any of them nothing was written (EXI-175). A blocked month or a skipped row is no failure (EXI-176).
+- **Errors:** `ProcedureTypeNotFound { procedure_type_id }` — the mapping names a type that does not exist, deleted since or never created, whatever rows use it; the default type `imported-from-excel` is never refused (EXI-151); `PatientInvalid`, `FundInvalid` — the domain refused a patient or fund of the workbook (EXI-179); `ImportFailed` — catch-all, a read or a write failed. A skipped row is counted in `procedures_skipped`; one of a selected sheet also gets a `skipped_procedures` entry (EXI-290). On any of them nothing was written (EXI-175). A blocked month or a skipped row is no failure (EXI-176).
 
 ---
 
@@ -176,6 +176,7 @@ Each is raised after the commit, at most once per import; a failed import raises
 
 ## Changelog
 
+- 2026-11-21 — #706: `execute_excel_import` says the default type is never refused (EXI-151).
 - 2026-11-15 — #621: `ProcedureTypeNotFound` (EXI-151); `SkipReason::MissingDate`, `UnmappedAmount`, `MonthBlocked`, `PatientNotResolved`; every skipped row of a selected sheet in `skipped_procedures`; EXI-161 blocks a month for a bank entry or a procedure refund too.
 - 2026-11-14 — #647: the spec holds business rules only; EXI-070 says a mapping holds for its parse, EXI-110 and EXI-130 back `execute_excel_import`; EXI-220's merged, sorted report is assembled on screen today, owed by #429. No signature, type or error change.
 - 2026-11-07 — `execute_excel_import` stores the default type `imported-from-excel` as the reserved `import-pdf` type (EXI-131).

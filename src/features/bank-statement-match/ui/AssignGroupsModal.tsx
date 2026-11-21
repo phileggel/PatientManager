@@ -169,7 +169,7 @@ export function AssignGroupsModal({
   const scopeSegment = (id: AssignScope, label: string, first: boolean) => (
     <button
       type="button"
-      id={`assign-groups-scope-${id}`}
+      id={`bank-statement-assign-groups-scope-${id}`}
       aria-pressed={scope === id}
       onClick={() => switchScope(id)}
       className={`flex flex-1 items-center justify-center gap-2 px-4 py-2 text-sm font-medium ${
@@ -185,19 +185,25 @@ export function AssignGroupsModal({
 
   return (
     <ModalContainer
-      id="assign-groups-modal"
+      id="bank-statement-assign-groups-modal"
       isOpen={isOpen}
       onClose={onCancel}
       maxWidth="max-w-2xl"
-      titleId="assign-groups-modal-title"
+      titleId="bank-statement-assign-groups-modal-title"
     >
       {/* #692 — the title holds the line: date – amount (bold) – label (fund). */}
       <div className="flex items-center justify-between border-b border-m3-outline/20 px-6 py-4">
         <div>
-          <h2 id="assign-groups-modal-title" className="text-base font-semibold text-m3-on-surface">
+          <h2
+            id="bank-statement-assign-groups-modal-title"
+            className="text-base font-semibold text-m3-on-surface"
+          >
             {t("reconciliation.assign_groups.title")}
           </h2>
-          <p id="assign-groups-context" className="mt-0.5 text-sm text-m3-on-surface-variant">
+          <p
+            id="bank-statement-assign-groups-context"
+            className="mt-0.5 text-sm text-m3-on-surface-variant"
+          >
             {formatDate(line.credit_line.date)} –{" "}
             <span className="font-semibold text-m3-on-surface">{formatCurrency(lineAmount)}</span> –{" "}
             {line.credit_line.label}
@@ -205,7 +211,7 @@ export function AssignGroupsModal({
           </p>
         </div>
         <IconButton
-          id="assign-groups-close"
+          id="bank-statement-assign-groups-close"
           icon={<X size={20} />}
           variant="ghost"
           shape="round"
@@ -224,14 +230,14 @@ export function AssignGroupsModal({
 
         {/* The candidate list is the dialog's only scrollable region, five rows tall (#692). */}
         <div
-          id="assign-groups-scrollzone"
+          id="bank-statement-assign-groups-scrollzone"
           className="custom-scrollbar max-h-60 min-h-0 overflow-y-auto pr-1"
         >
           {scope === "procedures" ? (
             visibleProcedures.length === 0 && line.candidate_procedures.length > 0 ? (
               // Every open procedure is older than the window.
               <p
-                id="assign-groups-procedures-windowed-empty"
+                id="bank-statement-assign-groups-procedures-windowed-empty"
                 className="text-sm text-m3-on-surface-variant"
               >
                 {t("reconciliation.assign_groups.window_empty", { days: procedureWindowDays })}
@@ -239,7 +245,7 @@ export function AssignGroupsModal({
             ) : (
               <ProcedureCandidateList
                 candidates={visibleProcedures}
-                idPrefix="assign-groups"
+                idPrefix="bank-statement-assign-groups"
                 selected={selectedProcedureIds}
                 onToggle={toggleProcedure}
               />
@@ -247,7 +253,7 @@ export function AssignGroupsModal({
           ) : (
             <GroupCandidateRows
               candidates={line.candidate_groups}
-              idPrefix="assign-groups"
+              idPrefix="bank-statement-assign-groups"
               selected={selectedGroupIds}
               onToggle={toggleGroup}
             />
@@ -258,7 +264,7 @@ export function AssignGroupsModal({
           visibleProcedures.length < line.candidate_procedures.length && (
             <button
               type="button"
-              id="assign-groups-show-older"
+              id="bank-statement-assign-groups-show-older"
               onClick={() => setShowOlderProcedures(true)}
               className="self-start text-sm font-medium text-m3-primary hover:underline"
             >
@@ -273,7 +279,7 @@ export function AssignGroupsModal({
               {t("reconciliation.assign_groups.covered")}
             </span>
             <output
-              id="assign-groups-balance"
+              id="bank-statement-assign-groups-balance"
               className="font-semibold tabular-nums text-m3-on-surface"
             >
               {t("reconciliation.assign_groups.covered_of", {
@@ -284,7 +290,7 @@ export function AssignGroupsModal({
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-m3-surface-container-highest">
             <div
-              id="assign-groups-cover-bar"
+              id="bank-statement-assign-groups-cover-bar"
               data-tone={coverTone}
               className={`h-full rounded-full ${coverTone === "exact" ? "bg-[var(--color-snackbar-success-text)]" : coverTone === "over" ? "bg-m3-error" : "bg-[var(--color-snackbar-warning-text)]"}`}
               style={{
@@ -295,7 +301,7 @@ export function AssignGroupsModal({
           {/* BAS-094 — a selection above the amount says so; the action stays off. */}
           {coverTone === "over" && (
             <p
-              id="assign-groups-overflow-info"
+              id="bank-statement-assign-groups-overflow-info"
               className="rounded-lg bg-m3-error-container px-3 py-2 text-sm text-m3-on-error-container"
             >
               {t("reconciliation.assign_groups.overflow_note", {
@@ -305,7 +311,7 @@ export function AssignGroupsModal({
           )}
           {coverTone === "short" && (
             <p
-              id="assign-groups-remainder-info"
+              id="bank-statement-assign-groups-remainder-info"
               className="rounded-lg bg-m3-warning-container px-3 py-2 text-sm text-m3-on-warning-container"
             >
               {t("reconciliation.assign_groups.remainder_note", {
@@ -316,7 +322,7 @@ export function AssignGroupsModal({
         </div>
 
         {errorText && (
-          <p id="assign-groups-error" role="alert" className="text-sm text-m3-error">
+          <p id="bank-statement-assign-groups-error" role="alert" className="text-sm text-m3-error">
             {errorText}
           </p>
         )}
@@ -325,7 +331,7 @@ export function AssignGroupsModal({
       {/* #692 — one filled action; every button one width. */}
       <div className="flex items-center justify-between gap-3 border-t border-m3-outline/20 bg-m3-surface-container-low px-6 py-4">
         <Button
-          id="assign-groups-leave-aside"
+          id="bank-statement-assign-groups-leave-aside"
           variant="outline"
           className={buttonWidth}
           disabled={isBusy}
@@ -335,7 +341,7 @@ export function AssignGroupsModal({
         </Button>
         <div className="flex items-center gap-3">
           <Button
-            id="assign-groups-cancel"
+            id="bank-statement-assign-groups-cancel"
             variant="ghost"
             className={buttonWidth}
             onClick={onCancel}
@@ -343,7 +349,7 @@ export function AssignGroupsModal({
             {t("reconciliation.assign_groups.cancel")}
           </Button>
           <Button
-            id="assign-groups-submit"
+            id="bank-statement-assign-groups-submit"
             variant="primary"
             className={buttonWidth}
             disabled={isBusy || isOverflow || selected.length === 0}

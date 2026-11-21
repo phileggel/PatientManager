@@ -86,10 +86,16 @@ export function LabelAssociationScreen({
   return (
     <div className="flex flex-col flex-1 gap-3 min-h-0">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="label-assoc-title" className="text-base font-semibold text-m3-on-surface">
+        <h2
+          id="bank-statement-label-association-title"
+          className="text-base font-semibold text-m3-on-surface"
+        >
           {t("label_association.title")}
         </h2>
-        <span id="label-assoc-counter" className="text-xs text-m3-on-surface-variant">
+        <span
+          id="bank-statement-label-association-counter"
+          className="text-xs text-m3-on-surface-variant"
+        >
           {t("label_association.counter.known", { count: counts.known })} ·{" "}
           {t("label_association.counter.new", { count: counts.new })} ·{" "}
           <span
@@ -104,7 +110,7 @@ export function LabelAssociationScreen({
       </div>
 
       <div
-        id="label-assoc-scrollzone"
+        id="bank-statement-label-association-scrollzone"
         className="flex flex-col flex-1 gap-3 min-h-0 overflow-y-auto pr-1"
       >
         {rows.map((row, index) => {
@@ -118,7 +124,7 @@ export function LabelAssociationScreen({
           return (
             <div
               key={row.label}
-              id={`label-assoc-row-${slug}`}
+              id={`bank-statement-label-association-row-${slug}`}
               className={`rounded-xl border border-m3-outline/20 px-4 py-2.5 ${ignored ? "bg-m3-surface-container-low" : ""}`}
             >
               <div className="grid grid-cols-[minmax(0,1fr)_max-content_30ch_7rem] items-center gap-x-4">
@@ -134,7 +140,7 @@ export function LabelAssociationScreen({
                   </span>
                 </div>
                 <Switch
-                  id={`label-assoc-ignore-${slug}`}
+                  id={`bank-statement-label-association-ignore-${slug}`}
                   checked={ignored}
                   onChange={(next) => toggleIgnored(row, next)}
                   label={t("label_association.ignore")}
@@ -142,7 +148,7 @@ export function LabelAssociationScreen({
                 />
                 <div className={`min-w-0 ${ignored ? "opacity-40" : ""}`}>
                   <ComboboxField
-                    id={`label-assoc-fund-${slug}`}
+                    id={`bank-statement-label-association-fund-${slug}`}
                     label={t("label_association.field_label", { label: row.label })}
                     hideLabel
                     items={funds}
@@ -154,13 +160,16 @@ export function LabelAssociationScreen({
                     disabled={isBusy || ignored}
                   />
                 </div>
-                <Tag id={`label-assoc-chip-${slug}`} tone={ORIGIN_TONE[origin]}>
+                <Tag
+                  id={`bank-statement-label-association-chip-${slug}`}
+                  tone={ORIGIN_TONE[origin]}
+                >
                   {t(`label_association.chip.${origin}`)}
                 </Tag>
 
                 {origin === "todo" && row.suggestedFundName && (
                   <span
-                    id={`label-assoc-suggestion-${slug}`}
+                    id={`bank-statement-label-association-suggestion-${slug}`}
                     className="col-start-3 mt-1 text-xs text-m3-on-surface-variant"
                   >
                     {t("label_association.suggestion", { name: row.suggestedFundName })}
@@ -173,7 +182,7 @@ export function LabelAssociationScreen({
                 )}
                 {changedSinceMatching && (
                   <p
-                    id={`label-assoc-changed-${slug}`}
+                    id={`bank-statement-label-association-changed-${slug}`}
                     className="col-span-full mt-2 text-xs text-m3-tertiary"
                   >
                     {t("label_association.changed_note", { count: row.count })}
@@ -186,17 +195,21 @@ export function LabelAssociationScreen({
       </div>
 
       {errorText && (
-        <p id="label-assoc-error" role="alert" className="text-sm text-m3-error">
+        <p
+          id="bank-statement-label-association-error"
+          role="alert"
+          className="text-sm text-m3-error"
+        >
           {errorText}
         </p>
       )}
 
       <div className="flex items-center justify-between gap-3 border-t border-m3-outline/20 pt-4">
-        <Button id="label-assoc-cancel" variant="outline" onClick={onCancel}>
+        <Button id="bank-statement-label-association-cancel" variant="outline" onClick={onCancel}>
           {t("label_association.cancel_all")}
         </Button>
         <Button
-          id="label-assoc-continue"
+          id="bank-statement-label-association-continue"
           variant="primary"
           disabled={isBusy || !allDecided}
           onClick={onContinue}

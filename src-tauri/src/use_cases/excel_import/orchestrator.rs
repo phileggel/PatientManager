@@ -360,7 +360,6 @@ impl ExcelImportOrchestrator {
                             target: BACKEND,
                             sheet = %excel_proc.sheet_month,
                             row = excel_proc.source_row,
-                            value = %excel_proc.procedure_date,
                             "EXI-280 procedure_date format gate failed"
                         );
                         skipped_procedures.push(SkippedRow {
@@ -389,7 +388,6 @@ impl ExcelImportOrchestrator {
                             target: BACKEND,
                             sheet = %excel_proc.sheet_month,
                             row = excel_proc.source_row,
-                            value = %raw,
                             "EXI-280 confirmed_payment_date format gate failed"
                         );
                         skipped_procedures.push(SkippedRow {
@@ -428,7 +426,6 @@ impl ExcelImportOrchestrator {
                     target: BACKEND,
                     sheet = %excel_proc.sheet_month,
                     row = excel_proc.source_row,
-                    date = %procedure_date.format("%Y-%m-%d"),
                     "EXI-281 procedure_date month does not match sheet"
                 );
                 skipped_procedures.push(SkippedRow {

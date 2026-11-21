@@ -763,7 +763,6 @@ impl ExcelParserService {
                 target: BACKEND,
                 month = canonical_month,
                 row = row_number,
-                fund_identifier = %fund_identifier,
                 "Skipping row: fund not found in parsed funds"
             );
             parsing_issues.skipped_rows.push(SkippedRow {
@@ -783,8 +782,6 @@ impl ExcelParserService {
                 target: BACKEND,
                 month = canonical_month,
                 row = row_number,
-                amount_str = %amount_str,
-                parsed_amount = amount,
                 "Skipping procedure with invalid amount"
             );
             parsing_issues.skipped_rows.push(SkippedRow {
@@ -801,9 +798,6 @@ impl ExcelParserService {
             target: BACKEND,
             month = canonical_month,
             row = row_number,
-            fund_id = %fund_identifier,
-            amount = amount,
-            date = %procedure_date,
             "Successfully parsed procedure"
         );
 

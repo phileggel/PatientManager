@@ -128,29 +128,29 @@ describe("Bank statement reconciliation — full flow from a statement PDF", () 
     await card.click();
 
     await $("#bank-statement-modal").waitForExist({ timeout: 15000 });
-    await $("#label-assoc-title").waitForExist({ timeout: 15000 });
+    await $("#bank-statement-label-association-title").waitForExist({ timeout: 15000 });
     for (const label of [MATCHED_LABEL, ...IGNORED_LABELS]) {
       assert.ok(
-        await $(`#label-assoc-row-${label}`).isExisting(),
+        await $(`#bank-statement-label-association-row-${label}`).isExisting(),
         `the statement's label ${label} must be listed`,
       );
     }
 
     // The linked label is recognized; ignore the two others with their switch, continue.
-    await $(`#label-assoc-chip-${MATCHED_LABEL}`).waitForExist({ timeout: 10000 });
+    await $(`#bank-statement-label-association-chip-${MATCHED_LABEL}`).waitForExist({ timeout: 10000 });
     assert.equal(
-      await $(`#label-assoc-ignore-${MATCHED_LABEL}`).getAttribute("aria-checked"),
+      await $(`#bank-statement-label-association-ignore-${MATCHED_LABEL}`).getAttribute("aria-checked"),
       "false",
       "the recognized label is not ignored",
     );
 
     for (const label of IGNORED_LABELS) {
-      const ignore = await $(`#label-assoc-ignore-${label}`);
+      const ignore = await $(`#bank-statement-label-association-ignore-${label}`);
       await ignore.waitForEnabled({ timeout: 10000 });
       await ignore.click();
     }
 
-    const next = await $("#label-assoc-continue");
+    const next = await $("#bank-statement-label-association-continue");
     await next.waitForEnabled({ timeout: 10000 });
     await next.click();
     await $("#reconciliation-list").waitForExist({ timeout: 10000 });
@@ -165,6 +165,11 @@ describe("Bank statement reconciliation — full flow from a statement PDF", () 
     // The recap counts the one line taken into account, then validates.
     const linesTaken = await $("#recap-lines-taken");
     await linesTaken.waitForExist({ timeout: 10000 });
+    // The count renders once the draft is computed: wait on its text, not on the element.
+    await browser.waitUntil(async () => (await linesTaken.getText()) === "1", {
+      timeout: 10000,
+      timeoutMsg: "the recap never counted the matched line",
+    });
     assert.equal(await linesTaken.getText(), "1", "the recap counts the matched line");
     const validate = await $("#reconciliation-validate");
     await validate.waitForEnabled({ timeout: 10000 });

@@ -153,11 +153,13 @@ const MOCK_FUNDS = [{ id: "fund-1", fund_identifier: "75", name: "CPAM 75", temp
 /** Clicks screen 1's Continuer button once it is present and enabled. */
 async function goToSettlement(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => {
-    const btn = document.getElementById("label-assoc-continue") as HTMLButtonElement | null;
+    const btn = document.getElementById(
+      "bank-statement-label-association-continue",
+    ) as HTMLButtonElement | null;
     expect(btn).not.toBeNull();
     expect(btn?.disabled).toBe(false);
   });
-  await user.click(document.getElementById("label-assoc-continue")!);
+  await user.click(document.getElementById("bank-statement-label-association-continue")!);
   await waitFor(() => {
     expect(document.getElementById("reconciliation-list")).not.toBeNull();
   });
@@ -200,7 +202,7 @@ describe("ReconciliationView — loading state", () => {
     renderView();
 
     await waitFor(() => {
-      expect(document.getElementById("label-assoc-continue")).toBeNull();
+      expect(document.getElementById("bank-statement-label-association-continue")).toBeNull();
       expect(document.getElementById("reconciliation-list")).toBeNull();
     });
   });
@@ -222,7 +224,7 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     renderView();
 
     await waitFor(() => {
-      expect(document.getElementById("label-assoc-continue")).not.toBeNull();
+      expect(document.getElementById("bank-statement-label-association-continue")).not.toBeNull();
     });
     expect(document.getElementById("reconciliation-list")).toBeNull();
   });
@@ -233,7 +235,7 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     renderView();
 
     await waitFor(() => {
-      expect(document.getElementById("label-assoc-continue")).not.toBeNull();
+      expect(document.getElementById("bank-statement-label-association-continue")).not.toBeNull();
     });
     expect(mockCompute).toHaveBeenCalledWith(BANK_ACCOUNT_ID, PARSE_RESULT, []);
   });
@@ -246,7 +248,7 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     await goToSettlement(user);
 
     expect(document.getElementById("reconciliation-list")).not.toBeNull();
-    expect(document.getElementById("label-assoc-continue")).toBeNull();
+    expect(document.getElementById("bank-statement-label-association-continue")).toBeNull();
   });
 
   it("shows the step bar, and back from the matching offers to return there (#697)", async () => {
@@ -268,7 +270,7 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     if (!back) throw new Error("back button missing");
     await user.click(back);
 
-    expect(document.getElementById("label-assoc-continue")?.textContent).toBe(
+    expect(document.getElementById("bank-statement-label-association-continue")?.textContent).toBe(
       "label_association.back_to_matching",
     );
   });
@@ -287,7 +289,7 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     const rejected = document.getElementById("reconciliation-line-row-line-rejected");
     if (!rejected) throw new Error("rejected row missing");
     await user.dblClick(rejected);
-    expect(document.getElementById("assign-groups-modal")).toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-modal")).toBeNull();
   });
 
   it("returns to the label screen via 'Retour aux libellés' with the draft intact (BAS-102/120D)", async () => {
@@ -303,14 +305,15 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     await user.click(backBtn);
 
     await waitFor(() => {
-      expect(document.getElementById("label-assoc-continue")).not.toBeNull();
+      expect(document.getElementById("bank-statement-label-association-continue")).not.toBeNull();
     });
     expect(document.getElementById("reconciliation-list")).toBeNull();
     // The label was already decided before navigating away — still decided
     // on return (no state reset, one correction model).
-    expect((document.getElementById("label-assoc-continue") as HTMLButtonElement).disabled).toBe(
-      false,
-    );
+    expect(
+      (document.getElementById("bank-statement-label-association-continue") as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
   });
 
   it("does not render the settlement Valider button on the label screen", async () => {
@@ -319,7 +322,7 @@ describe("ReconciliationView — two-screen state machine (BAS-122)", () => {
     renderView();
 
     await waitFor(() => {
-      expect(document.getElementById("label-assoc-continue")).not.toBeNull();
+      expect(document.getElementById("bank-statement-label-association-continue")).not.toBeNull();
     });
     expect(document.getElementById("reconciliation-validate")).toBeNull();
   });
@@ -393,7 +396,7 @@ describe("ReconciliationView — modal routing on the settlement screen (BAS-062
     if (!lineEl) throw new Error("line row element missing");
     await user.dblClick(lineEl);
 
-    expect(document.getElementById("assign-groups-submit")).not.toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-submit")).not.toBeNull();
   });
 
   it("opens AssignGroupsModal for a Matched line (override — BAS-062)", async () => {
@@ -407,7 +410,7 @@ describe("ReconciliationView — modal routing on the settlement screen (BAS-062
     if (!lineEl) throw new Error("line row element missing");
     await user.dblClick(lineEl);
 
-    expect(document.getElementById("assign-groups-submit")).not.toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-submit")).not.toBeNull();
   });
 
   it("calls computeBankStatementReconciliation with the AssignGroups correction and closes the modal on success", async () => {
@@ -426,11 +429,11 @@ describe("ReconciliationView — modal routing on the settlement screen (BAS-062
     if (!lineEl) throw new Error("line row element missing");
     await user.dblClick(lineEl);
 
-    const checkbox = document.getElementById("assign-groups-check-group-1");
+    const checkbox = document.getElementById("bank-statement-assign-groups-check-group-1");
     if (!checkbox) throw new Error("candidate checkbox missing");
     await user.click(checkbox);
 
-    const submitBtn = document.getElementById("assign-groups-submit");
+    const submitBtn = document.getElementById("bank-statement-assign-groups-submit");
     if (!submitBtn) throw new Error("submit button missing");
     await user.click(submitBtn);
 
@@ -440,7 +443,7 @@ describe("ReconciliationView — modal routing on the settlement screen (BAS-062
       expect(correctionCall).toBeDefined();
     });
     await waitFor(() => {
-      expect(document.getElementById("assign-groups-submit")).toBeNull();
+      expect(document.getElementById("bank-statement-assign-groups-submit")).toBeNull();
     });
   });
 
@@ -454,12 +457,12 @@ describe("ReconciliationView — modal routing on the settlement screen (BAS-062
     const callCountAfterSettlement = mockCompute.mock.calls.length;
 
     await user.dblClick(document.getElementById("reconciliation-line-row-line-needs-group")!);
-    expect(document.getElementById("assign-groups-submit")).not.toBeNull();
+    expect(document.getElementById("bank-statement-assign-groups-submit")).not.toBeNull();
 
-    await user.click(document.getElementById("assign-groups-cancel")!);
+    await user.click(document.getElementById("bank-statement-assign-groups-cancel")!);
 
     await waitFor(() => {
-      expect(document.getElementById("assign-groups-submit")).toBeNull();
+      expect(document.getElementById("bank-statement-assign-groups-submit")).toBeNull();
     });
     expect(mockCompute).toHaveBeenCalledTimes(callCountAfterSettlement);
   });
@@ -646,10 +649,10 @@ describe("ReconciliationView — isBusy disables buttons (BAS-064)", () => {
     await goToSettlement(user);
 
     await user.dblClick(document.getElementById("reconciliation-line-row-line-needs-group")!);
-    const checkbox = document.getElementById("assign-groups-check-group-1");
+    const checkbox = document.getElementById("bank-statement-assign-groups-check-group-1");
     if (!checkbox) throw new Error("candidate checkbox missing");
     await user.click(checkbox);
-    await user.click(document.getElementById("assign-groups-submit")!);
+    await user.click(document.getElementById("bank-statement-assign-groups-submit")!);
 
     await waitFor(() => {
       const backBtn = document.getElementById(
@@ -682,10 +685,10 @@ describe("ReconciliationView — typed error render (F27)", () => {
     await goToSettlement(user);
 
     await user.dblClick(document.getElementById("reconciliation-line-row-line-needs-group")!);
-    const checkbox = document.getElementById("assign-groups-check-group-1");
+    const checkbox = document.getElementById("bank-statement-assign-groups-check-group-1");
     if (!checkbox) throw new Error("candidate checkbox missing");
     await user.click(checkbox);
-    await user.click(document.getElementById("assign-groups-submit")!);
+    await user.click(document.getElementById("bank-statement-assign-groups-submit")!);
 
     await waitFor(() => {
       const alert = document.querySelector("[role='alert']");

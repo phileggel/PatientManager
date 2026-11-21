@@ -261,12 +261,14 @@ describe("BankStatementModal — the abandon confirmation and the fixed height (
   async function renderReady(onClose: () => void) {
     render(<BankStatementModal filePath={FILE_PATH} onClose={onClose} />);
     await waitFor(() => {
-      expect(document.getElementById("label-assoc-fund-CPAM75")).not.toBeNull();
+      expect(
+        document.getElementById("bank-statement-label-association-fund-CPAM75"),
+      ).not.toBeNull();
     });
   }
 
   async function doSomeWork(user: ReturnType<typeof userEvent.setup>) {
-    await user.selectOptions(element("label-assoc-fund-CPAM75"), "fund-1");
+    await user.selectOptions(element("bank-statement-label-association-fund-CPAM75"), "fund-1");
     await waitFor(() => {
       expect(mockCompute).toHaveBeenCalledWith("acc-1", PARSE_RESULT, [
         { type: "LinkFund", bank_label: "CPAM75", assignment: { type: "Fund", fund_id: "fund-1" } },
@@ -316,7 +318,7 @@ describe("BankStatementModal — the abandon confirmation and the fixed height (
 
     expect(onClose).not.toHaveBeenCalled();
     expect(document.getElementById("bank-statement-abandon-confirmation")).toBeNull();
-    expect(document.getElementById("label-assoc-fund-CPAM75")).not.toBeNull();
+    expect(document.getElementById("bank-statement-label-association-fund-CPAM75")).not.toBeNull();
   });
 
   it("asks on Escape", async () => {
@@ -351,7 +353,7 @@ describe("BankStatementModal — the abandon confirmation and the fixed height (
     await renderReady(onClose);
     await doSomeWork(user);
 
-    await user.click(element("label-assoc-cancel"));
+    await user.click(element("bank-statement-label-association-cancel"));
 
     expect(element("bank-statement-abandon-confirmation")).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();
