@@ -15,7 +15,8 @@ interface UseManagementModalReturn {
   handleFunds: () => void;
   handleProcedureTypes: () => void;
   handleFundPayment: () => void;
-  handleBankTransfer: () => void;
+  handleDirectPayments: () => void;
+  handleFundWires: () => void;
   handleBankAccount: () => void;
   handleBankStatementLabels: () => void;
 }
@@ -56,9 +57,14 @@ export function useManagementModal({
     onClose();
   }, [fundCount, onNavigate, onClose, t]);
 
-  // BAC-056 — a direct payment needs no account: the page opens with none (#518).
-  const handleBankTransfer = useCallback(() => {
-    onNavigate("bank-transfer");
+  // #642 — a direct payment needs no account (BAC-056): its page opens with none (#518).
+  const handleDirectPayments = useCallback(() => {
+    onNavigate("direct-payments");
+    onClose();
+  }, [onNavigate, onClose]);
+
+  const handleFundWires = useCallback(() => {
+    onNavigate("fund-wires");
     onClose();
   }, [onNavigate, onClose]);
 
@@ -83,7 +89,8 @@ export function useManagementModal({
     handleFunds,
     handleProcedureTypes,
     handleFundPayment,
-    handleBankTransfer,
+    handleDirectPayments,
+    handleFundWires,
     handleBankAccount,
     handleBankStatementLabels,
   };

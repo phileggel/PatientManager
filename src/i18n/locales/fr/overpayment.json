@@ -11,12 +11,12 @@
   },
   "form": {
     "refund_date": "Date de remboursement",
-    "payment_method": "Mode de paiement",
+    "payment_method": "Moyen de paiement",
     "bank_account": "Compte bancaire",
     "reason": "Motif (optionnel)",
     "source_procedure": "Acte source",
     "select_bank_account": "Sélectionner un compte bancaire",
-    "select_payment_method": "Sélectionner un mode de paiement"
+    "select_payment_method": "Sélectionner un moyen de paiement"
   },
   "action": {
     "refund": "Rembourser",
@@ -37,7 +37,7 @@
     "create": "Échec de l'enregistrement du remboursement.",
     "cancel": "Échec de l'annulation du remboursement.",
     "refund_date": "La date de remboursement est requise et ne doit pas être dans le futur.",
-    "payment_method": "Le mode de paiement est requis.",
+    "payment_method": "Le moyen de paiement est requis.",
     "bank_account": "Le compte bancaire est requis.",
     "reason_too_long": "Le motif ne doit pas dépasser 255 caractères."
   },
@@ -46,7 +46,7 @@
     "source_not_refundable": "Cet acte n'est pas éligible au remboursement.",
     "invalid_refund_date": "Date de remboursement invalide.",
     "reason_too_long": "Le motif ne doit pas dépasser 255 caractères.",
-    "transfer_type_rejected": "Ce mode de paiement n'est pas accepté pour les remboursements.",
+    "transfer_type_rejected": "Ce moyen de paiement n'est pas accepté pour les remboursements.",
     "bank_account_required": "Un compte bancaire est requis.",
     "bank_account_not_found": "Compte bancaire introuvable.",
     "source_has_no_fund": "L'acte source n'a pas de caisse associée.",

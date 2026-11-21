@@ -19,9 +19,13 @@
     "title": "Paiement Caisse",
     "description": "Consultez et gérez les groupes de paiement par caisse."
   },
-  "bank_transfer": {
-    "title": "Virement Bancaire",
-    "description": "Consultez et gérez les virements bancaires associés aux groupes de paiement."
+  "direct_payments": {
+    "title": "Paiements directs",
+    "description": "Consultez et gérez les paiements d'actes par chèque, carte bancaire ou espèces."
+  },
+  "fund_wires": {
+    "title": "Virements de caisse",
+    "description": "Consultez et gérez les virements des caisses qui règlent leurs groupes de paiement."
   },
   "bank_account": {
     "title": "Comptes Bancaires",

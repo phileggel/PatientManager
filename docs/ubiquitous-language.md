@@ -233,11 +233,11 @@ recorded on, never shown. Replaces the former "cash account".
 
 ### BankEntry
 
-An aggregate root in the bank context. Represents a single line from a bank statement —
-either an incoming fund payment or a direct patient payment, or an outgoing overpayment
-refund wire.
+An aggregate root in the bank context. A payment received — a fund's wire (« Virement de
+caisse ») or a patient's direct payment by check, card or cash (« Paiement direct ») — or
+an overpayment refund paid out (REF-110).
 
-> Status: confirmed
+> Status: confirmed (owner, 2026-11-21, #642)
 > ⚠️ Code discrepancy: currently named `BankTransfer` in `context/bank/domain/` — to be renamed.
 
 ### BankEntryType

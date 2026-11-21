@@ -29,7 +29,7 @@ The `id` MUST be forwarded to the underlying DOM `<input>` — never stop at the
 </Button>
 ```
 
-That is the Submit of a form F30 lists as moved; another also gates it on its own checks.
+That is the Submit of a form F30 lists as moved (a bank entry window's is off while nothing is ticked, F30); another also gates it on its own checks.
 
 E2E selector: `button[type="submit"][form="price-modal-form"]`.
 Never rely on an `onClick`-only submit path — there is no stable selector for it.
@@ -58,7 +58,7 @@ This is already required by accessibility rules — it is also what E2E tests as
 
 Standard `setValue()` from WebdriverIO does **not** reliably trigger React's synthetic
 `onChange` in WebKitGTK. The DOM value is set but React state never updates.
-A form F30 lists as moved is then sent with its fields empty and refused; any other form keeps its submit disabled.
+A form F30 lists as moved is then sent with its fields empty and refused — a bank entry window once something is ticked (F30); any other form keeps its submit disabled.
 
 Use `setReactInputValue` from `e2e/helpers/seed.ts`: it sets the value through the native
 prototype setter, bypassing React's value tracker, then dispatches `input` and `change`,

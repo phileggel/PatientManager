@@ -123,34 +123,20 @@
     }
   },
   "transfer": {
-    "date": "Transfer Date *",
-    "amount": "Amount *",
-    "type": "Type *",
-    "select_type": "Select type",
-    "type_fund": "Fund",
+    "date": "Transfer date",
+    "payment_date": "Payment date",
+    "payment_method": "Payment method",
     "type_check": "Check",
-    "type_credit_card": "Credit Card",
+    "type_credit_card": "Bank card",
     "type_cash": "Cash",
-    "selected_fund": "Fund: {{name}}",
-    "no_fund": "No fund selected",
-    "change_fund": "Change Fund",
-    "select_fund": "Select Fund",
-    "selected_patient": "Patient: {{name}}",
-    "no_patient": "No patient selected",
-    "change_patient": "Change Patient",
-    "select_patient": "Select Patient",
-    "bank_account": "Bank Account *",
+    "bank_account": "Bank account",
     "select_bank_account": "Select bank account",
-    "computed_amount": "Total amount:",
-    "create_button": "Create Transfer",
-    "creating": "Creating...",
     "select_groups": {
-      "label": "Fund payment groups to reconcile",
+      "label": "Payment groups to reconcile",
       "loading": "Loading groups...",
       "empty": "No groups available within 7 days. Click \"Expand\" to see all groups.",
       "empty_all": "No unreconciled groups found.",
       "expand": "Expand search",
-      "selected": "{{count}} group(s) selected",
       "current": "Currently linked groups",
       "filter_placeholder": "Filter by fund (name or identifier)…"
     },
@@ -161,75 +147,72 @@
       "empty_all": "No procedures with status Created found.",
       "expand": "Expand search",
       "current": "Currently linked procedures",
-      "selected": "{{count}} procedure(s) selected",
       "filter_placeholder": "Search by patient, SSN or date…"
-    },
-    "manager": {
-      "title": "Bank Transfers",
-      "search_placeholder": "Search transfers...",
-      "panel_title": "Create Transfer",
-      "panel_description": "Add a new bank transfer.",
-      "delete": {
-        "title": "Delete Bank Transfer?",
-        "message": "Are you sure you want to delete this bank transfer? This action cannot be undone.",
-        "confirm": "Delete",
-        "cancel": "Cancel"
-      },
-      "success": {
-        "deleted": "Bank transfer deleted successfully"
-      }
     },
     "list": {
       "loading": "Loading...",
-      "empty": "No bank transfers yet. Create one using the form.",
-      "edit_aria_label": "Edit transfer {{date}} {{amount}}",
-      "delete_aria_label": "Delete transfer {{date}} {{amount}}",
       "columns": {
         "date": "Date",
         "amount": "Amount",
-        "type": "Type",
-        "bank_account": "Bank Account",
-        "source": "Source"
+        "payment_method": "Payment method",
+        "bank_account": "Bank account"
       }
     },
-    "edit": {
-      "title": "Edit Bank Transfer",
-      "update": "Update",
-      "success": "Bank transfer updated successfully",
-      "error_unknown": "An unexpected error occurred",
-      "error_invalid_account": "Selected bank account is invalid"
+    "abandon": {
+      "confirm": "Discard",
+      "cancel": "Keep editing",
+      "message_edit": "Your changes will not be saved."
     },
-    "add": {
-      "success": "Bank transfer created successfully!",
-      "error_unknown": "An unexpected error occurred"
+    "delete": {
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "error_unknown": "An unexpected error occurred",
+    "direct": {
+      "title": "Direct payments",
+      "search_placeholder": "Search payments…",
+      "empty": "No direct payments yet. Add one with the + button.",
+      "add_title": "Record a payment",
+      "edit_title": "Edit payment",
+      "save": "Record payment",
+      "save_amount": "Record payment of {{amount}}",
+      "update": "Update payment",
+      "update_amount": "Update payment of {{amount}}",
+      "added": "Payment recorded",
+      "updated": "Payment updated",
+      "deleted": "Payment deleted",
+      "edit_aria_label": "Edit payment of {{date}}, {{amount}}",
+      "delete_aria_label": "Delete payment of {{date}}, {{amount}}",
+      "delete_title": "Delete payment?",
+      "delete_message": "Are you sure you want to delete this payment? This action cannot be undone.",
+      "abandon_title": "Discard this payment?",
+      "abandon_message": "The payment you entered will not be saved."
+    },
+    "fund": {
+      "title": "Fund wires",
+      "search_placeholder": "Search wires…",
+      "empty": "No fund wires yet. Add one with the + button.",
+      "add_title": "Record a fund wire",
+      "edit_title": "Edit fund wire",
+      "save": "Record wire",
+      "save_amount": "Record wire of {{amount}}",
+      "update": "Update wire",
+      "update_amount": "Update wire of {{amount}}",
+      "added": "Fund wire recorded",
+      "updated": "Fund wire updated",
+      "deleted": "Fund wire deleted",
+      "edit_aria_label": "Edit wire of {{date}}, {{amount}}",
+      "delete_aria_label": "Delete wire of {{date}}, {{amount}}",
+      "delete_title": "Delete fund wire?",
+      "delete_message": "Are you sure you want to delete this fund wire? This action cannot be undone.",
+      "abandon_title": "Discard this wire?",
+      "abandon_message": "The wire you entered will not be saved."
     },
     "validate": {
       "date_required": "Transfer date is required",
       "date_invalid": "Enter a valid date",
       "bank_account_required": "Bank account is required",
       "no_items_selected": "Please select at least one group or procedure"
-    },
-    "select_fund_modal": {
-      "title": "Select Fund",
-      "search_placeholder": "Search by name or identifier...",
-      "empty": "No funds available",
-      "no_match": "No matching funds",
-      "columns": {
-        "name": "Name",
-        "identifier": "Identifier"
-      }
-    },
-    "select_patient_modal": {
-      "title": "Select Patient",
-      "search_placeholder": "Search by name or SSN...",
-      "empty": "No patients available",
-      "no_match": "No matching patients",
-      "na": "N/A",
-      "columns": {
-        "name": "Name",
-        "ssn": "SSN",
-        "latest_date": "Latest Date"
-      }
     }
   },
   "account": {

@@ -34,11 +34,14 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
   const [totalAmountMillis, setTotalAmountMillis] = useState<number>(0);
   const [currentGroups, setCurrentGroups] = useState<FundGroupCandidate[]>([]);
   const [currentProcedures, setCurrentProcedures] = useState<DirectPaymentProcedureCandidate[]>([]);
+  // #642 — the selection as loaded, to tell an edited form from an untouched one.
+  const [initialIds, setInitialIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   // BSM-023 — the message key under each refused field; the component translates.
   const [fieldErrors, setFieldErrors] = useState<BankEntryFieldErrorKeys>({});
 
   const isFund = transfer?.transfer_type === "FUND_WIRE";
+  const kind = isFund ? "fund" : "direct";
 
   // Load linked IDs and current candidates when transfer changes.
   useEffect(() => {
@@ -50,6 +53,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
     setSelectedProcedureIds([]);
     setCurrentGroups([]);
     setCurrentProcedures([]);
+    setInitialIds([]);
     setTotalAmountMillis(transfer.amount);
 
     const loadLinks = async () => {
@@ -59,10 +63,13 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
           logger.error("[useEditBankTransferModal] Failed to load fund group ids", {
             error: idsResult.error,
           });
+          // The window cannot show what the entry settles: say so rather than open empty.
+          toastService.show("error", t("transfer.error_unknown"));
           return;
         }
         const ids = idsResult.data;
         setSelectedGroupIds(ids);
+        setInitialIds(ids);
 
         if (ids.length > 0) {
           const groupsResult = await getFundGroupsByIds(ids);
@@ -80,10 +87,13 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
           logger.error("[useEditBankTransferModal] Failed to load procedure ids", {
             error: idsResult.error,
           });
+          // The window cannot show what the entry settles: say so rather than open empty.
+          toastService.show("error", t("transfer.error_unknown"));
           return;
         }
         const ids = idsResult.data;
         setSelectedProcedureIds(ids);
+        setInitialIds(ids);
 
         if (ids.length > 0) {
           const procsResult = await getProceduresByIds(ids);
@@ -99,7 +109,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
     };
 
     loadLinks();
-  }, [transfer]);
+  }, [transfer, t]);
 
   const setTransferDate = (value: string) => {
     setTransferDateState(value);
@@ -109,20 +119,18 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
   const handleFundGroupSelectionChange = (groupIds: string[], totalMillis: number) => {
     setSelectedGroupIds(groupIds);
     setTotalAmountMillis(totalMillis);
-    setFieldErrors((prev) => ({ ...prev, selection: undefined }));
   };
 
   const handleProcedureSelectionChange = (procedureIds: string[], totalMillis: number) => {
     setSelectedProcedureIds(procedureIds);
     setTotalAmountMillis(totalMillis);
-    setFieldErrors((prev) => ({ ...prev, selection: undefined }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!transfer) return;
-    // BSM-022 — the dialog sends what it holds; the backend judges it (BSM-030).
+    // The dialog sends what it holds; the backend judges it (BSM-030).
     setFieldErrors({});
 
     setSubmitting(true);
@@ -134,7 +142,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
       if (result.success) {
         // BSM-032 — an edit that changed nothing closes silently.
         if (result.data.outcome === "Updated") {
-          toastService.show("success", t("transfer.edit.success"));
+          toastService.show("success", t(`transfer.${kind}.updated`));
         }
         onClose();
       } else {
@@ -144,11 +152,19 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
       }
     } catch (error) {
       logger.error("[useEditBankTransferModal] Exception", { error });
-      toastService.show("error", t("transfer.edit.error_unknown"));
+      toastService.show("error", t("transfer.error_unknown"));
     } finally {
       setSubmitting(false);
     }
   };
+
+  // #642 — an edited date or selection: closing asks first.
+  const selectedIds = isFund ? selectedGroupIds : selectedProcedureIds;
+  const isDirty =
+    transfer !== null &&
+    (transferDate !== transfer.transfer_date ||
+      selectedIds.length !== initialIds.length ||
+      selectedIds.some((id) => !initialIds.includes(id)));
 
   return {
     transferDate,
@@ -161,6 +177,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
     submitting,
     fieldErrors,
     isFund,
+    isDirty,
     handleFundGroupSelectionChange,
     handleProcedureSelectionChange,
     handleSubmit,

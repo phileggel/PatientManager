@@ -123,34 +123,20 @@
     }
   },
   "transfer": {
-    "date": "Date du virement *",
-    "amount": "Montant *",
-    "type": "Type *",
-    "select_type": "Sélectionner un type",
-    "type_fund": "Caisse",
+    "date": "Date du virement",
+    "payment_date": "Date du paiement",
+    "payment_method": "Moyen de paiement",
     "type_check": "Chèque",
-    "type_credit_card": "Carte de crédit",
+    "type_credit_card": "Carte bancaire",
     "type_cash": "Espèces",
-    "selected_fund": "Caisse : {{name}}",
-    "no_fund": "Aucune caisse sélectionnée",
-    "change_fund": "Modifier la caisse",
-    "select_fund": "Sélectionner la caisse",
-    "selected_patient": "Patient : {{name}}",
-    "no_patient": "Aucun patient sélectionné",
-    "change_patient": "Modifier le patient",
-    "select_patient": "Sélectionner le patient",
-    "bank_account": "Compte bancaire *",
+    "bank_account": "Compte bancaire",
     "select_bank_account": "Sélectionner un compte bancaire",
-    "computed_amount": "Montant total :",
-    "create_button": "Créer le virement",
-    "creating": "Création...",
     "select_groups": {
-      "label": "Groupes de paiement fond à rapprocher",
+      "label": "Groupes de paiement à rapprocher",
       "loading": "Chargement des groupes...",
       "empty": "Aucun groupe disponible dans les 7 jours. Cliquez sur « Élargir » pour voir tous les groupes.",
       "empty_all": "Aucun groupe non rapproché trouvé.",
       "expand": "Élargir la recherche",
-      "selected": "{{count}} groupe(s) sélectionné(s)",
       "current": "Groupes actuellement liés",
       "filter_placeholder": "Filtrer par caisse (nom ou identifiant)…"
     },
@@ -161,75 +147,72 @@
       "empty_all": "Aucun acte en statut Créé trouvé.",
       "expand": "Élargir la recherche",
       "current": "Actes actuellement liés",
-      "selected": "{{count}} acte(s) sélectionné(s)",
       "filter_placeholder": "Rechercher par patient, NIR ou date…"
-    },
-    "manager": {
-      "title": "Virements Bancaires",
-      "search_placeholder": "Rechercher un virement...",
-      "panel_title": "Créer un virement",
-      "panel_description": "Ajouter un nouveau virement bancaire.",
-      "delete": {
-        "title": "Supprimer le virement bancaire ?",
-        "message": "Êtes-vous sûr de vouloir supprimer ce virement bancaire ? Cette action est irréversible.",
-        "confirm": "Supprimer",
-        "cancel": "Annuler"
-      },
-      "success": {
-        "deleted": "Virement bancaire supprimé avec succès"
-      }
     },
     "list": {
       "loading": "Chargement...",
-      "empty": "Aucun virement bancaire. Créez-en un via le formulaire.",
-      "edit_aria_label": "Modifier le virement {{date}} {{amount}}",
-      "delete_aria_label": "Supprimer le virement {{date}} {{amount}}",
       "columns": {
         "date": "Date",
         "amount": "Montant",
-        "type": "Type",
-        "bank_account": "Compte bancaire",
-        "source": "Source"
+        "payment_method": "Moyen de paiement",
+        "bank_account": "Compte bancaire"
       }
     },
-    "edit": {
-      "title": "Modifier le virement bancaire",
-      "update": "Mettre à jour",
-      "success": "Virement bancaire mis à jour avec succès",
-      "error_unknown": "Une erreur inattendue s'est produite",
-      "error_invalid_account": "Le compte bancaire sélectionné est invalide"
+    "abandon": {
+      "confirm": "Abandonner",
+      "cancel": "Continuer la saisie",
+      "message_edit": "Les modifications ne seront pas enregistrées."
     },
-    "add": {
-      "success": "Virement bancaire créé avec succès !",
-      "error_unknown": "Une erreur inattendue s'est produite"
+    "delete": {
+      "confirm": "Supprimer",
+      "cancel": "Annuler"
+    },
+    "error_unknown": "Une erreur inattendue s'est produite",
+    "direct": {
+      "title": "Paiements directs",
+      "search_placeholder": "Rechercher un paiement…",
+      "empty": "Aucun paiement direct. Ajoutez-en un avec le bouton +.",
+      "add_title": "Enregistrer un paiement",
+      "edit_title": "Modifier le paiement",
+      "save": "Enregistrer le paiement",
+      "save_amount": "Enregistrer le paiement de {{amount}}",
+      "update": "Mettre à jour le paiement",
+      "update_amount": "Mettre à jour le paiement de {{amount}}",
+      "added": "Paiement enregistré",
+      "updated": "Paiement mis à jour",
+      "deleted": "Paiement supprimé",
+      "edit_aria_label": "Modifier le paiement du {{date}} de {{amount}}",
+      "delete_aria_label": "Supprimer le paiement du {{date}} de {{amount}}",
+      "delete_title": "Supprimer le paiement ?",
+      "delete_message": "Êtes-vous sûr de vouloir supprimer ce paiement ? Cette action est irréversible.",
+      "abandon_title": "Abandonner ce paiement ?",
+      "abandon_message": "Le paiement saisi ne sera pas enregistré."
+    },
+    "fund": {
+      "title": "Virements de caisse",
+      "search_placeholder": "Rechercher un virement…",
+      "empty": "Aucun virement de caisse. Ajoutez-en un avec le bouton +.",
+      "add_title": "Enregistrer un virement de caisse",
+      "edit_title": "Modifier le virement de caisse",
+      "save": "Enregistrer le virement",
+      "save_amount": "Enregistrer le virement de {{amount}}",
+      "update": "Mettre à jour le virement",
+      "update_amount": "Mettre à jour le virement de {{amount}}",
+      "added": "Virement de caisse enregistré",
+      "updated": "Virement de caisse mis à jour",
+      "deleted": "Virement de caisse supprimé",
+      "edit_aria_label": "Modifier le virement du {{date}} de {{amount}}",
+      "delete_aria_label": "Supprimer le virement du {{date}} de {{amount}}",
+      "delete_title": "Supprimer le virement de caisse ?",
+      "delete_message": "Êtes-vous sûr de vouloir supprimer ce virement de caisse ? Cette action est irréversible.",
+      "abandon_title": "Abandonner ce virement ?",
+      "abandon_message": "Le virement saisi ne sera pas enregistré."
     },
     "validate": {
       "date_required": "La date du virement est obligatoire",
       "date_invalid": "Saisissez une date valide",
       "bank_account_required": "Le compte bancaire est obligatoire",
       "no_items_selected": "Veuillez sélectionner au moins un groupe ou un acte"
-    },
-    "select_fund_modal": {
-      "title": "Sélectionner une caisse",
-      "search_placeholder": "Rechercher par nom ou identifiant...",
-      "empty": "Aucune caisse disponible",
-      "no_match": "Aucune caisse correspondante",
-      "columns": {
-        "name": "Nom",
-        "identifier": "Identifiant"
-      }
-    },
-    "select_patient_modal": {
-      "title": "Sélectionner un patient",
-      "search_placeholder": "Rechercher par nom ou INS...",
-      "empty": "Aucun patient disponible",
-      "no_match": "Aucun patient correspondant",
-      "na": "N/A",
-      "columns": {
-        "name": "Nom",
-        "ssn": "INS",
-        "latest_date": "Dernière date"
-      }
     }
   },
   "account": {
