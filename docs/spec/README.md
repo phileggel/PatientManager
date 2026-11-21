@@ -24,6 +24,7 @@ Once assigned, a rule number never changes; a removed rule leaves its number vac
 | --------- | --------------------------- | ------------------------------------------------------------------------------------- |
 | **REF**   | Overpayment Management      | Manual refund recording and tracking for overpaid procedures                          |
 | **FPA**   | Fund Payment Auto-Match     | Automatic matching of fund payments to procedures                                     |
+| **FPM**   | Fund Payment Manual Match   | Manual management of fund payment groups                                              |
 | **BAS**   | Bank Statement Auto-Match   | Automatic reconciliation of bank statements with transfers                            |
 | **BSM**   | Bank Statement Manual Match | Manual matching and exception handling for bank statements                            |
 | **PRO**   | Procedure Orchestration     | Cross-context procedure workflow coordination                                         |

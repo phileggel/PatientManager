@@ -135,7 +135,7 @@ The aggregate root of the procedure context. Represents a single healthcare proc
 
 ### Open procedure
 
-A procedure eligible for direct settlement from the bank reconciliation (`bank-statement-auto-match` BAS-112): its fund is known, its `payment_status` is `Created`, it belongs to no active fund-payment-group line, and it carries a positive `billed_amount`. Used by the bank-born-group flow (BAS-115) for funds that never issue a bordereau.
+A procedure eligible for direct settlement from the bank reconciliation (`bank-statement-auto-match` BAS-112): its fund is known, its `payment_status` is `Created`, it belongs to no fund-payment-group line, and it carries a positive `billed_amount`. Used by the bank-born-group flow (BAS-115) for funds that never issue a bordereau.
 
 > Status: confirmed (2026-07-31)
 
@@ -180,7 +180,7 @@ Lifecycle/reconciliation status of a `Procedure`.
 - `Created` — procedure created, awaiting reconciliation.
 - `Reconciled` — associated with a fund payment group, awaiting bank confirmation.
 - `PartiallyReconciled` — fund payment group associated but actual amount ≠ invoiced amount.
-- `DirectlyPaid` — paid directly (cash/card) by the patient, no fund reconciliation.
+- `DirectlyPaid` — paid directly (cash, check or card) by the patient, no fund reconciliation.
 - `FundPaid` — bank transfer confirmed for a fully reconciled procedure.
 - `PartiallyFundPaid` — bank transfer confirmed for a partially reconciled procedure.
 - `ImportDirectlyPaid` — imported from Excel as directly paid (ES/CH); non-blocking re-import.
@@ -205,7 +205,7 @@ A **derived** attribute on a `Procedure` (PRO-310; the screen computes it until 
 How a procedure's payment was made. Shared between regular and refund procedures.
 
 - `None` — no payment information.
-- `Cash` — electronic payment (ES code in Excel imports).
+- `Cash` — payment in cash (ES code in Excel imports).
 - `Check` — cheque payment (CH code in Excel imports).
 - `BankCard` — credit/debit card.
 - `BankTransfer` — bank transfer (inferred when `confirmed_payment_date` is set without

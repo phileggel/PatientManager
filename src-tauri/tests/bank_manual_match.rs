@@ -381,6 +381,52 @@ async fn test_640_bsm_027_a_fund_wire_is_refused_as_a_direct_payment() {
     assert_eq!(status, "CREATED");
 }
 
+/// BSM-027's order (#720): the field refusals come first, and no selected
+/// procedure is judged before the wrong type is refused.
+#[tokio::test]
+async fn test_720_bsm_027_a_fund_wire_as_a_direct_payment_is_refused_in_its_order() {
+    let (orchestrator, pool) = setup().await;
+    seed_open_procedure(&pool).await;
+    sqlx::query(r#"UPDATE "procedure" SET payment_status = 'DIRECTLY_PAYED' WHERE id = 'proc-1'"#)
+        .execute(&pool)
+        .await
+        .expect("a procedure that is not Created");
+
+    // Bad fields: answered before the type.
+    let err = orchestrator
+        .create_direct_transfer(
+            "".to_string(),
+            "not-a-date".to_string(),
+            BankEntryType::FundWire,
+            vec!["proc-1".to_string()],
+        )
+        .await
+        .expect_err("refused for its fields");
+    assert_eq!(
+        reasons(err),
+        vec![
+            BankEntryInvalidReason::AccountMissing,
+            BankEntryInvalidReason::DateInvalid,
+        ]
+    );
+
+    // Good fields, a procedure that is not Created: the type is refused first.
+    let err = orchestrator
+        .create_direct_transfer(
+            "any-account".to_string(),
+            "2026-03-10".to_string(),
+            BankEntryType::FundWire,
+            vec!["proc-1".to_string()],
+        )
+        .await
+        .expect_err("refused for its type");
+    assert!(matches!(
+        err,
+        BankManualMatchError::Task(BankManualMatchTask::WrongTransferType)
+    ));
+    assert_eq!(bank_entry_count(&pool).await, 0);
+}
+
 fn group_already_confirmed(err: BankManualMatchError) -> String {
     match err {
         BankManualMatchError::Fund(FundError::BankPaymentAlreadyConfirmed {

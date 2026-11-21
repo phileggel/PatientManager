@@ -2,7 +2,7 @@
 
 > Domain: procedure-orchestration
 > Backend module: use_cases/procedure_orchestration
-> Last updated by: procedure-orchestration spec, tracking written with the procedure (#705), 2026-11-21
+> Last updated by: `procedure-orchestration` spec (#720), 2026-11-22
 
 ## Commands
 
@@ -12,7 +12,7 @@ Returns all procedures, by procedure date ascending (PRO-170; today unordered, t
 
 - **Args:** —
 - **Returns:** `Vec<Procedure>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -20,7 +20,7 @@ Returns all procedures, by procedure date ascending (PRO-170; today unordered, t
 
 Creates a new procedure. Validates mandatory fields, every missing or malformed one at once (PRO-125, PRO-200) and checks FK existence for `patient_id`, `procedure_type_id`, and optionally `fund_id` (PRO-210). `payment_method` is always `None` at creation via the frontend form (PRO-220). Initial status is always `Created` (PRO-230). Updates patient tracking fields if the new procedure is the most recent (PRO-260), written with the procedure: a failed update leaves no procedure (PRO-260A).
 
-- **Args:** `patient_id: String, fund_id: String, procedure_type_id: String, procedure_date: String, billed_amount: i64`
+- **Args:** `patient_id: String, fund_id: Option<String>, procedure_type_id: String, procedure_date: String, billed_amount: i64`
 - **Returns:** `Procedure`
 - **Errors:** `ProcedureInvalid { reasons: Vec<ProcedureInvalidReason> }` (nothing written), `PatientNotFound`, `ProcedureTypeNotFound`, `FundNotFound`, `DatabaseError` (nothing written, PRO-260A)
 
@@ -62,7 +62,7 @@ Returns procedures by a list of IDs. Used by features that need to resolve proce
 
 - **Args:** `ids: Vec<String>`
 - **Returns:** `Vec<Procedure>`
-- **Errors:** —
+- **Errors:** `DatabaseError`
 
 ---
 
@@ -168,3 +168,4 @@ A creation or deletion that fails raises neither (PRO-260A, PRO-270A).
 - 2026-11-14 — #646: the spec holds business rules only; references follow (PRO-170, PRO-190, PRO-030A–C). No signature, type or error change.
 - 2026-11-15 — #606: `PatientUpdated` after the tracking writes of `add_procedure` and `delete_procedure` (PRO-260, PRO-270).
 - 2026-11-21 — #705: `add_procedure` and `delete_procedure` write the procedure and its patient's tracking together (PRO-260A, PRO-270A); `add_procedure` lists `DatabaseError`.
+- 2026-11-22 — #720: `read_all_procedures` and `read_procedures_by_ids` list `DatabaseError`; `add_procedure`'s `fund_id` is optional, as the command takes it.

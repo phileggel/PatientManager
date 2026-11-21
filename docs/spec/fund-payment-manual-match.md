@@ -19,7 +19,7 @@ This document covers exclusively the **manual flow**: creating, editing, and del
 
 A group becomes locked as soon as one of its procedures reaches Stage 2 (see FPM-330).
 
-> **Declared exception (2026-07-31)** — bank-born groups (`bank-statement-auto-match` BAS-115): for a fund that never issues a bordereau, Stage 1 is folded into the bank validate — the procedure moves `Created` → `FundPaid` in one step, with `fund_reconciliation_date` and `actual_payment_amount` populated at that moment, and the group is born already at Stage 2 (locked, `BankPayed`).
+> **Declared exception (2026-07-31)** — bank-born groups (`bank-statement-auto-match` BAS-115; a wire entered by hand, `bank-statement-manual-match` BSM-051): for a fund that never issues a bordereau, Stage 1 is folded into the bank settlement — the procedure moves `Created` → `FundPaid` in one step, with `fund_reconciliation_date` and `paid_amount` populated at that moment, and the group is born already at Stage 2 (locked, `BankPaid`).
 
 ### Procedure eligibility (100–110)
 
