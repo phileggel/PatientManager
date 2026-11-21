@@ -11,4 +11,7 @@ pub use api::*;
 pub use deletion::DeletionOrchestrator;
 pub use error::*;
 pub use service::*;
-pub use uow::{DeletionOperation, DeletionTransactionManager, DeletionUnitOfWork};
+pub use uow::{
+    DeletionOperation, DeletionTransactionManager, DeletionUnitOfWork, ProcedureTrackingOperation,
+    ProcedureTrackingTransactionManager, ProcedureTrackingUnitOfWork,
+};

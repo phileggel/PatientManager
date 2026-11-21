@@ -166,6 +166,28 @@ impl SqliteProcedureRepository {
         Ok(())
     }
 
+    /// Delete one procedure on a connection the caller owns (ADR-003). False when
+    /// no row matched or a payment record still refers to it (PRO-030).
+    pub async fn delete_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<bool> {
+        match sqlx::query!("DELETE FROM procedure WHERE id = $1", id)
+            .execute(conn)
+            .await
+        {
+            Ok(result) => Ok(result.rows_affected() > 0),
+            Err(sqlx::Error::Database(e)) if e.is_foreign_key_violation() => Ok(false),
+            Err(e) => Err(e).with_context(|| anyhow!("Failed to delete procedure {id}")),
+        }
+    }
+
+    /// Whether a procedure is stored, on a connection the caller owns (ADR-003).
+    pub async fn exists_in(conn: &mut sqlx::SqliteConnection, id: &str) -> anyhow::Result<bool> {
+        let found = sqlx::query_scalar!("SELECT 1 AS found FROM procedure WHERE id = $1", id)
+            .fetch_optional(conn)
+            .await
+            .with_context(|| anyhow!("Failed to look up procedure {id}"))?;
+        Ok(found.is_some())
+    }
+
     /// Delete every procedure of a month (YYYY-MM)
     /// on a connection the caller owns (ADR-003). Returns the number of rows deleted.
     pub async fn delete_by_month_in(
@@ -481,14 +503,12 @@ impl ProcedureRepository for SqliteProcedureRepository {
 
         // PRO-030 — the foreign keys refuse a row a payment line, a bank link or a refund
         // record still refers to, so this repository names no other context's table.
-        match sqlx::query!("DELETE FROM procedure WHERE id = $1", id)
-            .execute(&self.pool)
+        let mut conn = self
+            .pool
+            .acquire()
             .await
-        {
-            Ok(result) => Ok(result.rows_affected() > 0),
-            Err(sqlx::Error::Database(e)) if e.is_foreign_key_violation() => Ok(false),
-            Err(e) => Err(e).with_context(|| anyhow!("Failed to delete procedure")),
-        }
+            .context("Failed to acquire a connection to delete a procedure")?;
+        Self::delete_in(&mut conn, id).await
     }
 
     async fn find_procedures_by_ssn_and_date_range(

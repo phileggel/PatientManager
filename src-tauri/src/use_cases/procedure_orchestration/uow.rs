@@ -1,10 +1,13 @@
-//! Unit of work for deleting a procedure type, a fund or a patient (ADR-003,
-//! PRO-280, PRO-290, PRO-296).
+//! Units of work of the procedure orchestration (ADR-003): deleting a procedure
+//! type, a fund or a patient (PRO-280, PRO-290, PRO-296), and creating or
+//! deleting a procedure with its patient's tracking (#705).
 //!
 //! A deletion writes two bounded contexts: the procedure type or the fund is
 //! deleted, and the patients whose latest-procedure defaults name it lose them.
 //! All of it happens, or none.
 
+use crate::context::patient::Patient;
+use crate::context::procedure::Procedure;
 use crate::shared::uow::UnitOfWorkFuture;
 
 /// The writes a deletion makes, on one transaction.
@@ -45,4 +48,28 @@ pub type DeletionOperation =
 #[async_trait::async_trait]
 pub trait DeletionTransactionManager: Send + Sync {
     async fn run(&self, operation: DeletionOperation) -> anyhow::Result<()>;
+}
+
+/// #705 — creating or deleting a procedure writes two bounded contexts: the
+/// procedure (procedure) and its patient's latest-procedure tracking (patient).
+/// Both happen, or neither (ADR-003).
+#[async_trait::async_trait]
+pub trait ProcedureTrackingUnitOfWork: Send {
+    async fn insert_procedure(&mut self, procedure: &Procedure) -> anyhow::Result<()>;
+    /// False when a payment record still refers to it, or no row matched (PRO-030).
+    async fn delete_procedure(&mut self, procedure_id: &str) -> anyhow::Result<bool>;
+    /// Whether the refused procedure is still stored: then a reference refused it.
+    async fn procedure_exists(&mut self, procedure_id: &str) -> anyhow::Result<bool>;
+    async fn update_patient(&mut self, patient: &Patient) -> anyhow::Result<()>;
+}
+
+/// What the orchestrator asks to run atomically.
+pub type ProcedureTrackingOperation =
+    Box<dyn for<'a> FnOnce(&'a mut dyn ProcedureTrackingUnitOfWork) -> UnitOfWorkFuture<'a> + Send>;
+
+/// Runs an operation in one transaction: committed when it returns `Ok`,
+/// rolled back when it returns `Err`.
+#[async_trait::async_trait]
+pub trait ProcedureTrackingTransactionManager: Send + Sync {
+    async fn run(&self, operation: ProcedureTrackingOperation) -> anyhow::Result<()>;
 }

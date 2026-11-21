@@ -158,6 +158,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         fund_repository.clone(),
         procedure_refund_repository.clone(),
         patient_service.clone(),
+        Arc::new(SqlxTransactionManager::new(db.get_pool().clone())),
     ));
     tracing::info!(target: BACKEND, "Procedure orchestration service created");
 

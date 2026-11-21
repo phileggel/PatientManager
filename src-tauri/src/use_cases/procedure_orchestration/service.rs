@@ -11,6 +11,7 @@ use crate::context::procedure::{
 use crate::shared::logger::BACKEND;
 
 use super::error::{ProcedureOrchestrationError, ProcedureOrchestrationTask};
+use super::uow::ProcedureTrackingTransactionManager;
 
 /// Orchestration service for healthcare procedures
 ///
@@ -26,6 +27,8 @@ pub struct ProcedureOrchestrationService {
     fund_repository: Arc<dyn FundRepository>,
     procedure_refund_repository: Arc<dyn ProcedureRefundRepository>,
     patient_service: Arc<PatientService>,
+    /// #705 — a procedure and its patient's tracking, written as one.
+    tracking: Arc<dyn ProcedureTrackingTransactionManager>,
 }
 
 impl ProcedureOrchestrationService {
@@ -37,6 +40,7 @@ impl ProcedureOrchestrationService {
         fund_repository: Arc<dyn FundRepository>,
         procedure_refund_repository: Arc<dyn ProcedureRefundRepository>,
         patient_service: Arc<PatientService>,
+        tracking: Arc<dyn ProcedureTrackingTransactionManager>,
     ) -> Self {
         ProcedureOrchestrationService {
             context_procedure_service,
@@ -45,6 +49,7 @@ impl ProcedureOrchestrationService {
             fund_repository,
             procedure_refund_repository,
             patient_service,
+            tracking,
         }
     }
 
@@ -133,47 +138,57 @@ impl ProcedureOrchestrationService {
             req.fund_id.as_deref(),
         );
 
-        // Delegate to context service for state change (which publishes event).
-        let procedure = self
-            .context_procedure_service
-            .create_procedure(
-                req.patient_id.clone(),
-                req.fund_id.clone(),
-                req.procedure_type_id.clone(),
-                req.procedure_date,
-                req.billed_amount,
-                mapped_payment_method,
-                None,
-                req.confirmed_payment_date,
-                req.paid_amount,
-                status,
-            )
-            .await?;
+        let procedure = Procedure::new(
+            req.patient_id.clone(),
+            req.fund_id.clone(),
+            req.procedure_type_id.clone(),
+            req.procedure_date,
+            req.billed_amount,
+            mapped_payment_method,
+            None,
+            req.confirmed_payment_date,
+            req.paid_amount,
+            status,
+        )?;
 
         // Update patient tracking if date is newer (cross-context side effect)
-        let mut updated_patient = patient.clone();
         let should_update_tracking = patient
             .latest_date
             .as_ref()
             .map(|latest| &procedure.procedure_date > latest)
             .unwrap_or(true); // If no latest_date, this is the first procedure
+        let tracked_patient = should_update_tracking.then(|| {
+            let mut updated = patient.clone();
+            updated.latest_date = Some(procedure.procedure_date);
+            updated.latest_procedure_type = Some(req.procedure_type_id.clone());
+            updated.latest_procedure_amount = Some(req.billed_amount);
+            updated.latest_fund = req.fund_id.clone();
+            updated
+        });
 
-        if should_update_tracking {
-            updated_patient.latest_date = Some(procedure.procedure_date);
-            updated_patient.latest_procedure_type = Some(req.procedure_type_id.clone());
-            updated_patient.latest_procedure_amount = Some(req.billed_amount);
-            updated_patient.latest_fund = req.fund_id.clone();
+        // #705 — the procedure and its patient's tracking are written as one (ADR-003).
+        let to_insert = procedure.clone();
+        let to_track = tracked_patient.clone();
+        self.tracking
+            .run(Box::new(move |uow| {
+                Box::pin(async move {
+                    uow.insert_procedure(&to_insert).await?;
+                    if let Some(patient) = to_track {
+                        uow.update_patient(&patient).await?;
+                    }
+                    Ok(())
+                })
+            }))
+            .await
+            .map_err(|e| {
+                tracing::error!(target: BACKEND, err = ?e, "create_procedure: unit of work failed");
+                ProcedureOrchestrationTask::DatabaseError
+            })?;
 
-            self.patient_repository
-                .update_patient(updated_patient)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "create_procedure: update_patient tracking failed");
-                    ProcedureOrchestrationTask::DatabaseError
-                })?;
+        self.context_procedure_service.notify_procedures_updated();
+        if tracked_patient.is_some() {
             // #606 — the tracking fields changed: the patient cache must follow (PRO-260).
             self.patient_service.notify_patients_updated();
-
             tracing::debug!(
                 target: BACKEND,
                 patient_id = %req.patient_id,
@@ -341,12 +356,13 @@ impl ProcedureOrchestrationService {
     /// Delete a healthcare procedure with patient tracking cleanup
     ///
     /// Orchestration responsibilities:
-    /// 1. Rejects deletion for procedures linked to a payment group or bank transaction (R5)
-    /// 2. Clears patient tracking fields if the patient has no remaining procedures (R20)
+    /// 1. Rejects deletion of a procedure a payment status or record holds (PRO-030A–C)
+    /// 2. Recomputes, or clears, the patient's tracking fields (PRO-270), written with
+    ///    the delete (PRO-270A)
     pub async fn delete_procedure(&self, id: &str) -> Result<(), ProcedureOrchestrationError> {
         tracing::debug!(target: BACKEND, procedure_id = %id, "Deleting healthcare procedure");
 
-        // Guard: reject deletion for procedures linked to a payment (R5)
+        // Guard: reject deletion for procedures linked to a payment (PRO-030A)
         let procedure = self
             .context_procedure_service
             .read_procedure(id)
@@ -365,35 +381,16 @@ impl ProcedureOrchestrationService {
             return Err(ProcedureOrchestrationTask::ProcedureDeleteBlocked.into());
         }
 
-        // Delegate to context service for state change (which publishes event).
-        // PRO-030 — a payment record still referring to it refuses the delete as
-        // its status would.
-        if !self.context_procedure_service.delete_procedure(id).await? {
-            // Gone since the read above, or still referred to.
-            if self
-                .context_procedure_service
-                .read_procedure(id)
-                .await?
-                .is_none()
-            {
-                return Err(ProcedureError::ProcedureNotFound {
-                    procedure_id: id.to_string(),
-                }
-                .into());
-            }
-            tracing::warn!(target: BACKEND, procedure_id = %id, "Delete blocked: a payment record refers to the procedure");
-            return Err(ProcedureOrchestrationTask::ProcedureDeleteBlocked.into());
-        }
-
-        tracing::debug!(target: BACKEND, procedure_id = %id, "Procedure deleted successfully");
-
-        // Recalculate patient tracking after deletion (cross-context side effect, R20)
-        let remaining = self
+        // Recalculate patient tracking without it (cross-context side effect, R20)
+        let remaining: Vec<Procedure> = self
             .context_procedure_service
             .read_procedures_by_patient_id(&procedure.patient_id)
-            .await?;
+            .await?
+            .into_iter()
+            .filter(|p| p.id != procedure.id)
+            .collect();
 
-        if let Some(patient) = self
+        let tracked_patient = self
             .patient_repository
             .read_patient(&procedure.patient_id)
             .await
@@ -401,29 +398,64 @@ impl ProcedureOrchestrationService {
                 tracing::error!(target: BACKEND, err = ?e, "delete_procedure: read_patient failed");
                 ProcedureOrchestrationTask::DatabaseError
             })?
-        {
-            let mut updated = patient;
-            if remaining.is_empty() {
-                updated.latest_date = None;
-                updated.latest_procedure_type = None;
-                updated.latest_fund = None;
-                updated.latest_procedure_amount = None;
-            } else if let Some(new_latest) = remaining
-                .iter()
-                .max_by(|a, b| a.procedure_date.cmp(&b.procedure_date))
-            {
-                updated.latest_date = Some(new_latest.procedure_date);
-                updated.latest_procedure_type = Some(new_latest.procedure_type_id.clone());
-                updated.latest_fund = new_latest.fund_id.clone();
-                updated.latest_procedure_amount = Some(new_latest.billed_amount);
-            }
-            self.patient_repository
-                .update_patient(updated)
-                .await
-                .map_err(|e| {
-                    tracing::error!(target: BACKEND, err = ?e, "delete_procedure: update_patient tracking failed");
-                    ProcedureOrchestrationTask::DatabaseError
-                })?;
+            .map(|patient| {
+                let mut updated = patient;
+                if remaining.is_empty() {
+                    updated.latest_date = None;
+                    updated.latest_procedure_type = None;
+                    updated.latest_fund = None;
+                    updated.latest_procedure_amount = None;
+                } else if let Some(new_latest) = remaining
+                    .iter()
+                    .max_by(|a, b| a.procedure_date.cmp(&b.procedure_date))
+                {
+                    updated.latest_date = Some(new_latest.procedure_date);
+                    updated.latest_procedure_type = Some(new_latest.procedure_type_id.clone());
+                    updated.latest_fund = new_latest.fund_id.clone();
+                    updated.latest_procedure_amount = Some(new_latest.billed_amount);
+                }
+                updated
+            });
+
+        // #705 — the delete and the patient's tracking are written as one (ADR-003).
+        // PRO-030 — a payment record still referring to it refuses the delete as
+        // its status would.
+        let procedure_id = id.to_string();
+        let to_track = tracked_patient.clone();
+        self.tracking
+            .run(Box::new(move |uow| {
+                Box::pin(async move {
+                    if !uow.delete_procedure(&procedure_id).await? {
+                        // Gone since the read above, or still referred to.
+                        if !uow.procedure_exists(&procedure_id).await? {
+                            return Err(ProcedureError::ProcedureNotFound { procedure_id }.into());
+                        }
+                        tracing::warn!(target: BACKEND, procedure_id = %procedure_id, "Delete blocked: a payment record refers to the procedure");
+                        return Err(ProcedureOrchestrationTask::ProcedureDeleteBlocked.into());
+                    }
+                    if let Some(patient) = to_track {
+                        uow.update_patient(&patient).await?;
+                    }
+                    Ok(())
+                })
+            }))
+            .await
+            .map_err(|e| -> ProcedureOrchestrationError {
+                match e.downcast::<ProcedureOrchestrationTask>() {
+                    Ok(refusal) => refusal.into(),
+                    Err(e) => match e.downcast::<ProcedureError>() {
+                        Ok(not_found) => not_found.into(),
+                        Err(e) => {
+                            tracing::error!(target: BACKEND, err = ?e, "delete_procedure: unit of work failed");
+                            ProcedureOrchestrationTask::DatabaseError.into()
+                        }
+                    },
+                }
+            })?;
+
+        tracing::debug!(target: BACKEND, procedure_id = %id, "Procedure deleted successfully");
+        self.context_procedure_service.notify_procedures_updated();
+        if tracked_patient.is_some() {
             // #606 — the tracking fields changed: the patient cache must follow (PRO-270).
             self.patient_service.notify_patients_updated();
         }
@@ -616,6 +648,98 @@ mod tests {
     use crate::shared::event_bus::{EventBus, PatientUpdated};
     use chrono::NaiveDate;
     use std::sync::{Arc, Mutex};
+
+    use crate::use_cases::procedure_orchestration::uow::{
+        ProcedureTrackingOperation, ProcedureTrackingUnitOfWork,
+    };
+
+    /// #705 — the tracking unit of work replayed on the test's repositories, with no
+    /// transaction: each mock still asserts its write. Atomicity itself is proven on
+    /// SQLite (`sqlx_uow.rs`, `tracking`).
+    struct RepositoryTracking {
+        procedures: Arc<ContextProcedureService>,
+        patients: Arc<dyn PatientRepository>,
+    }
+
+    #[async_trait::async_trait]
+    impl ProcedureTrackingUnitOfWork for RepositoryTracking {
+        async fn insert_procedure(&mut self, p: &Procedure) -> anyhow::Result<()> {
+            self.procedures
+                .create_procedure(
+                    p.patient_id.clone(),
+                    p.fund_id.clone(),
+                    p.procedure_type_id.clone(),
+                    p.procedure_date,
+                    p.billed_amount,
+                    p.payment_method,
+                    p.fund_reconciliation_date,
+                    p.confirmed_payment_date,
+                    p.paid_amount,
+                    p.payment_status,
+                )
+                .await?;
+            Ok(())
+        }
+
+        async fn delete_procedure(&mut self, procedure_id: &str) -> anyhow::Result<bool> {
+            Ok(self.procedures.delete_procedure(procedure_id).await?)
+        }
+
+        async fn procedure_exists(&mut self, procedure_id: &str) -> anyhow::Result<bool> {
+            Ok(self
+                .procedures
+                .read_procedure(procedure_id)
+                .await?
+                .is_some())
+        }
+
+        async fn update_patient(&mut self, patient: &Patient) -> anyhow::Result<()> {
+            self.patients
+                .update_patient(patient.clone())
+                .await
+                .map(|_| ())
+        }
+    }
+
+    struct RepositoryTrackingManager {
+        procedures: Arc<ContextProcedureService>,
+        patients: Arc<dyn PatientRepository>,
+    }
+
+    #[async_trait::async_trait]
+    impl ProcedureTrackingTransactionManager for RepositoryTrackingManager {
+        async fn run(&self, operation: ProcedureTrackingOperation) -> anyhow::Result<()> {
+            let mut uow = RepositoryTracking {
+                procedures: self.procedures.clone(),
+                patients: self.patients.clone(),
+            };
+            operation(&mut uow).await
+        }
+    }
+
+    /// The service as the tests build it, its tracking replayed on their repositories.
+    fn with_repository_tracking(
+        procedures: Arc<ContextProcedureService>,
+        patients: Arc<dyn PatientRepository>,
+        procedure_types: Arc<dyn ProcedureTypeRepository>,
+        funds: Arc<dyn FundRepository>,
+        refunds: Arc<dyn ProcedureRefundRepository>,
+        patient_service: Arc<PatientService>,
+    ) -> ProcedureOrchestrationService {
+        let tracking = Arc::new(RepositoryTrackingManager {
+            procedures: procedures.clone(),
+            patients: patients.clone(),
+        });
+        ProcedureOrchestrationService::new(
+            procedures,
+            patients,
+            procedure_types,
+            funds,
+            refunds,
+            patient_service,
+            tracking,
+        )
+    }
 
     /// Refund-repo mock with all methods returning their no-op default
     /// (no refund record present, no-op writes). Used when the test exercises
@@ -847,7 +971,7 @@ mod tests {
         ));
         let updated_capture = Arc::new(Mutex::new(None));
         let patient_repo = Arc::new(mock_patient_repo(None, updated_capture));
-        ProcedureOrchestrationService::new(
+        with_repository_tracking(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_stub()),
@@ -867,7 +991,7 @@ mod tests {
             Arc::new(mock_proc_repo_passthrough()),
             event_bus,
         ));
-        ProcedureOrchestrationService::new(
+        with_repository_tracking(
             context_service,
             patient_repo,
             type_repo,
@@ -924,7 +1048,7 @@ mod tests {
             event_bus,
         ));
 
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_stub()),
@@ -993,7 +1117,7 @@ mod tests {
             event_bus,
         ));
 
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_stub()),
@@ -1175,7 +1299,7 @@ mod tests {
         let mut patient_updates = patient_bus
             .subscribe::<PatientUpdated>()
             .expect("subscribe");
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_stub()),
@@ -1248,7 +1372,7 @@ mod tests {
         let mut patient_updates = patient_bus
             .subscribe::<PatientUpdated>()
             .expect("subscribe");
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_stub()),
@@ -1302,7 +1426,7 @@ mod tests {
         let mut patient_updates = patient_bus
             .subscribe::<PatientUpdated>()
             .expect("subscribe");
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_with_type()),
@@ -1375,7 +1499,7 @@ mod tests {
         let mut patient_updates = patient_bus
             .subscribe::<PatientUpdated>()
             .expect("subscribe");
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_with_type()),
@@ -1434,7 +1558,7 @@ mod tests {
             event_bus,
         ));
 
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             patient_repo,
             Arc::new(mock_type_repo_stub()),
@@ -1642,7 +1766,7 @@ mod tests {
         repo.expect_read_procedure()
             .returning(move |_| Ok(Some(stored.clone())));
         repo.expect_update_procedure().times(writes).returning(Ok);
-        ProcedureOrchestrationService::new(
+        with_repository_tracking(
             Arc::new(ContextProcedureService::new(
                 Arc::new(repo),
                 Arc::new(EventBus::new()),
@@ -1678,7 +1802,7 @@ mod tests {
         let mut repo = MockProcedureRepository::new();
         repo.expect_read_procedure().returning(|_| Ok(None));
         repo.expect_update_procedure().times(0);
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             Arc::new(ContextProcedureService::new(
                 Arc::new(repo),
                 Arc::new(EventBus::new()),
@@ -1713,7 +1837,7 @@ mod tests {
         repo.expect_read_procedure()
             .returning(move |_| Ok(Some(for_read.clone())));
         repo.expect_update_procedure().times(1).returning(Ok);
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             Arc::new(ContextProcedureService::new(
                 Arc::new(repo),
                 Arc::new(EventBus::new()),
@@ -1738,7 +1862,7 @@ mod tests {
         repo.expect_read_procedure()
             .returning(move |_| Ok(Some(for_read.clone())));
         repo.expect_update_procedure().times(0);
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             Arc::new(ContextProcedureService::new(
                 Arc::new(repo),
                 Arc::new(EventBus::new()),
@@ -1890,11 +2014,13 @@ mod tests {
         repo.expect_read_procedure()
             .returning(move |_| Ok(Some(procedure.clone())));
         repo.expect_delete_procedure().returning(|_| Ok(false));
+        repo.expect_read_procedures_by_patient_id()
+            .returning(|_| Ok(vec![]));
         let context_service = Arc::new(ContextProcedureService::new(
             Arc::new(repo),
             Arc::new(EventBus::new()),
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
@@ -1925,11 +2051,13 @@ mod tests {
             Ok((reads == 1).then(|| procedure.clone()))
         });
         repo.expect_delete_procedure().returning(|_| Ok(false));
+        repo.expect_read_procedures_by_patient_id()
+            .returning(|_| Ok(vec![]));
         let context_service = Arc::new(ContextProcedureService::new(
             Arc::new(repo),
             Arc::new(EventBus::new()),
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
@@ -1955,7 +2083,7 @@ mod tests {
             Arc::new(mock_proc_repo_read_none()),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
@@ -2013,7 +2141,7 @@ mod tests {
             Arc::new(mock_proc_repo_read_none()),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
@@ -2048,7 +2176,7 @@ mod tests {
             Arc::new(mock_proc_repo_with_procedure(refund_proc)),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
@@ -2083,7 +2211,7 @@ mod tests {
             Arc::new(mock_proc_repo_with_procedure(refund_proc)),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
@@ -2231,7 +2359,7 @@ mod tests {
             Arc::new(mock_proc_repo_creating()),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             mock_patient_repo_read_ok_update_err(make_valid_patient()),
             Arc::new(mock_type_repo_with_type()),
@@ -2267,7 +2395,7 @@ mod tests {
             Arc::new(mock_proc_repo_with_procedure(source_proc.clone())),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             make_patient_repo(None),
             Arc::new(mock_type_repo_stub()),
@@ -2292,7 +2420,7 @@ mod tests {
             Arc::new(mock_proc_repo_with_remaining(to_delete.clone(), vec![])),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             mock_patient_repo_db_error(),
             Arc::new(mock_type_repo_stub()),
@@ -2317,7 +2445,7 @@ mod tests {
             Arc::new(mock_proc_repo_with_remaining(to_delete.clone(), vec![])),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             mock_patient_repo_read_ok_update_err(make_valid_patient()),
             Arc::new(mock_type_repo_stub()),
@@ -2341,7 +2469,7 @@ mod tests {
             Arc::new(mock_proc_repo_creating()),
             event_bus,
         ));
-        let orchestrator = ProcedureOrchestrationService::new(
+        let orchestrator = with_repository_tracking(
             context_service,
             mock_patient_repo_db_error(),
             Arc::new(mock_type_repo_stub()),
