@@ -10,7 +10,7 @@
 Atomic transaction (not yet: ADR-002 until #390). Creates the full refund chain in sequence:
 
 1. Refund `Procedure` with negative amount and `OverpaymentRefund` status (REF-090)
-2. Refund `FundPaymentGroup` — `BankPayed`, locked (REF-100)
+2. Refund `FundPaymentGroup` — `BankPaid`, locked (REF-100)
 3. Refund `BankTransfer` — `OutgoingWire` or other (REF-110)
 4. `BankTransferLink` entry (REF-120)
 5. `ProcedureRefund` link (REF-130)
@@ -101,6 +101,7 @@ struct ProcedureRefundInfo {
 
 ## Changelog
 
+- 2026-11-21 — #644: the refund group's status is spelled `BankPaid`, as the glossary.
 - 2026-11-14 — #646: REF-200 is the edit rule of a refund procedure (REF-190 vacant); `get_procedure_refund_by_refund_procedure` cites REF-210, `get_source_bank_account` REF-075; `get_procedure_refund_by_source` has no rule and no caller, its removal owed. No signature, type or error change.
 - 2026-11-01 — The cascades' atomicity marked as not yet shipped (ADR-002 until #390).
 - 2026-11-01 — `get_source_bank_account`: says bank entry, the glossary term.

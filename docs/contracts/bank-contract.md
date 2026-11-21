@@ -16,7 +16,7 @@ Creates a new bank account with a name and an optional IBAN. The IBAN is strippe
 
 ---
 
-### `read_all_bank_accounts` — BAC-016, BAC-041, BAC-042, BAC-055, BAC-073
+### `read_all_bank_accounts` — BAC-041, BAC-055
 
 Returns the `bank` accounts, never a technical one (BAC-055); a deleted account is gone (BAC-041).
 
@@ -146,3 +146,4 @@ enum BankEntryType {
 - 2026-11-08 — `update_bank_transfer`: an entry moved off its own account is refused with `BankAccountNotFound` (BAC-055A, BAC-056, #518).
 - 2026-11-08 — `create_bank_transfer`, `update_bank_transfer`, `read_*_bank_transfer*`: the Errors lines name the codes the code sends (release sweep).
 - 2026-11-08 — `create_bank_transfer`: a direct payment is placed on its technical account; any other entry on a technical account is refused with `BankAccountNotFound` (BAC-055A, BAC-056, #518).
+- 2026-11-21 — #644: `read_all_bank_accounts` no longer cites the vacant BAC-016, BAC-042 and BAC-073.
