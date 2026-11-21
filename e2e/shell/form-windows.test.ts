@@ -1,15 +1,7 @@
 import assert from "node:assert";
 import { $, browser } from "@wdio/globals";
+import { formArea } from "../helpers/layout";
 import { openManagementPage } from "../helpers/navigation";
-
-/** How tall a window's form area is, and how tall its content. */
-async function formArea(formId: string): Promise<{ shown: number; content: number }> {
-  return browser.execute((id) => {
-    const form = document.getElementById(id);
-    if (!form) return { shown: -1, content: -1 };
-    return { shown: form.clientHeight, content: form.scrollHeight };
-  }, formId);
-}
 
 // #738 — under WebKit a form window gave its scrolling area no height: 40 px of
 // padding for a few hundred of content. Chromium (the visual proofs) never showed it.
