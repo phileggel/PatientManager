@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM bank_transfer_fund_group_link WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "dd39dcfe2bb6c593f38eccabece057f90f3a911e7b54581ad482fab1aed693b5"
+}

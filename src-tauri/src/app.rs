@@ -76,9 +76,15 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         .unwrap_or(false);
 
     let db = Arc::new(
-        crate::shared::Database::new(dirs.local_data_dir.clone(), is_db_reset)
-            .await
-            .with_context(|| "Failed to initialize database")?,
+        crate::shared::Database::new_with_steps(
+            dirs.local_data_dir.clone(),
+            is_db_reset,
+            // BSM-038A (#732) — a group settled by several bank entries is repaired
+            // before migration 20261114 would stop on it.
+            &[crate::context::bank::unlink_group_double_links],
+        )
+        .await
+        .with_context(|| "Failed to initialize database")?,
     );
     tracing::info!(target: BACKEND, "Database initialized successfully");
     app.manage(db.clone());

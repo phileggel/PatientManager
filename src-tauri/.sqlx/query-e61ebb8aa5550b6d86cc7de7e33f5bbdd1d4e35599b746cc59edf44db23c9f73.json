@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM bank_transfer_fund_group_link\n         WHERE bank_transfer_id NOT IN (SELECT id FROM bank_transfer)\n           AND fund_payment_group_id IN (\n               SELECT fund_payment_group_id FROM bank_transfer_fund_group_link\n               GROUP BY fund_payment_group_id HAVING COUNT(*) > 1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "e61ebb8aa5550b6d86cc7de7e33f5bbdd1d4e35599b746cc59edf44db23c9f73"
+}
