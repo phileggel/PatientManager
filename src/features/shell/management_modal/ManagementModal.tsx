@@ -1,10 +1,11 @@
+import { ChevronRight } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { logger } from "@/infra/logger";
 import { Dialog } from "@/ui/components";
 import type { Page } from "../types";
-import { useManagementModal } from "./useManagementModal";
+import { type ManagementMenu, useManagementModal } from "./useManagementModal";
 
 const TAG = "[ManagementModal]";
 
@@ -14,13 +15,24 @@ interface ManagementModalProps {
   onNavigate: (page: Page) => void;
 }
 
+/** The `id` of each menu's button (F25, E4). */
+const MENU_IDS: Record<ManagementMenu, string> = {
+  patients: "mgmt-menu-patients",
+  funds_and_procedures: "mgmt-menu-funds-procedures",
+  payments: "mgmt-menu-payments",
+  bank: "mgmt-menu-bank",
+};
+
 /**
- * Management modal — presents the seven list management entry points.
- * Opened from the single "Management" entry in the navigation drawer.
+ * Management window (#711) — a settings-style menu: four menus on the left, the
+ * entries of the chosen one on the right, each opening its page. Opened from the
+ * single "Management" entry in the navigation drawer; it always opens on « Patients ».
  */
 export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModalProps) {
   const { t } = useTranslation("management-modal");
   const {
+    activeMenu,
+    selectMenu,
     handlePatient,
     handlePatientDuplicates,
     handleFunds,
@@ -30,7 +42,7 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
     handleFundWires,
     handleBankAccount,
     handleBankStatementLabels,
-  } = useManagementModal({ onNavigate, onClose });
+  } = useManagementModal({ isOpen, onNavigate, onClose });
 
   useEffect(() => {
     logger.info(TAG, "mounted");
@@ -42,8 +54,42 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
     }
   }, [isOpen]);
 
-  const cardClasses =
-    "w-full text-left flex flex-col gap-1.5 p-4 rounded-xl border border-m3-outline-variant/40 bg-m3-surface-container-high hover:bg-m3-surface-container-highest active:bg-m3-surface-container-highest transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary focus-visible:-outline-offset-2";
+  // Each entry: its stable id, its translation keys' prefix, where it leads.
+  const menus: { menu: ManagementMenu; entries: [string, string, () => void][] }[] = [
+    {
+      menu: "patients",
+      entries: [
+        ["mgmt-card-patients", "patient", handlePatient],
+        // PDU-016
+        ["mgmt-card-patient-duplicates", "patient_duplicates", handlePatientDuplicates],
+      ],
+    },
+    {
+      menu: "funds_and_procedures",
+      entries: [
+        ["mgmt-card-funds", "funds", handleFunds],
+        ["mgmt-card-procedure-types", "procedure_types", handleProcedureTypes],
+      ],
+    },
+    {
+      menu: "payments",
+      entries: [
+        ["mgmt-card-fund-payment", "fund_payment", handleFundPayment],
+        // #642
+        ["mgmt-card-direct-payments", "direct_payments", handleDirectPayments],
+        ["mgmt-card-fund-wires", "fund_wires", handleFundWires],
+      ],
+    },
+    {
+      menu: "bank",
+      entries: [
+        ["mgmt-card-bank-accounts", "bank_account", handleBankAccount],
+        // BAS-041
+        ["mgmt-card-bank-statement-labels", "bank_statement_label", handleBankStatementLabels],
+      ],
+    },
+  ];
+  const entries = menus.find((m) => m.menu === activeMenu)?.entries ?? [];
 
   return (
     <Dialog
@@ -51,142 +97,47 @@ export function ManagementModal({ isOpen, onClose, onNavigate }: ManagementModal
       isOpen={isOpen}
       onClose={onClose}
       title={t("modal_title")}
-      maxWidth="max-w-lg"
+      maxWidth="max-w-2xl"
     >
-      <div className="flex flex-col gap-3 pb-2">
-        {/* Patients */}
-        <button
-          id="mgmt-card-patients"
-          type="button"
-          className={cardClasses}
-          onClick={handlePatient}
-          aria-label={t("patient.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">{t("patient.title")}</span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("patient.description")}
-          </p>
-        </button>
-
-        {/* Patient duplicates (PDU-016) */}
-        <button
-          id="mgmt-card-patient-duplicates"
-          type="button"
-          className={cardClasses}
-          onClick={handlePatientDuplicates}
-          aria-label={t("patient_duplicates.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">
-            {t("patient_duplicates.title")}
-          </span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("patient_duplicates.description")}
-          </p>
-        </button>
-
-        {/* Funds */}
-        <button
-          id="mgmt-card-funds"
-          type="button"
-          className={cardClasses}
-          onClick={handleFunds}
-          aria-label={t("funds.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">{t("funds.title")}</span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("funds.description")}
-          </p>
-        </button>
-
-        {/* Procedure Types */}
-        <button
-          id="mgmt-card-procedure-types"
-          type="button"
-          className={cardClasses}
-          onClick={handleProcedureTypes}
-          aria-label={t("procedure_types.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">
-            {t("procedure_types.title")}
-          </span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("procedure_types.description")}
-          </p>
-        </button>
-
-        {/* Fund Payment */}
-        <button
-          id="mgmt-card-fund-payment"
-          type="button"
-          className={cardClasses}
-          onClick={handleFundPayment}
-          aria-label={t("fund_payment.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">{t("fund_payment.title")}</span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("fund_payment.description")}
-          </p>
-        </button>
-
-        {/* #642 — Direct payments */}
-        <button
-          id="mgmt-card-direct-payments"
-          type="button"
-          className={cardClasses}
-          onClick={handleDirectPayments}
-          aria-label={t("direct_payments.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">
-            {t("direct_payments.title")}
-          </span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("direct_payments.description")}
-          </p>
-        </button>
-
-        {/* #642 — Fund wires */}
-        <button
-          id="mgmt-card-fund-wires"
-          type="button"
-          className={cardClasses}
-          onClick={handleFundWires}
-          aria-label={t("fund_wires.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">{t("fund_wires.title")}</span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("fund_wires.description")}
-          </p>
-        </button>
-
-        {/* Bank Accounts */}
-        <button
-          id="mgmt-card-bank-accounts"
-          type="button"
-          className={cardClasses}
-          onClick={handleBankAccount}
-          aria-label={t("bank_account.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">{t("bank_account.title")}</span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("bank_account.description")}
-          </p>
-        </button>
-
-        {/* Bank statement labels (BAS-041) */}
-        <button
-          id="mgmt-card-bank-statement-labels"
-          type="button"
-          className={cardClasses}
-          onClick={handleBankStatementLabels}
-          aria-label={t("bank_statement_label.title")}
-        >
-          <span className="text-sm font-medium text-m3-on-surface">
-            {t("bank_statement_label.title")}
-          </span>
-          <p className="text-sm text-m3-on-surface-variant leading-relaxed">
-            {t("bank_statement_label.description")}
-          </p>
-        </button>
+      <div className="flex min-h-[320px] gap-3 pb-2">
+        <nav aria-label={t("modal_title")} className="flex w-48 shrink-0 flex-col gap-1">
+          {menus.map(({ menu }) => (
+            <button
+              key={menu}
+              id={MENU_IDS[menu]}
+              type="button"
+              aria-current={menu === activeMenu ? "true" : undefined}
+              onClick={() => selectMenu(menu)}
+              className={`w-full rounded-full px-4 py-2.5 text-left text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary ${
+                menu === activeMenu
+                  ? "bg-m3-secondary-container text-m3-on-secondary-container"
+                  : "text-m3-on-surface-variant hover:bg-m3-surface-container-high"
+              }`}
+            >
+              {t(`menu.${menu}`)}
+            </button>
+          ))}
+        </nav>
+        <div className="flex flex-1 flex-col gap-1 rounded-2xl bg-m3-surface-container-low p-2">
+          {entries.map(([id, key, onClick]) => (
+            <button
+              key={id}
+              id={id}
+              type="button"
+              onClick={onClick}
+              aria-label={t(`${key}.title`)}
+              className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-m3-surface-container-high active:bg-m3-surface-container-highest focus-visible:outline focus-visible:outline-2 focus-visible:outline-m3-primary focus-visible:-outline-offset-2"
+            >
+              <span className="flex flex-1 flex-col gap-0.5">
+                <span className="text-sm font-medium text-m3-on-surface">{t(`${key}.title`)}</span>
+                <span className="text-sm leading-relaxed text-m3-on-surface-variant">
+                  {t(`${key}.description`)}
+                </span>
+              </span>
+              <ChevronRight size={18} className="shrink-0 text-m3-on-surface-variant" />
+            </button>
+          ))}
+        </div>
       </div>
     </Dialog>
   );

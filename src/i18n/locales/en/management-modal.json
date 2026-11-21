@@ -1,5 +1,11 @@
 {
   "modal_title": "Management",
+  "menu": {
+    "patients": "Patients",
+    "funds_and_procedures": "Funds and procedures",
+    "payments": "Payments",
+    "bank": "Bank"
+  },
   "prerequisites": {
     "no_fund": "Create a fund first to access fund payments."
   },
