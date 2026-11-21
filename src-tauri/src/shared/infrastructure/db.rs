@@ -112,6 +112,14 @@ impl Database {
             .await
             .with_context(|| "Failed to heal migration checksums")?;
 
+        // BSM-038A (#725) — a group linked to several bank entries would stop
+        // migration 20261114: repair it first, once the backup above is taken.
+        repair_group_double_links_if_pending(&db.pool)
+            .await
+            .with_context(|| {
+                "Failed to repair fund payment groups linked to several bank entries"
+            })?;
+
         // Apply database migrations on a dedicated connection with foreign-key
         // enforcement DISABLED (gh#67).
         //
@@ -300,6 +308,140 @@ async fn heal_crlf_checksum_drift(pool: &SqlitePool) -> Result<()> {
                 .await?;
         }
     }
+    Ok(())
+}
+
+/// The migration that gives a fund payment group one bank entry at most (BSM-038).
+const ONE_BANK_ENTRY_PER_GROUP_VERSION: i64 = 20261114;
+
+/// BSM-038A (#725) — runs the repair only on a database that already holds the
+/// link table and has not yet taken migration 20261114: once its unique index
+/// exists, no double link can.
+async fn repair_group_double_links_if_pending(pool: &SqlitePool) -> Result<()> {
+    let link_table: Option<String> = sqlx::query_scalar(
+        "SELECT name FROM sqlite_master
+         WHERE type = 'table' AND name = 'bank_transfer_fund_group_link'",
+    )
+    .fetch_optional(pool)
+    .await?;
+    if link_table.is_none() {
+        return Ok(());
+    }
+    let applied: Option<i64> = sqlx::query_scalar(
+        "SELECT version FROM _sqlx_migrations WHERE version = ? AND success = 1",
+    )
+    .bind(ONE_BANK_ENTRY_PER_GROUP_VERSION)
+    .fetch_optional(pool)
+    .await?;
+    if applied.is_some() {
+        return Ok(());
+    }
+    repair_group_double_links(pool).await
+}
+
+/// BSM-038A (owner, 2026-11-21, #725) — leaves every fund payment group with one
+/// bank entry, in one transaction:
+/// - a link to a bank entry that no longer exists is removed;
+/// - of several existing entries, the most recent keeps the group (the latest
+///   date, then the link recorded last). Each other entry loses that link: one
+///   left with nothing is a duplicate and is deleted; one that settles other
+///   groups keeps them, its amount lowered by the group's total.
+///
+/// The group and its procedures are not touched.
+async fn repair_group_double_links(pool: &SqlitePool) -> Result<()> {
+    const TWICE: &str = "SELECT fund_payment_group_id FROM bank_transfer_fund_group_link
+                         GROUP BY fund_payment_group_id HAVING COUNT(*) > 1";
+    let mut tx = pool.begin().await?;
+
+    let orphans = sqlx::query(AssertSqlSafe(format!(
+        "DELETE FROM bank_transfer_fund_group_link
+         WHERE bank_transfer_id NOT IN (SELECT id FROM bank_transfer)
+           AND fund_payment_group_id IN ({TWICE})"
+    )))
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    if orphans > 0 {
+        tracing::warn!(
+            target: BACKEND,
+            links = orphans,
+            "Removed links from a fund payment group to a bank entry that no longer exists"
+        );
+    }
+
+    // The keeper of each group comes first: latest date, then latest link.
+    let links: Vec<(String, String, String)> = sqlx::query_as(AssertSqlSafe(format!(
+        "SELECT l.id, l.bank_transfer_id, l.fund_payment_group_id
+         FROM bank_transfer_fund_group_link l
+         JOIN bank_transfer bt ON bt.id = l.bank_transfer_id
+         WHERE l.fund_payment_group_id IN ({TWICE})
+         ORDER BY l.fund_payment_group_id, bt.transfer_date DESC, l.rowid DESC"
+    )))
+    .fetch_all(&mut *tx)
+    .await?;
+
+    let mut kept: Option<(String, String)> = None; // (group, entry)
+    for (link_id, entry_id, group_id) in links {
+        let keeper = match &kept {
+            Some((group, entry)) if *group == group_id => entry.clone(),
+            _ => {
+                kept = Some((group_id, entry_id));
+                continue;
+            }
+        };
+        sqlx::query("DELETE FROM bank_transfer_fund_group_link WHERE id = ?")
+            .bind(&link_id)
+            .execute(&mut *tx)
+            .await?;
+        if entry_id == keeper {
+            // The same entry linked twice to the group: only the extra link goes.
+            continue;
+        }
+        let other_groups: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM bank_transfer_fund_group_link WHERE bank_transfer_id = ?",
+        )
+        .bind(&entry_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let held_elsewhere: i64 = sqlx::query_scalar(
+            "SELECT (SELECT COUNT(*) FROM bank_transfer_procedure_link WHERE bank_transfer_id = ?1)
+                  + (SELECT COUNT(*) FROM procedure_refund WHERE refund_bank_transfer_id = ?1)",
+        )
+        .bind(&entry_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let outcome = if other_groups > 0 {
+            sqlx::query(
+                "UPDATE bank_transfer
+                 SET amount = amount - COALESCE(
+                     (SELECT total_amount FROM fund_payment_group WHERE id = ?), 0)
+                 WHERE id = ?",
+            )
+            .bind(&group_id)
+            .bind(&entry_id)
+            .execute(&mut *tx)
+            .await?;
+            "amount lowered by the group's total"
+        } else if held_elsewhere > 0 {
+            "kept as it is: procedures or a refund hold it"
+        } else {
+            sqlx::query("DELETE FROM bank_transfer WHERE id = ?")
+                .bind(&entry_id)
+                .execute(&mut *tx)
+                .await?;
+            "deleted as a duplicate"
+        };
+        tracing::warn!(
+            target: BACKEND,
+            fund_payment_group_id = %group_id,
+            kept_bank_entry_id = %keeper,
+            other_bank_entry_id = %entry_id,
+            outcome,
+            "Fund payment group linked to two bank entries: the most recent keeps it"
+        );
+    }
+
+    tx.commit().await?;
     Ok(())
 }
 
@@ -793,5 +935,280 @@ mod tests {
             billed.is_some(),
             "20260524 must backfill billed_amount to non-NULL"
         );
+    }
+
+    // ---- BSM-038A (#725): the repair before migration 20261114 ----
+
+    /// A database upgraded up to, not including, migration 20261114.
+    async fn pool_before_one_bank_entry_per_group() -> SqlitePool {
+        let pool = fresh_pool().await;
+        // Off while seeding, as on the migration connection: the rows of an old
+        // database reference what no longer exists. `repair` turns it back on.
+        sqlx::query("PRAGMA foreign_keys = OFF")
+            .execute(&pool)
+            .await
+            .unwrap();
+        seed_migrations_table(&pool).await;
+        for m in sqlx::migrate!("./migrations")
+            .iter()
+            .filter(|m| m.version < ONE_BANK_ENTRY_PER_GROUP_VERSION)
+        {
+            sqlx::raw_sql(m.sql.clone()).execute(&pool).await.unwrap();
+        }
+        pool
+    }
+
+    /// The repair as start-up runs it: on the pool, foreign keys enforced.
+    async fn repair(pool: &SqlitePool) {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(pool)
+            .await
+            .unwrap();
+        repair_group_double_links_if_pending(pool).await.unwrap();
+    }
+
+    async fn run_one_bank_entry_per_group(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+        let migrator = sqlx::migrate!("./migrations");
+        let m = migrator
+            .iter()
+            .find(|m| m.version == ONE_BANK_ENTRY_PER_GROUP_VERSION)
+            .unwrap();
+        sqlx::raw_sql(m.sql.clone()).execute(pool).await.map(|_| ())
+    }
+
+    async fn seed_entry(pool: &SqlitePool, id: &str, date: &str, amount: i64) {
+        sqlx::query(
+            "INSERT INTO bank_transfer (id, transfer_date, amount, transfer_type, bank_account_id)
+             VALUES (?, ?, ?, 'FUND', 'account-1')",
+        )
+        .bind(id)
+        .bind(date)
+        .bind(amount)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn seed_group(pool: &SqlitePool, id: &str, total: i64) {
+        sqlx::query(
+            "INSERT INTO fund_payment_group (id, fund_id, payment_date, total_amount)
+             VALUES (?, 'fund-1', '2026-01-01', ?)",
+        )
+        .bind(id)
+        .bind(total)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn seed_link(pool: &SqlitePool, id: &str, entry: &str, group: &str) {
+        sqlx::query(
+            "INSERT INTO bank_transfer_fund_group_link (id, bank_transfer_id, fund_payment_group_id)
+             VALUES (?, ?, ?)",
+        )
+        .bind(id)
+        .bind(entry)
+        .bind(group)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    async fn entries_of(pool: &SqlitePool, group: &str) -> Vec<String> {
+        sqlx::query_scalar(
+            "SELECT bank_transfer_id FROM bank_transfer_fund_group_link
+             WHERE fund_payment_group_id = ? ORDER BY bank_transfer_id",
+        )
+        .bind(group)
+        .fetch_all(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn amount_of(pool: &SqlitePool, entry: &str) -> Option<i64> {
+        sqlx::query_scalar("SELECT amount FROM bank_transfer WHERE id = ?")
+            .bind(entry)
+            .fetch_optional(pool)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_725_bsm_038a_a_link_to_a_missing_entry_is_removed_and_the_upgrade_runs() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_group(&pool, "group-1", 10_000).await;
+        seed_entry(&pool, "entry-live", "2026-02-01", 10_000).await;
+        seed_link(&pool, "link-1", "entry-gone", "group-1").await;
+        seed_link(&pool, "link-2", "entry-live", "group-1").await;
+        assert!(
+            run_one_bank_entry_per_group(&pool).await.is_err(),
+            "without the repair the upgrade stops"
+        );
+
+        repair(&pool).await;
+
+        assert_eq!(entries_of(&pool, "group-1").await, vec!["entry-live"]);
+        assert_eq!(amount_of(&pool, "entry-live").await, Some(10_000));
+        run_one_bank_entry_per_group(&pool)
+            .await
+            .expect("the upgrade runs after the repair");
+    }
+
+    #[tokio::test]
+    async fn test_725_bsm_038a_the_most_recent_entry_keeps_the_group_and_a_duplicate_is_deleted() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_group(&pool, "group-1", 10_000).await;
+        seed_entry(&pool, "entry-old", "2026-02-01", 10_000).await;
+        seed_entry(&pool, "entry-new", "2026-02-09", 10_000).await;
+        seed_link(&pool, "link-1", "entry-new", "group-1").await;
+        seed_link(&pool, "link-2", "entry-old", "group-1").await;
+
+        repair(&pool).await;
+
+        assert_eq!(entries_of(&pool, "group-1").await, vec!["entry-new"]);
+        assert_eq!(
+            amount_of(&pool, "entry-old").await,
+            None,
+            "the duplicate goes"
+        );
+        assert_eq!(amount_of(&pool, "entry-new").await, Some(10_000));
+        run_one_bank_entry_per_group(&pool)
+            .await
+            .expect("the upgrade runs after the repair");
+    }
+
+    #[tokio::test]
+    async fn test_725_bsm_038a_an_entry_with_other_groups_keeps_them_for_a_lower_amount() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_group(&pool, "group-1", 10_000).await;
+        seed_group(&pool, "group-2", 4_000).await;
+        seed_entry(&pool, "entry-old", "2026-02-01", 14_000).await;
+        seed_entry(&pool, "entry-new", "2026-02-09", 10_000).await;
+        seed_link(&pool, "link-1", "entry-old", "group-1").await;
+        seed_link(&pool, "link-2", "entry-old", "group-2").await;
+        seed_link(&pool, "link-3", "entry-new", "group-1").await;
+
+        repair(&pool).await;
+
+        assert_eq!(entries_of(&pool, "group-1").await, vec!["entry-new"]);
+        assert_eq!(entries_of(&pool, "group-2").await, vec!["entry-old"]);
+        assert_eq!(amount_of(&pool, "entry-old").await, Some(4_000));
+    }
+
+    #[tokio::test]
+    async fn test_725_bsm_038a_on_one_date_the_link_recorded_last_keeps_the_group() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_group(&pool, "group-1", 10_000).await;
+        seed_entry(&pool, "entry-a", "2026-02-01", 10_000).await;
+        seed_entry(&pool, "entry-b", "2026-02-01", 10_000).await;
+        seed_link(&pool, "link-1", "entry-b", "group-1").await;
+        seed_link(&pool, "link-2", "entry-a", "group-1").await;
+
+        repair(&pool).await;
+
+        assert_eq!(entries_of(&pool, "group-1").await, vec!["entry-a"]);
+    }
+
+    #[tokio::test]
+    async fn test_725_bsm_038a_an_entry_that_pays_procedures_is_kept() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_group(&pool, "group-1", 10_000).await;
+        seed_entry(&pool, "entry-old", "2026-02-01", 10_000).await;
+        seed_entry(&pool, "entry-new", "2026-02-09", 10_000).await;
+        seed_link(&pool, "link-1", "entry-old", "group-1").await;
+        seed_link(&pool, "link-2", "entry-new", "group-1").await;
+        sqlx::query(
+            "INSERT INTO bank_transfer_procedure_link (id, bank_transfer_id, procedure_id)
+             VALUES ('pl-1', 'entry-old', 'procedure-1')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        repair(&pool).await;
+
+        assert_eq!(entries_of(&pool, "group-1").await, vec!["entry-new"]);
+        assert_eq!(amount_of(&pool, "entry-old").await, Some(10_000));
+    }
+
+    #[tokio::test]
+    async fn test_725_bsm_038a_a_group_with_one_entry_is_left_alone() {
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_group(&pool, "group-1", 10_000).await;
+        seed_link(&pool, "link-1", "entry-gone", "group-1").await;
+
+        repair(&pool).await;
+
+        assert_eq!(entries_of(&pool, "group-1").await, vec!["entry-gone"]);
+    }
+
+    #[tokio::test]
+    async fn test_725_the_repair_is_skipped_once_the_migration_is_applied_or_on_a_new_database() {
+        repair_group_double_links_if_pending(&fresh_pool().await)
+            .await
+            .expect("no link table: nothing to do");
+
+        let pool = pool_before_one_bank_entry_per_group().await;
+        seed_entry(&pool, "entry-a", "2026-02-01", 10_000).await;
+        seed_entry(&pool, "entry-b", "2026-02-09", 10_000).await;
+        seed_link(&pool, "link-1", "entry-a", "group-1").await;
+        seed_link(&pool, "link-2", "entry-b", "group-1").await;
+        sqlx::query(
+            "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time)
+             VALUES (?, 'applied', 1, x'00', 0)",
+        )
+        .bind(ONE_BANK_ENTRY_PER_GROUP_VERSION)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        repair(&pool).await;
+
+        assert_eq!(entries_of(&pool, "group-1").await.len(), 2);
+    }
+
+    /// The start-up of a database stopped at migration 20261114, as #725 saw it.
+    #[tokio::test]
+    async fn test_725_a_database_stopped_by_a_double_link_starts_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::new(dir.path().to_path_buf(), false)
+            .await
+            .unwrap();
+        // Back to before the migration, with a group linked twice.
+        for sql in [
+            "DELETE FROM _sqlx_migrations WHERE version = 20261114",
+            "DROP INDEX idx_bt_fund_group_group",
+            "PRAGMA foreign_keys = OFF",
+        ] {
+            sqlx::query(sql).execute(db.get_pool()).await.unwrap();
+        }
+        let path = db.get_path().clone();
+        db.get_pool().close().await;
+        let pool = pool_at(&path).await;
+        sqlx::query("PRAGMA foreign_keys = OFF")
+            .execute(&pool)
+            .await
+            .unwrap();
+        seed_link(&pool, "link-1", "entry-gone", "group-1").await;
+        seed_link(&pool, "link-2", "entry-gone-too", "group-1").await;
+        seed_link(&pool, "link-3", "entry-other", "group-2").await;
+        pool.close().await;
+
+        let db = Database::new(dir.path().to_path_buf(), false)
+            .await
+            .expect("the application starts");
+
+        assert!(entries_of(db.get_pool(), "group-1").await.len() <= 1);
+        assert_eq!(
+            entries_of(db.get_pool(), "group-2").await,
+            vec!["entry-other"]
+        );
+        let applied: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM _sqlx_migrations WHERE version = 20261114 AND success = 1",
+        )
+        .fetch_one(db.get_pool())
+        .await
+        .unwrap();
+        assert_eq!(applied, 1);
     }
 }

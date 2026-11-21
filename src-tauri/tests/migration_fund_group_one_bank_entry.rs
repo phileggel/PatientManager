@@ -78,8 +78,9 @@ async fn test_640_bsm_038_a_group_takes_one_bank_entry_after_the_upgrade() {
     );
 }
 
-/// BSM-038A — a group already linked twice stops the upgrade, its error names the
-/// group, and the links stay as they were.
+/// #640 — the migration alone still stops on a group linked twice, its error names
+/// the group, and the links stay as they were. Start-up repairs it first (BSM-038A,
+/// #725), so this is the net under that repair.
 #[tokio::test]
 async fn test_640_bsm_038a_a_group_linked_twice_stops_the_upgrade_and_is_named() {
     let pool = pool_before_the_migration().await;

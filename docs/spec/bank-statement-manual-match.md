@@ -94,7 +94,19 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-038 — One bank entry per group (backend)**: A fund-payment group is linked to at most one bank entry, whatever records it: this flow (BSM-037), the bank statement import (`bank-statement-auto-match` BAS-053 to BAS-053C) or a refund (`overpayment` REF-120).
 
-**BSM-038A — An upgrade over a double link stops (backend)**: A database that already holds a group linked to two bank entries is not upgraded: the upgrade stops, its error names the group, and the application does not start until the double link is repaired by hand (owner, 2026-11-14, #640). An imported backup holding one is upgraded at the next start (`db-backup` R10), so it stops the same way.
+**BSM-038A — A double link is repaired on upgrade (backend)**: A database in which several bank entries settle one group is repaired before it is upgraded, as BSM-038B to BSM-038G say (owner, 2026-11-21, #725; until then the upgrade stopped, #640). A repair that fails stops the start and changes nothing. An imported backup is upgraded at the next start (`db-backup` R10), so it is repaired the same way.
+
+**BSM-038B — A link to a missing entry (backend)**: In such a group, a link to a bank entry that no longer exists is removed.
+
+**BSM-038C — The most recent entry settles the group (backend)**: Of the existing bank entries that settle such a group, the one with the latest date goes on settling it; on one date, the one whose link was recorded last. Every other one stops settling it.
+
+**BSM-038D — An entry left with no group (backend)**: A bank entry that stops settling the group under BSM-038C and settles no other group is deleted.
+
+**BSM-038E — An entry with other groups (backend)**: A bank entry that stops settling the group under BSM-038C and settles other groups goes on settling them; its amount is lowered by the group's total.
+
+**BSM-038F — An entry that pays procedures or a refund (backend)**: A bank entry that would be deleted under BSM-038D but pays procedures or a refund is kept, its amount unchanged.
+
+**BSM-038G — The group does not change (backend)**: The repair changes neither the group nor its procedures, their confirmed payment date included.
 
 **Affected fields — on wire creation**
 
@@ -185,6 +197,8 @@ A refused creation, edit or deletion changes nothing (BSM-034, BSM-040).
 ## Open Questions
 
 - [ ] Where does BSM-029's refusal come among those of BSM-036, BSM-037 and BSM-039? Today after an unknown group or procedure.
+- [ ] Is the user told what the repair of BSM-038A removed or deleted? Today only the log names it; #727 holds the start-up message.
+- [ ] After BSM-038C, should the procedures' confirmed payment date follow the entry that goes on settling the group (BSM-035)? Today it is left as it is (BSM-038G).
 - [ ] In what order are the groups and procedures of R6, R12, R14 and R20 returned? Today the order is not set; the screens sort them.
 - [ ] May one fund's wire hold groups of several funds (R9)? Today it may; the import refuses it per line (BAS-090A).
 - [ ] Which of `BankEntryUpdated`, `FundPaymentGroupUpdated` and `ProcedureUpdated` does a successful creation, edit or deletion publish? BSM-031, BSM-034 and BSM-040 name them only for what is refused or unchanged.
