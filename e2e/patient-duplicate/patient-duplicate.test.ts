@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { $, browser } from "@wdio/globals";
 import { tauriInvoke } from "../helpers/tauri-invoke";
-import { openManagementPage } from "../helpers/navigation";
+import { openManagementPage, waitUntilGone } from "../helpers/navigation";
 
 // Seeding goes through the real commands (no mock). Each scenario has its own pair
 // of same-name patients and opens the page itself.
@@ -61,7 +61,7 @@ describe("patient duplicates", () => {
     await row.waitForExist({ timeout: 10000 });
     await (await $(`#patient-duplicate-dismiss-${id}`)).click();
 
-    await row.waitForExist({ timeout: 10000, reverse: true });
+    await waitUntilGone(() => $(`#patient-duplicate-row-${id}`), 10000, "the pair's row");
     const left = (await listPairs()).some((p) => p.first.id === distinct.first.id);
     assert.ok(!left, "a dismissed pair should not be proposed again");
   });
@@ -78,7 +78,7 @@ describe("patient duplicates", () => {
     await second.click();
     await (await $("#patient-duplicate-merge-confirm")).click();
 
-    await row.waitForExist({ timeout: 10000, reverse: true });
+    await waitUntilGone(() => $(`#patient-duplicate-row-${id}`), 10000, "the pair's row");
     const patients = await tauriInvoke<{ id: string }[]>("read_all_patients", {});
     assert.ok(patients.ok, `read_all_patients failed: ${patients.ok ? "" : patients.error}`);
     const ids = patients.data.map((p) => p.id);

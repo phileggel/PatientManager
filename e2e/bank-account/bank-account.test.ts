@@ -1,7 +1,7 @@
 import { browser, $ } from "@wdio/globals";
 import assert from "node:assert";
 import { readBankAccountIdByName, seedBankAccount, setReactInputValue } from "../helpers/seed";
-import { openManagementPage } from "../helpers/navigation";
+import { openManagementPage, waitUntilGone } from "../helpers/navigation";
 
 // Skipped commands (no UI surface):
 //   read_bank_account        — internal / no dedicated UI entry point
@@ -79,8 +79,7 @@ describe("bank-account smoke", () => {
     await submitBtn.waitForEnabled({ timeout: 5000 });
     await submitBtn.click();
 
-    await form.waitForExist({ timeout: 8000, reverse: true });
-    assert.strictEqual(await form.isExisting(), false, "Edit modal should close after update");
+    await waitUntilGone(() => $("form#edit-bank-account-form"), 8000, "the edit modal");
 
     const updatedRow = await $("#bank-account-list").$(`td=${UPDATE_NAME}`);
     await updatedRow.waitForExist({ timeout: 10000 });
@@ -99,7 +98,10 @@ describe("bank-account smoke", () => {
     await confirmBtn.waitForClickable({ timeout: 5000 });
     await confirmBtn.click();
 
-    await row.waitForExist({ timeout: 10000, reverse: true });
-    assert.strictEqual(await row.isExisting(), false, "The deleted account should leave the list");
+    await waitUntilGone(
+      () => $("#bank-account-list").$(`td=${DELETE_NAME}`),
+      10000,
+      "the deleted account's row",
+    );
   });
 });

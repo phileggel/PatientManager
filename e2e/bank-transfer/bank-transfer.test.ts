@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { $, browser } from "@wdio/globals";
-import { clickWhenSettled, openManagementPage } from "../helpers/navigation";
+import { clickWhenSettled, openManagementPage, waitUntilGone } from "../helpers/navigation";
 import {
   readPatientIdByName,
   readProcedureTypeIdByName,
@@ -78,7 +78,7 @@ describe("direct payments — PATIENT_CASH smoke", () => {
     const submitBtn = await $("#direct-payment-add-submit");
     await submitBtn.waitForEnabled({ timeout: 5000 });
     await submitBtn.click();
-    await $("#direct-payment-add-modal").waitForExist({ timeout: 10000, reverse: true });
+    await waitUntilGone(() => $("#direct-payment-add-modal"), 10000, "the direct payment modal");
 
     // 5. The new row appears in the list
     const newRow = await $("#direct-payment-list").$(`td=${PROCEDURE_DATE_DISPLAY}`);
@@ -167,7 +167,7 @@ describe("fund wires — a wire on a fund's open procedures (#712)", () => {
     const submitBtn = await $("#fund-wire-add-submit");
     await submitBtn.waitForEnabled({ timeout: 5000 });
     await submitBtn.click();
-    await $("#fund-wire-add-modal").waitForExist({ timeout: 10000, reverse: true });
+    await waitUntilGone(() => $("#fund-wire-add-modal"), 10000, "the fund wire modal");
 
     // 4. The wire is listed, and its procedure is settled by the group it created
     const row = await $("#fund-wire-list").$(`td=${WIRE_DATE_DISPLAY}`);
