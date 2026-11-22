@@ -4,6 +4,7 @@
  * Selectors target stable `id` attributes — locale-invariant (E4).
  */
 import { $, browser } from "@wdio/globals";
+import type { ChainablePromiseElement } from "webdriverio";
 
 /** #711 — the menu of the management window that holds each entry. */
 const MENU_OF_ENTRY: Record<string, string> = {
@@ -59,5 +60,29 @@ export async function clickWhenSettled(selector: string, timeout = 8000): Promis
       }
     },
     { timeout, timeoutMsg: `${selector} could not be clicked within ${timeout} ms` },
+  );
+}
+
+/**
+ * Wait until `lookup` finds nothing (E10). WebKitWebDriver can answer the lookup of a
+ * node removed mid-query with a stale-element error instead of « none » (#764): that
+ * error means the node is going, so the wait goes on; any other error is thrown.
+ * `lookup` is called again on every try; `what` names the element in the failure.
+ */
+export async function waitUntilGone(
+  lookup: () => ChainablePromiseElement,
+  timeout: number,
+  what: string,
+): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      try {
+        return !(await lookup().isExisting());
+      } catch (error) {
+        if (/stale element/i.test(String(error))) return false;
+        throw error;
+      }
+    },
+    { timeout, timeoutMsg: `${what} was still there after ${timeout} ms` },
   );
 }

@@ -106,14 +106,14 @@ const DATES = {
 
 Today's date is pre-filled by default; always override it with a fixed past date.
 
-## E10 — `waitForEnabled` / `waitForExist` MUST always specify `{ timeout: N }`
+## E10 — `waitForEnabled` / `waitForExist` MUST always specify `{ timeout: N }`; a removal wait uses `waitUntilGone`
 
 ```typescript
 await submitBtn.waitForEnabled({ timeout: 5000 });
-await modal.waitForExist({ timeout: 8000, reverse: true });
+await waitUntilGone(() => $("#my-modal"), 8000, "the modal");
 ```
 
-Never rely on the WebdriverIO default timeout — always be explicit.
+Never rely on the WebdriverIO default timeout — always be explicit. To wait for an element to go, use `waitUntilGone` (`e2e/helpers/navigation.ts`); when a new element replaces it, wait for that one instead. `waitForExist({ reverse: true })` can fail on WebKitWebDriver with a stale-element error when the node is removed mid-query (#764).
 
 ## E11 — The E2E build hides the snackbars
 

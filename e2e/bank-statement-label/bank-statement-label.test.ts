@@ -1,7 +1,7 @@
 import { $, browser } from "@wdio/globals";
 import assert from "node:assert";
 import { tauriInvoke } from "../helpers/tauri-invoke";
-import { openManagementPage } from "../helpers/navigation";
+import { openManagementPage, waitUntilGone } from "../helpers/navigation";
 
 // Seeding goes through the real commands (no mock): a saved bank statement label
 // only exists after a statement import is validated (BAS-035), and the import's
@@ -94,10 +94,10 @@ describe("bank statement labels", () => {
     await confirm.waitForClickable({ timeout: 5000 });
     await confirm.click();
 
-    await row.waitForExist({ timeout: 10000, reverse: true });
-    assert.ok(
-      !(await row.isExisting()),
-      "the deleted label should leave the list",
+    await waitUntilGone(
+      () => $(`#bank-statement-label-row-${labelId}`),
+      10000,
+      "the deleted label's row",
     );
   });
 });

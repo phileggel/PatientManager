@@ -175,8 +175,9 @@ describe("Bank statement reconciliation — full flow from a statement PDF", () 
     await validate.waitForEnabled({ timeout: 10000 });
     await validate.click();
 
-    // The recap gives way to the done summary once the validation went through.
-    await $("#reconciliation-validate").waitForExist({ reverse: true, timeout: 15000 });
+    // The recap gives way to the done summary once the validation went through: wait
+    // for the summary to come, not for the recap to go (#764, E10).
+    await $("#reconciliation-done").waitForExist({ timeout: 15000 });
 
     await browser.waitUntil(
       async () =>
