@@ -316,6 +316,7 @@
     "ignored": "Ignored",
     "loading": "Loading labels…",
     "empty": "No saved label. Labels are saved when a bank statement is imported.",
+    "no_match": "No label matches your search.",
     "load_error": "The labels could not be loaded.",
     "double_click_to_edit": "Double-click to edit",
     "edit_aria_label": "Edit label {{label}}",

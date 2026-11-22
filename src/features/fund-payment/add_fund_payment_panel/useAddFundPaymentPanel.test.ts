@@ -144,6 +144,25 @@ describe("useAddFundPaymentPanel", () => {
     expect(result.current.isModalOpen).toBe(false);
   });
 
+  it("test_622_fpm_510_the_picker_reopens_with_the_selection_pinned", () => {
+    const { result, rerender } = renderHook(() => useAddFundPaymentPanel());
+    const first = result.current.selectedProcedureIds;
+
+    act(() => {
+      result.current.handleConfirmSelection([
+        makeProcedure({ id: "p-a" }),
+        makeProcedure({ id: "p-b" }),
+      ]);
+    });
+    rerender();
+
+    expect(first).toEqual([]);
+    expect(result.current.selectedProcedureIds).toEqual(["p-a", "p-b"]);
+    const kept = result.current.selectedProcedureIds;
+    rerender();
+    expect(result.current.selectedProcedureIds).toBe(kept);
+  });
+
   it("stores selected procedures when confirmed from modal", () => {
     const { result } = renderHook(() => useAddFundPaymentPanel());
 
