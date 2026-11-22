@@ -366,6 +366,7 @@ mod tests {
             payment_date: NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
             total_amount,
             is_total_valid: true,
+            lines_total: total_amount,
             lines: vec![],
         }
     }
@@ -552,6 +553,7 @@ mod tests {
                     payment_date: chrono::NaiveDate::from_ymd_opt(2026, 1, 15).unwrap(),
                     total_amount: 0,
                     is_total_valid: true,
+                    lines_total: 0,
                     lines: vec![],
                 }],
                 unparsed_line_count: 0,
@@ -589,6 +591,7 @@ mod tests {
             payment_date: date + chrono::Duration::days(5),
             total_amount: amount,
             is_total_valid: true,
+            lines_total: amount,
             lines: vec![make_pdf_line(ssn, amount, date_str)],
         }
     }
@@ -673,6 +676,7 @@ mod tests {
             payment_date: date + chrono::Duration::days(5),
             total_amount: 27000,
             is_total_valid: true,
+            lines_total: 27000,
             lines: vec![line_a, line_b],
         };
 

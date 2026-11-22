@@ -151,6 +151,7 @@ mod tests {
             payment_date,
             total_amount,
             is_total_valid: true,
+            lines_total: total_amount,
             lines: vec![],
         }
     }

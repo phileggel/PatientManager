@@ -3,13 +3,14 @@ import type {
   CorrectionGroup,
   Fund,
   LeftOutPdfGroup,
-  LeftOutSection,
+  NoteSection,
   ReconciliationMatch,
   UnreconciledProcedure,
   UnreconciledRow,
   UnreconciledSection,
 } from "@/bindings";
 import { formatCurrency, formatShortDate } from "./formatters";
+import type { ReadingWarnings } from "./readingWarningsPresenter";
 
 // ────────────────────────────────────────────────────────────────────────────
 // FE-side report presenter (FPR-031 to FPR-042, ADR-006)
@@ -288,7 +289,7 @@ export function buildLeftOutSection(
   groups: readonly LeftOutPdfGroup[],
   locale: string,
   t: (k: string) => string,
-): LeftOutSection | null {
+): NoteSection | null {
   if (groups.length === 0) return null;
   return {
     heading: t("print.section3.heading"),
@@ -298,4 +299,44 @@ export function buildLeftOutSection(
         `${g.fund_label} | ${formatShortDate(g.payment_date, locale)} | ${formatCurrency(g.total_amount, locale)}`,
     ),
   };
+}
+
+/** FPR-060 to FPR-062 — Section 4 of the report; `null` omits it (FPR-061). */
+export function buildReadingWarningsSection(
+  warnings: ReadingWarnings | null,
+  locale: string,
+  t: (k: string, params?: Record<string, unknown>) => string,
+): NoteSection | null {
+  if (!warnings) return null;
+  const groups = warnings.mismatched.map((g) =>
+    t("print.section4.mismatched_row", {
+      fund: g.fundLabel,
+      date: formatShortDate(g.paymentDate, locale),
+      stated: formatCurrency(g.statedTotal, locale),
+      sum: formatCurrency(g.linesSum, locale),
+    }),
+  );
+  const unparsed =
+    warnings.unparsedCount > 0
+      ? [
+          t("print.section4.unparsed", { count: warnings.unparsedCount }),
+          ...warnings.samples.map(asReportText),
+        ]
+      : [];
+  return {
+    heading: t("print.section4.heading"),
+    note: t("print.section4.note"),
+    rows: [...groups, ...unparsed],
+  };
+}
+
+/** A line of the PDF as the report can print it on one line: no control character, at most
+ * 90 characters (the width of a report line), cut between characters, never inside one. */
+function asReportText(line: string): string {
+  const printable = Array.from(line, (char) => {
+    const code = char.charCodeAt(0);
+    // C0, DEL and C1: what the backend refuses as a control character.
+    return code < 32 || (code >= 127 && code <= 159) ? " " : char;
+  }).join("");
+  return Array.from(printable).slice(0, 90).join("") || "?";
 }

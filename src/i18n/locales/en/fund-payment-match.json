@@ -26,6 +26,13 @@
       "heading": "Groups not imported",
       "note": "Their total is negative or zero: the fund takes money back or offsets a payment. The import does not record these amounts; note them."
     },
+    "section4": {
+      "heading": "Statement not read in full",
+      "mismatched_row": "{{fund}} · {{date}} · stated total {{stated}} · sum of lines {{sum}}",
+      "unparsed_one": "{{count}} line not read:",
+      "unparsed_other": "{{count}} lines not read:",
+      "note": "Amounts to check on the statement: the import records only what it read."
+    },
     "columns": {
       "date": "Procedure date",
       "patient": "Patient",
@@ -88,33 +95,15 @@
         "generation_failed": "Failed to generate report.",
         "export_failed": "Failed to export report."
       }
-    }
-  },
-  "table": {
-    "empty": "No structured data found in the PDF.",
-    "summary": {
-      "groups_one": "{{count}} group",
-      "groups_other": "{{count}} groups",
-      "lines_one": "{{count}} line",
-      "lines_other": "{{count}} lines",
-      "total_amount": "Total amount",
-      "pdf_stated": "PDF states:"
     },
-    "unparsed": {
-      "warning_one": "{{count}} line could not be parsed.",
-      "warning_other": "{{count}} lines could not be parsed.",
-      "examples": "Examples of unrecognized lines:"
-    },
-    "group": {
-      "payment": "Payment:",
-      "invalid_total": "Invalid total"
-    },
-    "columns": {
-      "patient": "Patient",
-      "ssn": "SSN",
-      "nature": "Nature",
-      "date": "Procedure date",
-      "amount": "Amount"
+    "reading_warnings": {
+      "title": "This statement was not read in full",
+      "mismatched_one": "{{count}} group whose total does not match its lines",
+      "mismatched_other": "{{count}} groups whose total does not match their lines",
+      "mismatched_row": "{{fund}} · {{date}} · stated total {{stated}} · sum of lines {{sum}}",
+      "unparsed_one": "{{count}} line could not be read",
+      "unparsed_other": "{{count}} lines could not be read",
+      "note": "Check these amounts on the statement before validating: the import records only what it read."
     }
   },
   "report": {

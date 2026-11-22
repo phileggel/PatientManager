@@ -97,6 +97,8 @@ pub struct PdfProcedureGroup {
     pub total_amount: i64,
     /// Whether the sum of line amounts matches the stated total
     pub is_total_valid: bool,
+    /// FPA-020 — the sum of the group's line amounts (thousandths of a euro).
+    pub lines_total: i64,
     /// Individual procedure lines in this group
     pub lines: Vec<NormalizedPdfLine>,
 }

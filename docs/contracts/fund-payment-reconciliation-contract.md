@@ -2,7 +2,7 @@
 
 > Domain: fund-payment-reconciliation
 > Backend module: use_cases/fund_payment_reconciliation
-> Last updated by: fund-payment-report spec (FPR-050, FPR-051, #595), 2026-11-08
+> Last updated by: fund-payment-report spec (FPR-060 to FPR-062, #662), 2026-11-22
 
 ## Commands
 
@@ -96,14 +96,14 @@ Returns both the procedures currently in the group (`Reconciliated` / `Partially
 
 ---
 
-### `generate_fund_reconciliation_report_pdf` — FPR-011, FPR-013, FPR-020, FPR-021, FPR-022, FPR-030 to FPR-042, FPR-050, FPR-051
+### `generate_fund_reconciliation_report_pdf` — FPR-011, FPR-013, FPR-020, FPR-021, FPR-022, FPR-030 to FPR-042, FPR-050, FPR-051, FPR-060 to FPR-062
 
 Renders the post-reconciliation report as a PDF document. The request payload carries every pre-resolved string the renderer will place — translated labels, formatted dates, formatted currency values, and per-correction joined row strings. The backend performs no translation, no formatting, and no database lookup (FPR-013, FPR-021).
 
 - **Args:** `request: ReportGenerationRequest`
 - **Returns:** `Vec<u8>` — PDF byte stream
 - **Errors:**
-  - `InvalidRequest` — payload is structurally invalid: a required string is empty, exceeds the length cap, contains control characters, or a collection (header lines, unreconciled rows, correction groups, correction rows) exceeds its DoS-guard cap, or Section 3 holds no row or more than 1,000 (FPR-050, FPR-051)
+  - `InvalidRequest` — payload is structurally invalid: a required string is empty, exceeds the length cap, contains control characters, or a collection (header lines, unreconciled rows, correction groups, correction rows) exceeds its DoS-guard cap, or Section 3 or Section 4 holds no row or more than 1,000 (FPR-050, FPR-051, FPR-060 to FPR-062)
   - `PdfGenerationFailed` — rendering failed downstream of validation (e.g. font load, internal renderer error)
 
 ---
@@ -133,7 +133,7 @@ Renders the report, writes it to the platform Downloads directory under the call
 struct PdfParseResult {
     groups: Vec<PdfProcedureGroup>,
     unparsed_line_count: u32,
-    unparsed_lines: Vec<String>,   // R28 — sample of up to 5
+    unparsed_lines: Vec<String>,   // FPA-030 (R28) — up to five, as samples
 }
 
 struct PdfProcedureGroup {
@@ -141,7 +141,8 @@ struct PdfProcedureGroup {
     fund_full_name: String,
     payment_date: String,      // ISO date YYYY-MM-DD
     total_amount: i64,
-    is_total_valid: bool,      // R2
+    is_total_valid: bool,      // FPA-020 (R2)
+    lines_total: i64,          // FPA-020 — the sum of its lines' amounts
     lines: Vec<NormalizedPdfLine>,
 }
 
@@ -251,15 +252,20 @@ struct ReportGenerationRequest {
     unreconciled: UnreconciledSection,        // FPR-030 to FPR-033
     correction_section_heading: String,       // FPR-040 — only used if groups non-empty
     correction_groups: Vec<CorrectionGroup>,  // FPR-040 to FPR-042 — empty list omits the section
-    left_out_section: Option<LeftOutSection>, // FPR-050, FPR-051 — None omits Section 3
+    left_out_section: Option<NoteSection>,         // FPR-050, FPR-051 — None omits Section 3
+    reading_warnings_section: Option<NoteSection>, // FPR-060 to FPR-062 — None omits Section 4
     page_label: String,                       // FPR-022 — e.g. "Page"
 }
 
-// FPR-050 — Section 3: the groups the import left out (FPA-070), in the order
-// of the PDF; each row is "fund | payment date | stated total", pre-formatted.
-struct LeftOutSection {
+// FPR-050, FPR-060 — a section of pre-formatted rows under a heading, then a note.
+// Section 3: each group the import left out (FPA-070), "fund | payment date | stated total".
+// Section 4: one pre-formatted row per group whose total does not match (FPA-020): fund, payment
+// date, stated total, sum of lines; then, when a line was not read, a row giving their number and
+// up to five of them (FPA-030), each cut by the frontend to 90 characters, a report line's width, control characters
+// made spaces.
+struct NoteSection {
     heading: String,
-    note: String,       // their amounts are to be noted by hand
+    note: String,       // Section 3: to note by hand; Section 4: to check on the statement
     rows: Vec<String>,  // at least one
 }
 
@@ -347,3 +353,4 @@ enum FundPaymentValidationStatus {
 - 2026-10-25 — Modified by `fund-payment-auto-match` spec (FPA-212, ticket #424): `create_fund_payment_with_auto_corrections` answers `DisputedAmountOutOfRange`; it and `create_fund_payment_from_candidates` list `DatabaseError` (FPA-076), which they already returned
 - 2026-10-25 — Ticket #423: the correction variant `AutoCorrection::ContestAmount` is renamed `DisputeAmount` (the glossary's word); same fields, the frontend sends the new tag.
 - 2026-11-08 — Modified by `fund-payment-report` spec: `ReportGenerationRequest` gains `left_out_section: Option<LeftOutSection>` (FPR-050, FPR-051, #595): the groups left out for a total that is not positive, listed as Section 3.
+- 2026-11-22 — Modified by `fund-payment-report` spec: `ReportGenerationRequest` gains `reading_warnings_section: Option<NoteSection>` (FPR-060 to FPR-062, #662); `LeftOutSection` is renamed `NoteSection`, which both sections use. `PdfProcedureGroup` gains `lines_total` (FPA-020), the sum the warnings show.

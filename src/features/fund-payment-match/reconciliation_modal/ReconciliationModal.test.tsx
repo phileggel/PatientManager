@@ -47,6 +47,7 @@ const mockParsedData = {
       payment_date: "2025-05-02",
       total_amount: 38.4,
       is_total_valid: true,
+      lines_total: 38.4,
       lines: [
         {
           line_index: 0,

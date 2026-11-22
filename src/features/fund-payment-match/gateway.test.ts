@@ -50,6 +50,7 @@ function makeRequest(): ReportGenerationRequest {
     correction_section_heading: "Corrections applied",
     correction_groups: [],
     left_out_section: null,
+    reading_warnings_section: null,
     page_label: "Page",
   };
 }

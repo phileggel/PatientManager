@@ -29,6 +29,7 @@ function makeParsedData(lines: { start: string; end: string }[]): PdfParseResult
         payment_date: "2025-05-01",
         total_amount: 0,
         is_total_valid: true,
+        lines_total: 0,
         lines: lines.map((d, i) => ({
           line_index: i,
           payment_date: "2025-05-01",

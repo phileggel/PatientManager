@@ -28,6 +28,7 @@ import {
   reconcileAndCreateCandidates,
 } from "../gateway";
 import type { ReconciliationErrorState } from "../shared/errorPresenter";
+import { toReadingWarnings } from "../shared/readingWarningsPresenter";
 import {
   buildCorrectionKey,
   buildDisputeKey,
@@ -249,8 +250,12 @@ export function useReconciliationModal(filePath: string, onClose: () => void) {
     }
   }, [reconciliationData, parsedData, autoCorrections, onClose, t]);
 
+  // FPA-020, FPA-030 — what of the statement could not be read (#662).
+  const readingWarnings = useMemo(() => toReadingWarnings(parsedData), [parsedData]);
+
   return {
     reconciliationData,
+    readingWarnings,
     alreadyImported,
     isLoading,
     error,

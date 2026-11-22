@@ -26,6 +26,13 @@
       "heading": "Groupes non importés",
       "note": "Leur total est négatif ou nul : la caisse reprend ou compense une somme. L'import n'enregistre pas ces montants ; notez-les."
     },
+    "section4": {
+      "heading": "Lecture incomplète du bordereau",
+      "mismatched_row": "{{fund}} · {{date}} · total indiqué {{stated}} · somme des lignes {{sum}}",
+      "unparsed_one": "{{count}} ligne non lue :",
+      "unparsed_other": "{{count}} lignes non lues :",
+      "note": "Montants à vérifier sur le bordereau : l'import n'enregistre que ce qu'il a lu."
+    },
     "columns": {
       "date": "Date acte",
       "patient": "Patient",
@@ -88,33 +95,15 @@
         "generation_failed": "Impossible de générer le rapport.",
         "export_failed": "Impossible d'exporter le rapport."
       }
-    }
-  },
-  "table": {
-    "empty": "Aucune donnée structurée trouvée dans le PDF.",
-    "summary": {
-      "groups_one": "{{count}} groupe",
-      "groups_other": "{{count}} groupes",
-      "lines_one": "{{count}} ligne",
-      "lines_other": "{{count}} lignes",
-      "total_amount": "Montant total",
-      "pdf_stated": "PDF indique :"
     },
-    "unparsed": {
-      "warning_one": "{{count}} ligne n'a pas pu être analysée.",
-      "warning_other": "{{count}} lignes n'ont pas pu être analysées.",
-      "examples": "Exemples de lignes non reconnues :"
-    },
-    "group": {
-      "payment": "Paiement :",
-      "invalid_total": "Total invalide"
-    },
-    "columns": {
-      "patient": "Patient",
-      "ssn": "INS",
-      "nature": "Nature",
-      "date": "Date acte",
-      "amount": "Montant"
+    "reading_warnings": {
+      "title": "Ce bordereau n'a pas été lu en entier",
+      "mismatched_one": "{{count}} groupe dont le total ne correspond pas à ses lignes",
+      "mismatched_other": "{{count}} groupes dont le total ne correspond pas à leurs lignes",
+      "mismatched_row": "{{fund}} · {{date}} · total indiqué {{stated}} · somme des lignes {{sum}}",
+      "unparsed_one": "{{count}} ligne n'a pas pu être lue",
+      "unparsed_other": "{{count}} lignes n'ont pas pu être lues",
+      "note": "Vérifiez ces montants sur le bordereau avant de valider : l'import n'enregistre que ce qu'il a lu."
     }
   },
   "report": {

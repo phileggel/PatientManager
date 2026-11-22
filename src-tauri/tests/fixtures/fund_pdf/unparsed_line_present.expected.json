@@ -6,6 +6,7 @@
       "payment_date": "2025-05-02",
       "total_amount": 25000,
       "is_total_valid": true,
+      "lines_total": 25000,
       "lines": [
         {
           "line_index": 2,
