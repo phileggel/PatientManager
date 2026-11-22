@@ -107,17 +107,13 @@ async fn test_640_bsm_038a_a_group_linked_twice_stops_the_upgrade_and_is_named()
     assert_eq!(links, 2);
 }
 
-/// #732 — the start-up of a database that migration 20261114 stopped: the bank
-/// context's repair runs after the backup, the migration then applies, and both
-/// bank entries are still there.
-#[tokio::test]
-async fn test_732_a_database_stopped_by_two_bank_entries_starts_again() {
-    use patient_manager_app::context::bank::unlink_group_double_links;
+/// A data folder holding a database as migration 20261114 found it on #725's machine:
+/// the migration not applied, one group settled by two bank entries.
+async fn database_stopped_by_two_bank_entries(dir: &std::path::Path) {
     use patient_manager_app::shared::Database;
     use sqlx::sqlite::SqliteConnectOptions;
 
-    let dir = tempfile::tempdir().expect("temp dir");
-    let db = Database::new(dir.path().to_path_buf(), false)
+    let db = Database::new(dir.to_path_buf(), false)
         .await
         .expect("a new database");
     let path = db.get_path().clone();
@@ -149,6 +145,18 @@ async fn test_732_a_database_stopped_by_two_bank_entries_starts_again() {
         .await
         .expect("seed");
     pool.close().await;
+}
+
+/// #732 — the start-up of a database that migration 20261114 stopped: the bank
+/// context's repair runs after the backup, the migration then applies, and both
+/// bank entries are still there.
+#[tokio::test]
+async fn test_732_a_database_stopped_by_two_bank_entries_starts_again() {
+    use patient_manager_app::context::bank::unlink_group_double_links;
+    use patient_manager_app::shared::Database;
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    database_stopped_by_two_bank_entries(dir.path()).await;
 
     let db = Database::new_with_steps(
         dir.path().to_path_buf(),
@@ -188,4 +196,62 @@ async fn test_732_a_database_stopped_by_two_bank_entries_starts_again() {
         })
         .count();
     assert_eq!(backups, 1, "the backup is taken before the repair");
+}
+
+/// DGR-041 — without the repair, the start stops on migration 20261114 and says so:
+/// the stage, the migration, its first cause, and that the backup was taken.
+#[tokio::test]
+async fn test_dgr_041_a_migration_that_stops_names_itself_and_the_backup() {
+    use patient_manager_app::shared::{Database, DatabaseStartStage};
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    database_stopped_by_two_bank_entries(dir.path()).await;
+
+    let err = match Database::new_with_steps(dir.path().to_path_buf(), false, &[]).await {
+        Ok(_) => panic!("the migration stops"),
+        Err(err) => err,
+    };
+
+    assert_eq!(err.stage, DatabaseStartStage::Migration);
+    assert_eq!(err.migration_version, Some(VERSION));
+    assert_eq!(
+        err.migration_description.as_deref(),
+        Some("fund group one bank entry")
+    );
+    assert!(err.backup_taken);
+
+    // DGR-040A — the migrations before stay applied, the failing one leaves nothing.
+    let path = dir.path().join("patient_manager.db");
+    let pool = SqlitePoolOptions::new()
+        .connect_with(sqlx::sqlite::SqliteConnectOptions::new().filename(&path))
+        .await
+        .expect("the database file");
+    let failing: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE version = ?")
+            .bind(VERSION)
+            .fetch_one(&pool)
+            .await
+            .expect("count");
+    assert_eq!(failing, 0, "no trace of the failing migration");
+    let before: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM _sqlx_migrations WHERE version < ? AND success = 1",
+    )
+    .bind(VERSION)
+    .fetch_one(&pool)
+    .await
+    .expect("count");
+    assert!(before > 0, "the migrations before stay applied");
+    let index: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sqlite_master WHERE name = 'idx_bt_fund_group_group'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count");
+    assert_eq!(index, 0, "the failing migration's index is not there");
+    assert!(
+        err.first_cause()
+            .contains("fund payment group linked to two bank entries"),
+        "{}",
+        err.first_cause()
+    );
 }

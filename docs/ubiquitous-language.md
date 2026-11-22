@@ -285,6 +285,12 @@ A text file the user saves from the database backup dialog and sends to support:
 
 > Status: confirmed (2026-10-03)
 
+### StartupFailure
+
+What failed when the application started: the database or the application's folders could not be made ready. It gives the stage, the migration when one failed, the error's innermost cause and whether the backup before the upgrade was taken; the application stays open and shows it (DGR-040 to DGR-045).
+
+> Status: confirmed (owner, 2026-11-22, #730)
+
 ### Support code (« Code support »)
 
 The eight-character code (`XXXX-XXXX`) written in a diagnostic report and shown to the user once it is saved, so a report can be matched to the person quoting it (DGR-020).

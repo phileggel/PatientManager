@@ -65,7 +65,8 @@ startup, before the database is opened.
 import is systematically removed at the end of the operation, whether it succeeds or
 fails.
 
-**R12 — No automatic history**: The feature does not implement automatic backup rotation.
+**R12 — No automatic history**: The feature does not implement automatic backup rotation; the
+backup before an upgrade is the start-up's, not this feature's (DGR-042).
 Each export produces a single file at the location chosen by the user. History management
 is the user's responsibility.
 
@@ -75,8 +76,9 @@ is the user's responsibility.
 
 - **Version compatibility**: A backup file can be imported into a different version of
   the application. If the backup is from an older version, missing migrations are applied
-  automatically at startup. A backup from a **newer** version imported into an older
-  version may cause errors — this case is not handled.
+  automatically at start-up. A backup from a **newer** version imported into an older
+  version may cause errors: the start-up fails at the migration stage (DGR-040); an error that
+  shows only later is not handled.
 
 - **No encryption**: The `.db.gz` file is not encrypted. It contains all data in clear
   text. The user is responsible for the security of the exported file.

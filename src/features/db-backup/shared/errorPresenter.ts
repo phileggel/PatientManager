@@ -31,6 +31,8 @@ export function formatDiagnosticReportError(err: DiagnosticReportError): { key: 
     case "PathRejected":
       return { key: "db-backup:errors.path_rejected" };
     case "ReportFailed":
+    // DGR-044A — only the start-up failure report refuses this way; never sent here.
+    case "NoStartupFailure":
       return { key: "db-backup:errors.report_failed" };
   }
 }

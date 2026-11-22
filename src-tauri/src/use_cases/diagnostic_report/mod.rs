@@ -5,9 +5,11 @@ mod api;
 mod error;
 mod orchestrator;
 mod report;
+mod startup_failure;
 
 #[cfg(feature = "app")]
 pub use api::*;
 pub use error::DiagnosticReportError;
 pub use orchestrator::{DiagnosticReportOrchestrator, DiagnosticReportResult};
-pub use report::reset_log_on_version_change;
+pub use report::{reset_log_on_version_change, START_LINE};
+pub use startup_failure::{StartupFailure, StartupFailureReport, StartupStage};

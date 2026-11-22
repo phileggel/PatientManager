@@ -100,5 +100,39 @@
     "window_days_invalid": "Saisir un nombre entier de jours supérieur à zéro.",
     "save": "Enregistrer",
     "cancel": "Fermer"
+  },
+  "startup_failure": {
+    "title_upgrade": "La mise à jour de la base de données a échoué",
+    "title_start": "L'application n'a pas pu démarrer",
+    "intro": "L'application ne peut pas démarrer dans cette version.",
+    "backup": "Une sauvegarde de votre base a été enregistrée avant la tentative, à côté de la base.",
+    "version": "Version",
+    "step_label": "Étape",
+    "cause": "Erreur",
+    "step": {
+      "migration": "{{version}} {{description}}"
+    },
+    "stage": {
+      "pending_import": "Remplacement par la sauvegarde restaurée",
+      "open": "Ouverture de la base",
+      "backup": "Sauvegarde avant la mise à jour",
+      "checksum_repair": "Réparation des migrations",
+      "repair": "Réparation avant la mise à jour",
+      "migration": "Mise à jour de la base",
+      "other": "Préparation de l'application"
+    },
+    "explain": "Exportez le rapport et envoyez-le au support. Il ne contient aucune donnée de patient : uniquement la version, l'étape en échec et les messages techniques de ce démarrage. Le détail complet reste dans le fichier app.log.",
+    "export": "Exporter le rapport",
+    "close": "Fermer l'application",
+    "dialog_title": "Enregistrer le rapport d'échec",
+    "saved": "Rapport enregistré :",
+    "send": "Envoyez ce fichier au support et indiquez le code",
+    "errors": {
+      "home_unresolved": "Impossible de localiser votre dossier personnel. Veuillez réessayer.",
+      "path_rejected": "L'emplacement sélectionné n'est pas autorisé. Choisissez un dossier dans votre répertoire personnel.",
+      "report_failed": "Le rapport n'a pas pu être enregistré. Veuillez réessayer.",
+      "no_startup_failure": "L'application a démarré normalement : il n'y a pas d'échec à signaler.",
+      "unexpected": "Une erreur inattendue s'est produite. Veuillez réessayer."
+    }
   }
 }

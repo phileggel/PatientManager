@@ -23,6 +23,7 @@ describe("formatDiagnosticReportError", () => {
       ["HomeUnresolved", "db-backup:errors.home_unresolved"],
       ["PathRejected", "db-backup:errors.path_rejected"],
       ["ReportFailed", "db-backup:errors.report_failed"],
+      ["NoStartupFailure", "db-backup:errors.report_failed"],
     ];
     for (const [code, key] of cases) {
       expect(formatDiagnosticReportError({ code }).key).toBe(key);

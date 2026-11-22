@@ -22,7 +22,9 @@ import {
   ImportModal,
   ManagementModal,
   SettingsModal,
+  StartupFailurePage,
   useDrawerController,
+  useStartupFailure,
 } from "@/features/shell";
 import { DesignSystemPage } from "@/features/shell/DesignSystemPage";
 import { UpdateBanner } from "@/features/shell/UpdateBanner";
@@ -206,6 +208,10 @@ function AppContent() {
 }
 
 function App() {
+  // DGR-040 — after a failed start-up no service exists: the failure page alone opens.
+  const { checking, failure } = useStartupFailure();
+  if (checking) return null;
+  if (failure) return <StartupFailurePage failure={failure} />;
   return <AppContent />;
 }
 

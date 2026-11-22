@@ -42,12 +42,9 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let handle = app.handle().clone();
-            // Block until initialization completes to avoid race conditions
-            tauri::async_runtime::block_on(async {
-                initialize_app(&handle)
-                    .await
-                    .expect("Failed to initialize application");
-            });
+            // Block until initialization completes to avoid race conditions. A failed
+            // start-up does not close the application (DGR-040): the window shows it.
+            tauri::async_runtime::block_on(initialize_app(&handle));
             Ok(())
         })
         .invoke_handler(builder.invoke_handler())

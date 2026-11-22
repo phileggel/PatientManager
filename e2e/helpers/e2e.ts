@@ -37,6 +37,7 @@ export interface E2eOverrides {
   pickExportPath?: string | null;
   pickImportPath?: string | null;
   pickDiagnosticReportPath?: string | null;
+  pickStartupFailureReportPath?: string | null;
 }
 
 /**

@@ -45,6 +45,8 @@ declare global {
       pickImportPath?: string | null;
       /** Stub return value for `db-backup/gateway.ts::pickDiagnosticReportPath`. */
       pickDiagnosticReportPath?: string | null;
+      /** Stub return value for `shell/gateway.ts::pickStartupFailureReportPath`. */
+      pickStartupFailureReportPath?: string | null;
     };
   }
 }

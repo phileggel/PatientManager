@@ -5,5 +5,7 @@ export { ImportModal } from "./import_modal/ImportModal";
 export { ManagementModal } from "./management_modal/ManagementModal";
 export { PageContent } from "./PageContent";
 export { SettingsModal } from "./settings_modal/SettingsModal";
+export { StartupFailurePage } from "./startup_failure/StartupFailurePage";
+export { useStartupFailure } from "./startup_failure/useStartupFailure";
 export type { Page } from "./types";
 export { useDrawerController } from "./useDrawerController";
