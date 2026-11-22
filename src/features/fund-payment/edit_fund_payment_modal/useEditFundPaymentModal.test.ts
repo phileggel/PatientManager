@@ -95,7 +95,7 @@ describe("useEditFundPaymentModal", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.currentProcedures).toHaveLength(1);
+    expect(result.current.listedProcedures).toHaveLength(1);
     expect(result.current.proceduresForModal).toHaveLength(1);
     expect(gateway.getFundPaymentGroupEditData).toHaveBeenCalledWith("group-1", "fund-1");
   });
