@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0] - 2026-11-22
+
+### Added
+
+- a failed database upgrade shows what failed and exports a report
+
+### Fixed
+
+- the fund statement's reading warnings show in the window and report
+- fund payments and bank labels keep their selections and searches
+- a fund wire refuses a group holding a procedure not reconciled
+- a bank entry with no date keeps its linked items and wider search
+- a bank entry's edit window keeps the entry opened last
+
 ## [0.31.0] - 2026-11-22
 
 ### Added
