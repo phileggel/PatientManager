@@ -134,7 +134,8 @@
       "empty_all": "Aucun groupe non rapproché trouvé.",
       "expand": "Élargir la recherche",
       "current": "Groupes actuellement liés",
-      "filter_placeholder": "Filtrer par caisse (nom ou identifiant)…"
+      "filter_placeholder": "Filtrer par caisse (nom ou identifiant)…",
+      "no_date": "Saisissez la date pour voir les groupes des 7 jours, ou élargissez la recherche."
     },
     "select_procedures": {
       "label": "Actes à rapprocher",
@@ -143,7 +144,8 @@
       "empty_all": "Aucun acte en statut Créé trouvé.",
       "expand": "Élargir la recherche",
       "current": "Actes actuellement liés",
-      "filter_placeholder": "Rechercher par patient, NIR ou date…"
+      "filter_placeholder": "Rechercher par patient, NIR ou date…",
+      "no_date": "Saisissez la date pour voir les actes des 7 jours, ou élargissez la recherche."
     },
     "list": {
       "loading": "Chargement...",

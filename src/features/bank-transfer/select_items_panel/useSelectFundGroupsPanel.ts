@@ -45,12 +45,13 @@ export function useSelectFundGroupsPanel({
   }, [currentGroups]);
 
   useEffect(() => {
-    if (!transferDate) {
+    // #459 — only the 7-day list needs the date; the broadened search runs without one.
+    const isExpanded = expandedDate === transferDate;
+    if (!transferDate && !isExpanded) {
       setCandidates([]);
       return;
     }
 
-    const isExpanded = expandedDate === transferDate;
     setLoading(true);
     const promise = isExpanded ? getAllUnsettledFundGroups() : getUnsettledFundGroups(transferDate);
 
@@ -77,6 +78,8 @@ export function useSelectFundGroupsPanel({
   }, [transferDate, expandedDate]);
 
   const isExpanded = expandedDate === transferDate;
+  // The 7-day list waits for a date; the panel says so instead of vanishing (#459).
+  const needsDate = !transferDate && !isExpanded;
 
   const getFundName = (fundId: string): string =>
     funds.find((f) => f.id === fundId)?.name ?? fundId;
@@ -126,5 +129,6 @@ export function useSelectFundGroupsPanel({
     getFundName,
     toggleGroup,
     handleExpand,
+    needsDate,
   };
 }

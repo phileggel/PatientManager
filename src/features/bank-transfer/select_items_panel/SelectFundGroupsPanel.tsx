@@ -14,7 +14,7 @@ interface SelectFundGroupsPanelProps {
 }
 
 export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
-  const { transferDate, selectedGroupIds, currentGroups } = props;
+  const { selectedGroupIds, currentGroups } = props;
   const { t } = useTranslation("bank");
   const { formatCurrency, formatDate } = useFormatters();
   const {
@@ -26,9 +26,8 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
     getFundName,
     toggleGroup,
     handleExpand,
+    needsDate,
   } = useSelectFundGroupsPanel(props);
-
-  if (!transferDate) return null;
 
   return (
     <div className="flex flex-col gap-2">
@@ -80,7 +79,14 @@ export function SelectFundGroupsPanel(props: SelectFundGroupsPanelProps) {
         />
       )}
 
-      {loading ? (
+      {needsDate ? (
+        <p
+          id="bank-transfer-group-candidate-no-date"
+          className="text-sm text-m3-on-surface-variant py-2"
+        >
+          {t("transfer.select_groups.no_date")}
+        </p>
+      ) : loading ? (
         <p className="text-sm text-m3-on-surface-variant py-2">
           {t("transfer.select_groups.loading")}
         </p>
