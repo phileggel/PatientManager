@@ -6,6 +6,7 @@ import { EditBankStatementLabelModal } from "../edit_bank_statement_label_modal/
 import {
   assignmentText,
   type BankStatementLabelRow,
+  emptyListMessageKey,
   filterAndSortRows,
   type SortConfig,
   type SortKey,
@@ -65,7 +66,7 @@ export function BankStatementLabelList({
     : loadFailed
       ? t("statement_label.load_error")
       : visible.length === 0
-        ? t("statement_label.empty")
+        ? t(emptyListMessageKey(rows.length))
         : null;
 
   return (

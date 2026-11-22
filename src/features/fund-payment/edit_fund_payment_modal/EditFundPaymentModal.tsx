@@ -44,7 +44,7 @@ export function EditFundPaymentModal({
   const {
     paymentDate,
     setPaymentDate,
-    currentProcedures,
+    listedProcedures,
     proceduresForModal,
     selectedIds,
     loading,
@@ -161,14 +161,14 @@ export function EditFundPaymentModal({
               <div className="flex justify-center py-8">
                 <div className="w-6 h-6 rounded-full border-2 border-m3-primary/30 border-t-m3-primary animate-spin" />
               </div>
-            ) : currentProcedures.length === 0 ? (
+            ) : listedProcedures.length === 0 ? (
               <p className="text-center py-8 text-m3-on-surface-variant">
                 {t("edit.no_procedures")}
               </p>
             ) : (
               <div className="bg-m3-surface-container rounded-xl overflow-hidden">
                 <div className="max-h-64 overflow-y-auto">
-                  {currentProcedures.map(renderProcedureRow)}
+                  {listedProcedures.map(renderProcedureRow)}
                 </div>
               </div>
             )}

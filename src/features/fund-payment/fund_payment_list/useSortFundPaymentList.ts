@@ -3,6 +3,13 @@ import type { FundPaymentRow } from "../shared/types";
 
 type SortKey = "fundName" | "paymentDate" | "totalAmount" | "procedureCount";
 
+/** A whole day typed as `YYYY-MM-DD` or `DD/MM/YYYY`, as `YYYY-MM-DD`; else null. */
+function asIsoDay(term: string): string | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(term)) return term;
+  const french = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(term);
+  return french ? `${french[3]}-${french[2]}-${french[1]}` : null;
+}
+
 export interface SortConfig {
   key: SortKey | null;
   direction: "asc" | "desc" | null;
@@ -32,15 +39,21 @@ export function useSortFundPaymentList(groups: FundPaymentRow[], searchTerm: str
     let filtered = groups;
 
     // Filter by search term (FPM-540): fund name, payment date,
-    // or any boundary of the displayed care period range (FPM-360).
+    // or any date inside the displayed care period range (FPM-360).
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
+      const day = asIsoDay(term.trim());
       filtered = groups.filter(
         (group) =>
           group.fundName.toLowerCase().includes(term) ||
           group.paymentDate.includes(term) ||
           (group.procedureStartDate?.includes(term) ?? false) ||
-          (group.procedureEndDate?.includes(term) ?? false),
+          (group.procedureEndDate?.includes(term) ?? false) ||
+          (day !== null &&
+            group.procedureStartDate !== undefined &&
+            group.procedureEndDate !== undefined &&
+            group.procedureStartDate <= day &&
+            day <= group.procedureEndDate),
       );
     }
 

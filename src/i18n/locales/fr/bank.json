@@ -316,6 +316,7 @@
     "ignored": "Ignoré",
     "loading": "Chargement des libellés…",
     "empty": "Aucun libellé enregistré. Les libellés sont enregistrés lors de l'import d'un relevé bancaire.",
+    "no_match": "Aucun libellé ne correspond à votre recherche.",
     "load_error": "Impossible de charger les libellés.",
     "double_click_to_edit": "Double-cliquez pour modifier",
     "edit_aria_label": "Modifier le libellé {{label}}",

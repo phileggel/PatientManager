@@ -183,6 +183,8 @@ export function useEditFundPaymentModal(payment: FundPaymentGroup | null, onClos
     paymentDate,
     setPaymentDate,
     currentProcedures,
+    // FPM-510 — the group's procedures and those just added, all listed (#622).
+    listedProcedures: allProcedures,
     proceduresForModal,
     selectedIds,
     loading,

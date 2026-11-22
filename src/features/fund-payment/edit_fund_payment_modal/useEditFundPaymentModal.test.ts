@@ -156,6 +156,22 @@ describe("useEditFundPaymentModal", () => {
     expect(result.current.selectedIds.has("proc-2")).toBe(true);
   });
 
+  it("test_622_fpm_510_an_added_procedure_is_listed_with_the_current_ones", async () => {
+    vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
+      success: true,
+      data: {
+        current_procedures: [mockCurrentProcedure],
+        available_procedures: [mockAvailableProcedure],
+      },
+    });
+    const { result } = renderHook(() => useEditFundPaymentModal(makePayment(), vi.fn()));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.handleProceduresAdded([mockAvailableProcedure]));
+
+    expect(result.current.listedProcedures.map((p) => p.id)).toEqual(["proc-1", "proc-2"]);
+  });
+
   it("handleProceduresAdded closes the select modal", async () => {
     vi.mocked(gateway.getFundPaymentGroupEditData).mockResolvedValue({
       success: true,

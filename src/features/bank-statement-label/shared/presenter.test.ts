@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BankFundLabelMapping } from "@/bindings";
 import { makeBankAccount } from "@/tests/bank.factory";
 import { makeFund } from "@/tests/fund.factory";
-import { filterAndSortRows, formatLabelError, toRows } from "./presenter";
+import { emptyListMessageKey, filterAndSortRows, formatLabelError, toRows } from "./presenter";
 
 const accounts = [
   makeBankAccount({ id: "acc-1", name: "Compte courant" }),
@@ -91,5 +91,12 @@ describe("formatLabelError", () => {
     expect(formatLabelError({ code: "DatabaseError" })).toEqual({
       key: "bank:statement_label.error.unknown",
     });
+  });
+});
+
+describe("emptyListMessageKey", () => {
+  it("test_622_bas_041c_a_search_with_no_match_says_so", () => {
+    expect(emptyListMessageKey(3)).toBe("statement_label.no_match");
+    expect(emptyListMessageKey(0)).toBe("statement_label.empty");
   });
 });

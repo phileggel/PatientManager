@@ -104,6 +104,11 @@ export function filterAndSortRows(
   });
 }
 
+/** BAS-041C — the message of an empty list: no label saved, or a search with no match. */
+export function emptyListMessageKey(labelCount: number): string {
+  return labelCount > 0 ? "statement_label.no_match" : "statement_label.empty";
+}
+
 /**
  * F27 layer 3 — BAS-042 / BAS-044 errors of the review screen. Only these two
  * codes are reachable with a distinct meaning here; every other code of the

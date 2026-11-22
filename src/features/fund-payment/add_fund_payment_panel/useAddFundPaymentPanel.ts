@@ -37,6 +37,12 @@ export function useAddFundPaymentPanel() {
     return FundPaymentPresenter.toSelectionSummary(selectedProcedures);
   }, [selectedProcedures]);
 
+  // FPM-510 — the picker reopens with the selection pinned at the top (#622).
+  const selectedProcedureIds = useMemo(
+    () => selectedProcedures.map((p) => p.id),
+    [selectedProcedures],
+  );
+
   const hasSelection = !selectionSummary.isEmpty;
 
   // Clear errors when user changes fund
@@ -130,6 +136,7 @@ export function useAddFundPaymentPanel() {
     // selected Fund
     selectedFund,
     selectedProcedures,
+    selectedProcedureIds,
     isModalOpen,
     setIsModalOpen,
     isSubmitting,

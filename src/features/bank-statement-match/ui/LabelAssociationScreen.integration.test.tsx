@@ -220,6 +220,23 @@ describe("LabelAssociationScreen — step 2 (#697)", () => {
     ).toBe(true);
   });
 
+  it("test_622_bas_120c_ignoring_again_after_unlocking_disables_the_fund_field", async () => {
+    const user = userEvent.setup();
+    renderScreen({ lines: [KNOWN, IGNORED], initial: [KNOWN, IGNORED] });
+    const fundField = () =>
+      element("bank-statement-label-association-fund-IGNORED").querySelector("input") ??
+      element("bank-statement-label-association-fund-IGNORED");
+
+    await user.click(element("bank-statement-label-association-ignore-IGNORED"));
+    expect((fundField() as HTMLInputElement).disabled).toBe(false);
+    await user.click(element("bank-statement-label-association-ignore-IGNORED"));
+
+    expect((fundField() as HTMLInputElement).disabled).toBe(true);
+    expect(element("bank-statement-label-association-chip-IGNORED").textContent).toBe(
+      "label_association.chip.ignored",
+    );
+  });
+
   it("links a label to the fund picked", async () => {
     const user = userEvent.setup();
     const onApplyCorrection = vi.fn().mockResolvedValue(true);

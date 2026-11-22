@@ -46,6 +46,7 @@ export function AddFundPaymentPanel() {
     handleOpenSelection,
     handleConfirmSelection,
     handleCreatePayment,
+    selectedProcedureIds,
   } = useAddFundPaymentPanel();
 
   const handleCreatePaymentWithFeedback = async () => {
@@ -147,7 +148,7 @@ export function AddFundPaymentPanel() {
         <ProcedureSelectionModal
           isOpen={isModalOpen}
           fundId={selectedFundId}
-          initialSelectionIds={[]}
+          initialSelectionIds={selectedProcedureIds}
           onConfirm={handleConfirmSelection}
           onCancel={() => setIsModalOpen(false)}
           isSubmitting={isSubmitting}

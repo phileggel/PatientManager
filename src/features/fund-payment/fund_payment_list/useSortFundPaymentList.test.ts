@@ -170,6 +170,25 @@ describe("useSortFundPaymentList — search filter", () => {
     expect(result.current.sortedAndFilteredGroups[0]?.fundName).toBe("MGEN Santé");
   });
 
+  it("test_622_fpm_540_a_date_inside_the_care_period_finds_the_group", () => {
+    const withPeriod = [
+      makeRow({
+        rowId: "r-p",
+        fundName: "CPAM Loire",
+        procedureStartDate: "2025-02-03",
+        procedureEndDate: "2025-02-27",
+      }),
+      makeRow({ rowId: "r-o", fundName: "MGEN Santé" }),
+    ];
+
+    for (const term of ["2025-02-14", "14/02/2025"]) {
+      const { result } = renderHook(() => useSortFundPaymentList(withPeriod, term));
+      expect(result.current.sortedAndFilteredGroups.map((r) => r.rowId)).toEqual(["r-p"]);
+    }
+    const { result } = renderHook(() => useSortFundPaymentList(withPeriod, "2025-03-01"));
+    expect(result.current.sortedAndFilteredGroups).toHaveLength(0);
+  });
+
   it("blank search term returns all rows unchanged", () => {
     const { result } = renderHook(() => useSortFundPaymentList(rows, "   "));
 
