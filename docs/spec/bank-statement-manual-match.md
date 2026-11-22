@@ -104,7 +104,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-038E — The group does not change (backend)**: The repair changes neither the group nor its procedures, their confirmed payment date included.
 
-**BSM-038F — A failed repair stops the start (backend)**: When the repair of BSM-038A fails, nothing it did is kept and the upgrade does not run.
+**BSM-038F — A failed repair stops the upgrade (backend)**: When the repair of BSM-038A fails, nothing it did is kept, the upgrade does not run, and the start-up fails as DGR-040 says.
 
 **Affected fields — on wire creation**
 

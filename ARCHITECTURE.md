@@ -90,7 +90,7 @@ Use cases may import from contexts; never from another use case. No domain event
 - **`overpayment`** — Refund cascade across Procedure + Fund + Bank. ([spec](docs/spec/overpayment.md))
 - **`patient_duplicates`** — Same-name patients listed as pairs; a merge moves the procedures and deletes the other patient in one unit of work (ADR-003); a dismissal is kept by the patient context. ([spec](docs/spec/patient-duplicates.md))
 - **`db_backup`** — SQLite `VACUUM INTO` + gzip; pending-import for Windows file-locking. ([spec](docs/spec/db-backup.md))
-- **`diagnostic_report`** — a text report on the installation (version, migrations, database checks, row counts, last log lines) with no patient data; the log is emptied when the version changes. ([spec](docs/spec/diagnostic-report.md))
+- **`diagnostic_report`** — a text report on the installation (version, migrations, database checks, row counts, last log lines) with no patient data, and what failed at start-up with its failure report; the log is emptied when the version changes. ([spec](docs/spec/diagnostic-report.md))
 
 ---
 

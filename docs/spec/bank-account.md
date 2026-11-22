@@ -90,7 +90,7 @@ An account of the practice on which bank entries are recorded.
 
 **BAC-063 — Deleted accounts removed on upgrade (backend)**: An account deleted before BAC-041 took effect is deleted once, on upgrade, with its bank statement labels. One a bank entry still holds is kept and listed again, as BAC-060 to BAC-062 say, once the other deleted accounts are removed (owner, 2026-11-01, #579).
 
-**BAC-064 — An upgrade refused (backend)**: The upgrade of BAC-057 is refused, and nothing changes, while a bank entry other than a patient's direct payment — a fund's wire, a refund — is recorded on the former cash account: the application does not start and its log names the refusal; the entry is dealt with by hand first (owner, 2026-11-08, #518).
+**BAC-064 — An upgrade refused (backend)**: The upgrade of BAC-057 is refused, and nothing of it is applied (DGR-040A), while a bank entry other than a patient's direct payment — a fund's wire, a refund — is recorded on the former cash account: the start-up fails as DGR-040 says and its log names the refusal (#730); the entry is dealt with by hand first (owner, 2026-11-08, #518).
 
 ---
 

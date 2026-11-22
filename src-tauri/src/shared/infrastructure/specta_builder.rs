@@ -132,6 +132,8 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             db_backup::export_database,
             db_backup::import_database,
             diagnostic_report::generate_diagnostic_report,
+            diagnostic_report::get_startup_failure,
+            diagnostic_report::generate_startup_failure_report,
             logger::log_frontend,
             patient_duplicates::list_patient_duplicates,
             patient_duplicates::merge_patients,

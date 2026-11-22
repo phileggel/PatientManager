@@ -7,6 +7,8 @@ use std::path::Path;
 
 use crate::shared::db_diagnostics::DatabaseDiagnostics;
 
+use super::startup_failure::{StartupFailure, StartupStage};
+
 /// How many trailing log lines the report carries (DGR-021).
 const LOG_LINES: usize = 200;
 /// Unambiguous characters for a support code read aloud or retyped: no 0/O, 1/I.
@@ -15,6 +17,8 @@ const CODE_ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const BACKEND_LOG_PREFIX: &str = "backend:";
 /// Beside the log file: the version that wrote it (DGR-030).
 const LOG_VERSION_MARKER: &str = "app.log.version";
+/// The message of the line that opens a start (`app::initialize_app`, DGR-043).
+pub const START_LINE: &str = "Initializing application backend";
 
 /// DGR-020 — an eight-character code, `XXXX-XXXX`.
 pub fn new_support_code() -> String {
@@ -66,20 +70,7 @@ pub async fn build(
     support_code: &str,
 ) -> String {
     let mut out = String::new();
-    let _ = writeln!(out, "PatientManager diagnostic report");
-    let _ = writeln!(out, "Support code: {support_code}");
-    let _ = writeln!(
-        out,
-        "Generated (UTC): {}",
-        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
-    );
-    let _ = writeln!(out, "App version: {}", env!("CARGO_PKG_VERSION"));
-    let _ = writeln!(
-        out,
-        "System: {} {}",
-        std::env::consts::OS,
-        std::env::consts::ARCH
-    );
+    header(&mut out, "PatientManager diagnostic report", support_code);
 
     section(&mut out, "Migrations", database.migrations().await);
     section(
@@ -95,6 +86,75 @@ pub async fn build(
     section(&mut out, "Row counts", database.row_counts().await);
     section(&mut out, "Last log lines", last_log_lines(log_file));
     out
+}
+
+/// DGR-043 — the report of a start that failed: no part read from the database.
+pub fn build_startup_failure(
+    failure: &StartupFailure,
+    log_file: Option<&Path>,
+    support_code: &str,
+) -> String {
+    let mut out = String::new();
+    header(
+        &mut out,
+        "PatientManager start-up failure report",
+        support_code,
+    );
+
+    let _ = writeln!(out, "\n== Start-up failure ==");
+    let _ = writeln!(out, "Stage: {}", stage_name(failure.stage));
+    if let Some(version) = failure.migration_version {
+        let description = failure.migration_description.as_deref().unwrap_or("");
+        let _ = writeln!(out, "Migration: {version} {description}");
+    }
+    let _ = writeln!(out, "Cause: {}", failure.cause);
+    let backup = if failure.backup_taken { "yes" } else { "no" };
+    let _ = writeln!(out, "Backup taken before the failure: {backup}");
+
+    let lines = match log_file {
+        Some(log_file) => start_log_lines(log_file),
+        None => Ok(vec!["(no log file)".to_string()]),
+    };
+    section(&mut out, "Log lines of this start-up", lines);
+    out
+}
+
+/// The stage as the wire names it (DGR-040, DGR-045), so the report and the screen agree.
+fn stage_name(stage: StartupStage) -> String {
+    serde_json::to_value(stage)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_string))
+        .unwrap_or_else(|| format!("{stage:?}"))
+}
+
+/// DGR-043A — the backend's lines from the last one that opens a start-up, at
+/// most the last `LOG_LINES` of them (DGR-021).
+fn start_log_lines(log_file: &Path) -> anyhow::Result<Vec<String>> {
+    let lines = backend_log_lines(log_file)?;
+    let start = lines
+        .iter()
+        .rposition(|line| line.contains(START_LINE))
+        .unwrap_or(0)
+        .max(lines.len().saturating_sub(LOG_LINES));
+    Ok(lines.into_iter().skip(start).collect())
+}
+
+/// DGR-021 — the support code, the time, the version and the system.
+fn header(out: &mut String, title: &str, support_code: &str) {
+    let _ = writeln!(out, "{title}");
+    let _ = writeln!(out, "Support code: {support_code}");
+    let _ = writeln!(
+        out,
+        "Generated (UTC): {}",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
+    );
+    let _ = writeln!(out, "App version: {}", env!("CARGO_PKG_VERSION"));
+    let _ = writeln!(
+        out,
+        "System: {} {}",
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
 }
 
 fn section(out: &mut String, title: &str, lines: anyhow::Result<Vec<String>>) {
@@ -124,6 +184,13 @@ fn is_backend_line(line: &str) -> bool {
 }
 
 fn last_log_lines(log_file: &Path) -> anyhow::Result<Vec<String>> {
+    let lines = backend_log_lines(log_file)?;
+    let skipped = lines.len().saturating_sub(LOG_LINES);
+    Ok(lines.into_iter().skip(skipped).collect())
+}
+
+/// The lines the backend wrote (DGR-022), or `(no log file)` (DGR-021).
+fn backend_log_lines(log_file: &Path) -> anyhow::Result<Vec<String>> {
     let bytes = match std::fs::read(log_file) {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -133,11 +200,9 @@ fn last_log_lines(log_file: &Path) -> anyhow::Result<Vec<String>> {
         Err(e) => anyhow::bail!("the log file cannot be read ({})", e.kind()),
     };
     let text = String::from_utf8_lossy(&bytes);
-    let lines: Vec<&str> = text.lines().filter(|line| is_backend_line(line)).collect();
-    let skipped = lines.len().saturating_sub(LOG_LINES);
-    Ok(lines
-        .into_iter()
-        .skip(skipped)
+    Ok(text
+        .lines()
+        .filter(|line| is_backend_line(line))
         .map(str::to_string)
         .collect())
 }
@@ -361,5 +426,107 @@ pub(crate) mod tests {
 
         let kept = std::fs::read_to_string(&log).expect("log");
         assert_eq!(kept, "written by this version\n");
+    }
+
+    fn failure() -> StartupFailure {
+        use super::super::startup_failure::StartupStage;
+        StartupFailure {
+            stage: StartupStage::Migration,
+            migration_version: Some(20261114),
+            migration_description: Some("fund group one bank entry".to_string()),
+            cause: "UNIQUE constraint failed: link.group_id".to_string(),
+            backup_taken: true,
+        }
+    }
+
+    #[test]
+    fn test_dgr_043_the_failure_report_holds_the_failure_and_this_start_only() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let log = dir.path().join("app.log");
+        std::fs::write(
+            &log,
+            format!(
+                "2026-01-01T09:00:00Z  INFO backend: {START_LINE}\n\
+                 2026-01-01T09:00:01Z  INFO backend: an earlier start\n\
+                 2026-01-01T10:00:00Z  INFO backend: {START_LINE} version=\"0.31.0\"\n\
+                 2026-01-01T10:00:01Z  INFO frontend: [Main] {PATIENT_NAME}\n\
+                 2026-01-01T10:00:02Z ERROR backend: A database migration failed\n"
+            ),
+        )
+        .expect("write log");
+
+        let report = build_startup_failure(&failure(), Some(&log), "ABCD-EFGH");
+
+        assert!(report.contains("Support code: ABCD-EFGH"));
+        assert!(report.contains(&format!("App version: {}", env!("CARGO_PKG_VERSION"))));
+        assert!(report.contains("Stage: migration"));
+        assert!(report.contains("Migration: 20261114 fund group one bank entry"));
+        assert!(report.contains("Cause: UNIQUE constraint failed: link.group_id"));
+        assert!(report.contains("Backup taken before the failure: yes"));
+        assert!(report.contains("A database migration failed"));
+        assert!(
+            !report.contains("an earlier start"),
+            "an earlier start is left out"
+        );
+        assert!(!report.contains(PATIENT_NAME), "a screen line is left out");
+        assert!(
+            !report.contains("== Migrations =="),
+            "nothing read from the database"
+        );
+        assert!(!report.contains("== Row counts =="));
+    }
+
+    #[test]
+    fn test_dgr_043a_a_long_start_up_keeps_its_last_lines_only() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let log = dir.path().join("app.log");
+        let mut text = format!("2026-01-01T10:00:00Z  INFO backend: {START_LINE}\n");
+        for i in 0..LOG_LINES + 10 {
+            text.push_str(&format!("2026-01-01T10:00:01Z  INFO backend: step {i}\n"));
+        }
+        std::fs::write(&log, text).expect("write log");
+
+        let report = build_startup_failure(&failure(), Some(&log), "ABCD-EFGH");
+
+        assert!(
+            !report.contains(START_LINE),
+            "the oldest lines are left out"
+        );
+        assert!(!report.contains("step 9\n"));
+        assert!(report.contains(&format!("step {}", LOG_LINES + 9)));
+    }
+
+    #[test]
+    fn test_dgr_043a_with_no_start_up_line_every_kept_line_is_there() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let log = dir.path().join("app.log");
+        std::fs::write(
+            &log,
+            "2026-01-01T10:00:00Z  INFO backend: first\n2026-01-01T10:00:01Z  INFO backend: second\n",
+        )
+        .expect("write log");
+
+        let report = build_startup_failure(&failure(), Some(&log), "ABCD-EFGH");
+
+        assert!(report.contains("backend: first"));
+        assert!(report.contains("backend: second"));
+    }
+
+    #[test]
+    fn test_dgr_043a_a_missing_log_file_reads_no_log_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        let report =
+            build_startup_failure(&failure(), Some(&dir.path().join("app.log")), "ABCD-EFGH");
+
+        assert!(report.contains("(no log file)"));
+    }
+
+    #[test]
+    fn test_dgr_043_without_a_log_the_report_says_so() {
+        let report = build_startup_failure(&failure(), None, "ABCD-EFGH");
+
+        assert!(report.contains("Stage: migration"));
+        assert!(report.contains("(no log file)"));
     }
 }

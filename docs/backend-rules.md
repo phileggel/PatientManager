@@ -174,18 +174,15 @@ implementations, `sqlx::Pool`, `sqlx::Transaction`, `sqlx::query!`, or any other
 
 **B25** — For write operations that must emit an event, use cases SHOULD go through the BC Application Service rather than the repository trait directly to ensure the event is properly fired.
 
-**B26** — For cross-aggregate writes (operations that must write to more than one aggregate
-atomically), the use case orchestrator MUST use the UnitOfWork pattern (ADR-003): it depends on
-the unit of work and transaction manager traits declared in its use case folder, implemented over
-`SqlxTransactionManager` from `shared/infrastructure/uow.rs` in a file beside them — the one place
-under `use_cases/` where B24's ban on sqlx types does not apply. Single-aggregate writes do NOT use
-UoW — the aggregate's own repository handles atomicity internally via its `save()` method.
+**B26** — For cross-aggregate writes (operations that must write to more than one aggregate atomically), the use case orchestrator MUST use the UnitOfWork pattern (ADR-003): it depends on the unit of work and transaction manager traits declared in its use case folder, implemented over `SqlxTransactionManager` from `shared/infrastructure/uow.rs` in a file beside them — the one place under `use_cases/` where B24's ban on sqlx types does not apply. Single-aggregate writes do NOT use UoW — the aggregate's own repository handles atomicity internally via its `save()` method.
 
 ## Repository
 
 **B27** — MUST use sqlx macros for queries, except where a macro cannot check the statement: PRAGMAs, reads of SQLite's own catalogue, and identifiers only known at run time (wrapped in `AssertSqlSafe`, never built from user input). `just clean-db` wipes and re-migrates the dev database.
 
 **B49** — A migration is reviewed in the range that adds it (the branch, or a release sweep's tag range); one already merged is not judged again (owner, 2026-10-10).
+
+**B50** — A migration that can fail on existing rows (a new constraint they may break) needs a `PreMigrationStep` (`shared/infrastructure/db.rs`) that repairs those rows, or logs, before the migration runs, which rows would fail and why, within B44.
 
 ## Logging
 

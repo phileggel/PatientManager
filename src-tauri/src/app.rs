@@ -31,7 +31,8 @@ use crate::use_cases::bank_statement_reconciliation::{
 };
 use crate::use_cases::db_backup::DbBackupOrchestrator;
 use crate::use_cases::diagnostic_report::{
-    reset_log_on_version_change, DiagnosticReportOrchestrator,
+    reset_log_on_version_change, DiagnosticReportOrchestrator, StartupFailure,
+    StartupFailureReport, START_LINE,
 };
 use crate::use_cases::excel_import::{ExcelImportOrchestrator, SqliteExcelAmountMappingRepository};
 use crate::use_cases::fund_payment_manual_management::FundPaymentManualManagementOrchestrator;
@@ -47,17 +48,26 @@ use crate::use_cases::procedure_orchestration::{
 /// Initialize the application backend
 ///
 /// Sets up the database connection, creates application services,
-/// and registers them with Tauri state management
-pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()> {
-    // Create app directories
-    let dirs = create_app_dirs(app)?;
+/// and registers them with Tauri state management. A start-up that fails does not
+/// close the application: the failure is held for the window to read (DGR-040, DGR-045).
+pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) {
+    // Before tracing exists, a failure is held but logged nowhere (DGR-045).
+    let dirs = match create_app_dirs(app) {
+        Ok(dirs) => dirs,
+        Err(e) => return record_startup_failure(app, StartupFailure::other(&e), None),
+    };
+    // DGR-023 — the report of a failed start-up refuses these folders too.
+    crate::shared::secure_path::refuse_app_dirs(&[&dirs.local_data_dir, &dirs.log_dir]);
 
     // DGR-030 — a log written by another version is emptied before logging
     // starts. A failure here must not stop the app: the old log is kept.
     let log_reset = reset_log_on_version_change(&dirs.log_dir, env!("CARGO_PKG_VERSION"));
 
     // Initialize tracing with file logging
-    initialize_tracing(&dirs.log_dir)?;
+    if let Err(e) = initialize_tracing(&dirs.log_dir) {
+        return record_startup_failure(app, StartupFailure::other(&e), None);
+    }
+    let log_file = dirs.log_dir.join("app.log");
     if let Err(e) = log_reset {
         tracing::warn!(target: BACKEND, err = ?e, "Could not reset the log of a previous version");
     }
@@ -65,27 +75,39 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
         target: BACKEND,
         version = env!("CARGO_PKG_VERSION"),
         build_os = std::env::consts::OS,
-        "Initializing application backend"
+        "{}",
+        START_LINE
     );
     tracing::trace!(target: BACKEND, data_dir = ?dirs.local_data_dir, log_dir = ?dirs.log_dir, "Application directories");
-    crate::shared::secure_path::refuse_app_dirs(&[&dirs.local_data_dir, &dirs.log_dir]);
 
     // Check if database reset is requested (honoured in a debug build only, see `Database::new`)
     let is_db_reset = std::env::var("RESET_DATABASE")
         .map(|val| val.to_lowercase() == "true" || val == "1")
         .unwrap_or(false);
 
-    let db = Arc::new(
-        crate::shared::Database::new_with_steps(
-            dirs.local_data_dir.clone(),
-            is_db_reset,
-            // BSM-038A (#732) — a group settled by several bank entries is repaired
-            // before migration 20261114 would stop on it.
-            &[crate::context::bank::unlink_group_double_links],
-        )
-        .await
-        .with_context(|| "Failed to initialize database")?,
-    );
+    let db = match crate::shared::Database::new_with_steps(
+        dirs.local_data_dir.clone(),
+        is_db_reset,
+        // BSM-038A (#732) — a group settled by several bank entries is repaired
+        // before migration 20261114 would stop on it.
+        &[crate::context::bank::unlink_group_double_links],
+    )
+    .await
+    {
+        Ok(db) => Arc::new(db),
+        Err(e) => {
+            tracing::error!(
+                target: BACKEND,
+                stage = ?e.stage,
+                migration_version = ?e.migration_version,
+                backup_taken = e.backup_taken,
+                cause = %e.first_cause(),
+                "The database could not be made ready: the start-up failure page is shown"
+            );
+            let failure = StartupFailure::from_database(&e);
+            return record_startup_failure(app, failure, Some(log_file));
+        }
+    };
     tracing::info!(target: BACKEND, "Database initialized successfully");
     app.manage(db.clone());
 
@@ -302,7 +324,7 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
 
     let diagnostic_report_orchestrator = Arc::new(DiagnosticReportOrchestrator::new(
         Arc::new(SqliteDatabaseDiagnostics::new(db.get_pool().clone())),
-        dirs.log_dir.join("app.log"),
+        log_file,
     ));
     tracing::info!(target: BACKEND, "Diagnostic report orchestrator created");
 
@@ -328,7 +350,16 @@ pub async fn initialize_app<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<()>
     app.manage(db_backup_orchestrator);
     app.manage(diagnostic_report_orchestrator);
     tracing::info!(target: BACKEND, "Application backend initialized successfully");
-    Ok(())
+}
+
+/// DGR-040, DGR-045 — hold the failure for `get_startup_failure`; no service is built.
+fn record_startup_failure<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    failure: StartupFailure,
+    log_file: Option<PathBuf>,
+) {
+    tracing::error!(target: BACKEND, stage = ?failure.stage, "Start-up failed");
+    app.manage(Arc::new(StartupFailureReport::new(failure, log_file)));
 }
 
 #[derive(Debug, Clone)]

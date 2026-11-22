@@ -833,6 +833,24 @@ async generateDiagnosticReport(destPath: string) : Promise<Result<DiagnosticRepo
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * DGR-040, DGR-041, DGR-044 — what failed at start-up, or `None`.
+ */
+async getStartupFailure() : Promise<StartupFailure | null> {
+    return await TAURI_INVOKE("get_startup_failure");
+},
+/**
+ * DGR-043, DGR-044A — write the failure report; refused first when the start-up
+ * did not fail.
+ */
+async generateStartupFailureReport(destPath: string) : Promise<Result<DiagnosticReportResult, DiagnosticReportError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("generate_startup_failure_report", { destPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async logFrontend(level: string, message: string) : Promise<void> {
     await TAURI_INVOKE("log_frontend", { level, message });
 },
@@ -1632,7 +1650,11 @@ export type DiagnosticReportError =
 /**
  * The report could not be written to the destination.
  */
-{ code: "ReportFailed" }
+{ code: "ReportFailed" } | 
+/**
+ * DGR-044A — a failure report asked after a start-up that did not fail.
+ */
+{ code: "NoStartupFailure" }
 /**
  * What the frontend shows once the report is written (DGR-014).
  */
@@ -2868,6 +2890,22 @@ export type SplitPartInvalidReason =
  * An amount of zero, or of the opposite sign to the line's.
  */
 "AmountWrongSign"
+/**
+ * DGR-041 — what failed at start.
+ */
+export type StartupFailure = { stage: StartupStage; migration_version: number | null; migration_description: string | null; 
+/**
+ * The error's innermost cause only; the home folder reads `~` (DGR-041).
+ */
+cause: string; 
+/**
+ * DGR-042 — the backup beside the database was saved before the failure.
+ */
+backup_taken: boolean }
+/**
+ * DGR-040 — the step of the start that failed.
+ */
+export type StartupStage = "pending_import" | "open" | "backup" | "checksum_repair" | "repair" | "migration" | "other"
 /**
  * Column-header strings for the unreconciled table (FPR-031). Fixed 4 columns.
  */

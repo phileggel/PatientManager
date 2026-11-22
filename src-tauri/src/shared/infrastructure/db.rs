@@ -50,6 +50,49 @@ fn reset_allowed(requested: bool, debug_build: bool) -> bool {
 pub type PreMigrationStep =
     for<'a> fn(&'a SqlitePool) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
 
+/// DGR-040 — the step of the start at which the database could not be made ready.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DatabaseStartStage {
+    PendingImport,
+    Open,
+    Backup,
+    ChecksumRepair,
+    Repair,
+    Migration,
+}
+
+/// DGR-041 — why the database could not be made ready at start.
+#[derive(Debug, thiserror::Error)]
+#[error("the database could not be made ready ({stage:?})")]
+pub struct DatabaseStartError {
+    pub stage: DatabaseStartStage,
+    /// A migration's version, when the stage is `Migration` and sqlx named it.
+    pub migration_version: Option<i64>,
+    pub migration_description: Option<String>,
+    /// DGR-042 — the backup beside the database was saved before the failure.
+    pub backup_taken: bool,
+    #[source]
+    source: anyhow::Error,
+}
+
+impl DatabaseStartError {
+    fn at(stage: DatabaseStartStage, backup_taken: bool) -> impl FnOnce(anyhow::Error) -> Self {
+        move |source| Self {
+            stage,
+            migration_version: None,
+            migration_description: None,
+            backup_taken,
+            source,
+        }
+    }
+
+    /// DGR-041 — the error's first cause only: the database's or the file
+    /// system's text, never an outer message that can carry a path.
+    pub fn first_cause(&self) -> String {
+        self.source.root_cause().to_string()
+    }
+}
+
 /// Database manager for patient operations
 pub struct Database {
     pool: SqlitePool,
@@ -58,7 +101,7 @@ pub struct Database {
 
 impl Database {
     pub async fn new(app_data_dir: PathBuf, is_db_reset: bool) -> Result<Self> {
-        Self::new_with_steps(app_data_dir, is_db_reset, &[]).await
+        Ok(Self::new_with_steps(app_data_dir, is_db_reset, &[]).await?)
     }
 
     /// `new`, with the repairs to run before the migrations.
@@ -66,7 +109,9 @@ impl Database {
         app_data_dir: PathBuf,
         is_db_reset: bool,
         pre_migration_steps: &[PreMigrationStep],
-    ) -> Result<Self> {
+    ) -> Result<Self, DatabaseStartError> {
+        use DatabaseStartStage as Stage;
+
         let db_path = db_path_for(
             &app_data_dir,
             std::env::var("PATIENT_MANAGER_E2E_DB").ok(),
@@ -81,14 +126,17 @@ impl Database {
                 "Pending database import found — replacing active database before opening"
             );
             fs::rename(&pending_path, &db_path)
-                .with_context(|| "Failed to apply pending database import")?;
+                .with_context(|| "Failed to apply pending database import")
+                .map_err(DatabaseStartError::at(Stage::PendingImport, false))?;
             tracing::info!(target: BACKEND, "Pending database import applied successfully");
         }
 
         if reset_allowed(is_db_reset, cfg!(debug_assertions)) {
             tracing::warn!(target: BACKEND, "RESET_DATABASE is set - deleting existing database");
             if db_path.exists() {
-                fs::remove_file(&db_path).with_context(|| "Failed to delete database")?;
+                fs::remove_file(&db_path)
+                    .with_context(|| "Failed to delete database")
+                    .map_err(DatabaseStartError::at(Stage::Open, false))?;
                 tracing::info!(target: BACKEND, "Database deleted successfully");
             } else {
                 tracing::info!(target: BACKEND, "Database does not exist, skipping delete");
@@ -106,7 +154,9 @@ impl Database {
         let pool = SqlitePoolOptions::new()
             .max_connections(5)
             .connect_with(connect_options)
-            .await?;
+            .await
+            .context("Failed to open the database")
+            .map_err(DatabaseStartError::at(Stage::Open, false))?;
 
         tracing::trace!(target: BACKEND, "Database connection pool created");
 
@@ -118,21 +168,25 @@ impl Database {
         // Snapshot the current database before mutating it, so a failed
         // migration or heal can be rolled back by restoring the backup file.
         // Skipped on fresh installs and when no migrations are pending.
-        backup_db_if_migrations_pending(&db.pool, &db.db_path)
+        let backup_taken = backup_db_if_migrations_pending(&db.pool, &db.db_path)
             .await
-            .with_context(|| "Failed to back up database before migration")?;
+            .with_context(|| "Failed to back up database before migration")
+            // A failed backup is no backup.
+            .map_err(DatabaseStartError::at(Stage::Backup, false))?;
 
         // Heal CRLF→LF migration checksum drift from binaries built with
         // git core.autocrlf=true (e.g. v0.14.0 built on Windows). Must run
         // before sqlx::migrate! to prevent VersionMismatch panic at startup.
         heal_crlf_checksum_drift(&db.pool)
             .await
-            .with_context(|| "Failed to heal migration checksums")?;
+            .with_context(|| "Failed to heal migration checksums")
+            .map_err(DatabaseStartError::at(Stage::ChecksumRepair, backup_taken))?;
 
         for step in pre_migration_steps {
             step(&db.pool)
                 .await
-                .with_context(|| "A repair before the migrations failed")?;
+                .with_context(|| "A repair before the migrations failed")
+                .map_err(DatabaseStartError::at(Stage::Repair, backup_taken))?;
         }
 
         // Apply database migrations on a dedicated connection with foreign-key
@@ -162,11 +216,30 @@ impl Database {
             .disable_statement_logging()
             .connect()
             .await
-            .with_context(|| "Failed to open migration connection")?;
-        sqlx::migrate!("./migrations")
-            .run(&mut migrate_conn)
-            .await
-            .with_context(|| "sqlx::migrate! failed")?;
+            .with_context(|| "Failed to open migration connection")
+            .map_err(DatabaseStartError::at(Stage::Migration, backup_taken))?;
+        let migrator = sqlx::migrate!("./migrations");
+        if let Err(e) = migrator.run(&mut migrate_conn).await {
+            let migration_version = failed_migration_version(&e);
+            let migration_description = migration_version.and_then(|version| {
+                migrator
+                    .iter()
+                    .find(|m| m.version == version)
+                    .map(|m| m.description.to_string())
+            });
+            tracing::error!(
+                target: BACKEND,
+                migration_version = ?migration_version,
+                "A database migration failed"
+            );
+            return Err(DatabaseStartError {
+                stage: Stage::Migration,
+                migration_version,
+                migration_description,
+                backup_taken,
+                source: anyhow::Error::new(e).context("sqlx::migrate! failed"),
+            });
+        }
 
         // Enforcement was off during migration, so verify referential
         // integrity afterward. Real dangling rows (e.g. from an imported
@@ -187,7 +260,8 @@ impl Database {
         migrate_conn
             .close()
             .await
-            .with_context(|| "Failed to close migration connection")?;
+            .with_context(|| "Failed to close migration connection")
+            .map_err(DatabaseStartError::at(Stage::Migration, backup_taken))?;
         tracing::info!(target: BACKEND, "Database migrations applied");
 
         Ok(db)
@@ -214,14 +288,14 @@ impl Database {
 ///
 /// Uses SQLite's `VACUUM INTO` for an atomic, transactionally consistent
 /// snapshot that doesn't depend on journal mode (WAL/DELETE/etc.).
-async fn backup_db_if_migrations_pending(pool: &SqlitePool, db_path: &Path) -> Result<()> {
+async fn backup_db_if_migrations_pending(pool: &SqlitePool, db_path: &Path) -> Result<bool> {
     let table_exists: Option<String> = sqlx::query_scalar(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '_sqlx_migrations'",
     )
     .fetch_optional(pool)
     .await?;
     if table_exists.is_none() {
-        return Ok(());
+        return Ok(false);
     }
 
     let applied: Vec<i64> =
@@ -236,7 +310,7 @@ async fn backup_db_if_migrations_pending(pool: &SqlitePool, db_path: &Path) -> R
         .filter(|v| !applied.contains(v))
         .collect();
     if pending.is_empty() {
-        return Ok(());
+        return Ok(false);
     }
 
     let target_version = env!("CARGO_PKG_VERSION");
@@ -268,7 +342,22 @@ async fn backup_db_if_migrations_pending(pool: &SqlitePool, db_path: &Path) -> R
         backup_path = %backup_path.display(),
         "Database backup complete"
     );
-    Ok(())
+    Ok(true)
+}
+
+/// The migration a failed run names, when sqlx names one.
+fn failed_migration_version(err: &sqlx::migrate::MigrateError) -> Option<i64> {
+    use sqlx::migrate::MigrateError as E;
+    match err {
+        E::ExecuteMigration(_, version)
+        | E::VersionMissing(version)
+        | E::VersionMismatch(version)
+        | E::VersionNotPresent(version)
+        | E::VersionTooOld(version, _)
+        | E::VersionTooNew(version, _)
+        | E::Dirty(version) => Some(*version),
+        _ => None,
+    }
 }
 
 /// Heal CRLF→LF migration checksum drift introduced by binaries built with
@@ -839,6 +928,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_dgr_042_a_backup_is_made_only_while_migrations_are_pending() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::new(dir.path().to_path_buf(), false)
+            .await
+            .expect("a new database");
+
+        let taken = backup_db_if_migrations_pending(db.get_pool(), db.get_path())
+            .await
+            .expect("the check runs");
+
+        assert!(!taken, "nothing pending: no backup");
+        sqlx::query("DELETE FROM _sqlx_migrations WHERE version = (SELECT MAX(version) FROM _sqlx_migrations)")
+            .execute(db.get_pool())
+            .await
+            .unwrap();
+        let taken = backup_db_if_migrations_pending(db.get_pool(), db.get_path())
+            .await
+            .expect("the backup is made");
+        assert!(taken, "a migration pending: a backup");
+    }
+
+    #[tokio::test]
     async fn test_732_a_pre_migration_step_runs_before_the_migrations() {
         let dir = tempfile::tempdir().unwrap();
 
@@ -862,6 +973,10 @@ mod tests {
         let result =
             Database::new_with_steps(dir.path().to_path_buf(), false, &[failing_step]).await;
 
-        assert!(result.is_err());
+        let err = result.err().expect("the start stops");
+        // DGR-041 — a new database: nothing to back up, the repair stage is named.
+        assert_eq!(err.stage, DatabaseStartStage::Repair);
+        assert_eq!(err.migration_version, None);
+        assert!(!err.backup_taken);
     }
 }

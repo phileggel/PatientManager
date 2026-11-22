@@ -100,5 +100,39 @@
     "window_days_invalid": "Enter a whole number of days greater than zero.",
     "save": "Save",
     "cancel": "Close"
+  },
+  "startup_failure": {
+    "title_upgrade": "The database upgrade failed",
+    "title_start": "The application could not start",
+    "intro": "The application cannot start in this version.",
+    "backup": "A backup of your database was saved before the attempt, next to the database.",
+    "version": "Version",
+    "step_label": "Step",
+    "cause": "Error",
+    "step": {
+      "migration": "{{version}} {{description}}"
+    },
+    "stage": {
+      "pending_import": "Replacing with the restored backup",
+      "open": "Opening the database",
+      "backup": "Backup before the upgrade",
+      "checksum_repair": "Repairing the migrations",
+      "repair": "Repair before the upgrade",
+      "migration": "Database upgrade",
+      "other": "Preparing the application"
+    },
+    "explain": "Export the report and send it to support. It holds no patient data: only the version, the failed step and the technical messages of this start-up. The full detail stays in the app.log file.",
+    "export": "Export the report",
+    "close": "Close the application",
+    "dialog_title": "Save the failure report",
+    "saved": "Report saved:",
+    "send": "Send this file to support and quote the code",
+    "errors": {
+      "home_unresolved": "Your home folder could not be found. Please try again.",
+      "path_rejected": "The selected location is not allowed. Choose a folder in your home directory.",
+      "report_failed": "The report could not be saved. Please try again.",
+      "no_startup_failure": "The application started normally: there is no failure to report.",
+      "unexpected": "An unexpected error occurred. Please try again."
+    }
   }
 }

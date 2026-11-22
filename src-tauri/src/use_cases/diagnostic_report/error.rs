@@ -20,6 +20,10 @@ pub enum DiagnosticReportError {
     /// The report could not be written to the destination.
     #[error("Failed to write the diagnostic report")]
     ReportFailed,
+
+    /// DGR-044A — a failure report asked after a start-up that did not fail.
+    #[error("The start-up did not fail")]
+    NoStartupFailure,
 }
 
 #[cfg(test)]
@@ -33,6 +37,7 @@ mod tests {
             (DiagnosticReportError::HomeUnresolved, "HomeUnresolved"),
             (DiagnosticReportError::PathRejected, "PathRejected"),
             (DiagnosticReportError::ReportFailed, "ReportFailed"),
+            (DiagnosticReportError::NoStartupFailure, "NoStartupFailure"),
         ] {
             let value = to_value(&err).expect("serialise");
             assert_eq!(value, json!({ "code": code }));
