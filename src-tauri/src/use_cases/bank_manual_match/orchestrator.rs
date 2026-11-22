@@ -182,7 +182,7 @@ impl BankManualMatchOrchestrator {
                 let current = procedures.remove(&procedure.id).unwrap_or(procedure);
                 procedures.insert(
                     current.id.clone(),
-                    settled_by_fund(current, confirmed_date)?,
+                    current.settle_by_fund_group(confirmed_date)?,
                 );
             }
             statuses.insert(group_id.clone(), group.status);
@@ -903,16 +903,6 @@ impl BankManualMatchOrchestrator {
 // ======================================================================
 // Pure conversion helpers (testable)
 // ======================================================================
-
-/// R7, BSM-037A — a procedure of a settled group, or the refusal naming it.
-fn settled_by_fund(
-    p: Procedure,
-    confirmed_date: NaiveDate,
-) -> Result<Procedure, BankManualMatchTask> {
-    let procedure_id = p.id.clone();
-    p.settle_by_fund_group(confirmed_date)
-        .ok_or(BankManualMatchTask::ProcedureNotReconciled { procedure_id })
-}
 
 /// R8 — A procedure of a reverted group: Stage 2 (payment_method and
 /// confirmed_payment_date) cleared; fund_reconciliation_date and paid_amount stay.

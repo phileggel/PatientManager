@@ -1108,10 +1108,10 @@ async fn seed_group_procedures(pool: &SqlitePool, status: &str) {
 
 fn procedure_not_reconciled(err: BankManualMatchError) -> String {
     match err {
-        BankManualMatchError::Task(BankManualMatchTask::ProcedureNotReconciled {
+        BankManualMatchError::Procedure(ProcedureError::ProcedureStatusNotReconciled {
             procedure_id,
         }) => procedure_id,
-        other => panic!("expected ProcedureNotReconciled, got {other:?}"),
+        other => panic!("expected ProcedureStatusNotReconciled, got {other:?}"),
     }
 }
 

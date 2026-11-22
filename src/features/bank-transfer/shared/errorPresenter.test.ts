@@ -51,7 +51,7 @@ describe("formatBankManualMatchError", () => {
 
   it("test_602_bsm_037a_a_procedure_not_reconciled_is_named", () => {
     expect(
-      formatBankManualMatchError({ code: "ProcedureNotReconciled", procedure_id: "p-9" }),
+      formatBankManualMatchError({ code: "ProcedureStatusNotReconciled", procedure_id: "p-9" }),
     ).toEqual({
       key: "bank:errors.procedure_not_reconciled",
       params: { id: "p-9" },

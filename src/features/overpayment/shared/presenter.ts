@@ -45,6 +45,7 @@ export function formatOverpaymentError(err: OverpaymentError): {
     case "DatabaseError":
     case "ProcedureInvalid":
     case "ProcedureStatusNotCreated":
+    case "ProcedureStatusNotReconciled":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":
     case "ProcedureTypeNotFound":
