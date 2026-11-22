@@ -234,7 +234,8 @@ describe("useReportGeneration", () => {
       samples: ["??? 931"],
     };
 
-    const { result } = renderHook(() => useReportGeneration({ ...baseArgs, readingWarnings }));
+    const argsWithWarnings = { ...baseArgs, readingWarnings };
+    const { result } = renderHook(() => useReportGeneration(argsWithWarnings));
     await act(async () => {
       await result.current.handleReport();
     });
