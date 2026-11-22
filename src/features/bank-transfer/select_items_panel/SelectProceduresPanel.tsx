@@ -14,7 +14,7 @@ interface SelectProceduresPanelProps {
 }
 
 export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
-  const { transferDate, selectedProcedureIds, currentProcedures } = props;
+  const { selectedProcedureIds, currentProcedures } = props;
   const { t } = useTranslation("bank");
   const { formatCurrency, formatDate } = useFormatters();
   const {
@@ -26,9 +26,8 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
     getPatientName,
     toggleProcedure,
     handleExpand,
+    needsDate,
   } = useSelectProceduresPanel(props);
-
-  if (!transferDate) return null;
 
   return (
     <div className="flex flex-col gap-2">
@@ -82,7 +81,14 @@ export function SelectProceduresPanel(props: SelectProceduresPanelProps) {
         />
       )}
 
-      {loading ? (
+      {needsDate ? (
+        <p
+          id="bank-transfer-procedure-candidate-no-date"
+          className="text-sm text-m3-on-surface-variant py-2"
+        >
+          {t("transfer.select_procedures.no_date")}
+        </p>
+      ) : loading ? (
         <p className="text-sm text-m3-on-surface-variant py-2">
           {t("transfer.select_procedures.loading")}
         </p>

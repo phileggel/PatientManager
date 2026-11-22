@@ -67,6 +67,36 @@ describe("useSelectFundGroupsPanel", () => {
     expect(result.current.loading).toBe(false);
   });
 
+  it("test_459_without_a_date_the_7_day_list_waits_for_it", async () => {
+    const { result } = renderHook(() =>
+      useSelectFundGroupsPanel({
+        transferDate: "",
+        selectedGroupIds: [],
+        onSelectionChange: ON_CHANGE,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.needsDate).toBe(true);
+  });
+
+  it("test_459_the_broadened_search_runs_without_a_date", async () => {
+    mockGetAll.mockResolvedValue({ success: true, data: [] });
+    const { result } = renderHook(() =>
+      useSelectFundGroupsPanel({
+        transferDate: "",
+        selectedGroupIds: [],
+        onSelectionChange: ON_CHANGE,
+      }),
+    );
+
+    act(() => result.current.handleExpand());
+
+    await waitFor(() => expect(mockGetAll).toHaveBeenCalledTimes(1));
+    expect(result.current.isExpanded).toBe(true);
+    expect(result.current.needsDate).toBe(false);
+  });
+
   it("clears candidates when transferDate is empty and does not call gateway", async () => {
     const { result } = renderHook(() =>
       useSelectFundGroupsPanel({

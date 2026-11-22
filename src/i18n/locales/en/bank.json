@@ -134,7 +134,8 @@
       "empty_all": "No unreconciled groups found.",
       "expand": "Expand search",
       "current": "Currently linked groups",
-      "filter_placeholder": "Filter by fund (name or identifier)…"
+      "filter_placeholder": "Filter by fund (name or identifier)…",
+      "no_date": "Enter the date to see the groups of the 7 days, or broaden the search."
     },
     "select_procedures": {
       "label": "Procedures to reconcile",
@@ -143,7 +144,8 @@
       "empty_all": "No procedures with status Created found.",
       "expand": "Expand search",
       "current": "Currently linked procedures",
-      "filter_placeholder": "Search by patient, SSN or date…"
+      "filter_placeholder": "Search by patient, SSN or date…",
+      "no_date": "Enter the date to see the procedures of the 7 days, or broaden the search."
     },
     "list": {
       "loading": "Loading...",
