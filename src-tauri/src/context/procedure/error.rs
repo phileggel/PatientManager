@@ -22,6 +22,11 @@ pub enum ProcedureError {
     #[error("Procedure is not in Created status: {procedure_id}")]
     ProcedureStatusNotCreated { procedure_id: String },
 
+    /// `Procedure::settle_by_fund_group`: the procedure is neither `Reconciled`
+    /// nor `PartiallyReconciled` (BSM-037A).
+    #[error("Procedure is not reconciled: {procedure_id}")]
+    ProcedureStatusNotReconciled { procedure_id: String },
+
     /// `Procedure::validate` or `Procedure::read_form` refused the procedure:
     /// every reason at once, one per field (PRO-125).
     #[error("Procedure is invalid: {reasons:?}")]

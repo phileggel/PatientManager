@@ -181,7 +181,15 @@ impl BankEntry {
             reasons.push(BankEntryInvalidReason::AccountMissing);
         }
         let date = transfer_date.trim();
-        let parsed = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok();
+        // BSM-020 — four-digit year, then a month and a day of one or two digits:
+        // chrono alone would also take a short year, a sign or inner spaces.
+        let shaped = matches!(
+            date.split('-').map(str::len).collect::<Vec<_>>().as_slice(),
+            [4, 1..=2, 1..=2]
+        );
+        let parsed = (shaped && date.chars().all(|c| c.is_ascii_digit() || c == '-'))
+            .then(|| NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
+            .flatten();
         if date.is_empty() {
             reasons.push(BankEntryInvalidReason::DateMissing);
         } else if parsed.is_none() {
@@ -332,6 +340,27 @@ mod tests {
         assert_eq!(
             date,
             NaiveDate::from_ymd_opt(2026, 3, 15).expect("a valid date")
+        );
+    }
+
+    #[test]
+    fn test_602_bsm_020_a_short_year_a_sign_or_a_space_is_refused() {
+        for date in ["26-03-05", "+2026-03-05", "2026- 3- 5", "2026-003-05"] {
+            assert!(
+                BankEntry::read_form(Some("acc-1"), date, 2).is_err(),
+                "{date} is not a YYYY-MM-DD date"
+            );
+        }
+    }
+
+    #[test]
+    fn test_602_bsm_020_a_month_or_day_of_one_digit_is_read_as_the_full_date() {
+        let date = BankEntry::read_form(Some("acc-1"), "2026-3-5", 2)
+            .expect("a one-digit month and day are accepted");
+        assert_eq!(
+            date.format("%Y-%m-%d").to_string(),
+            "2026-03-05",
+            "stored written in full"
         );
     }
 

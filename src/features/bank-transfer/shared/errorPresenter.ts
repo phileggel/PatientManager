@@ -55,6 +55,9 @@ export function formatBankManualMatchError(err: BankManualMatchError): {
     // BSM-039 — a selected procedure that is no longer Created.
     case "ProcedureStatusNotCreated":
       return { key: "bank:errors.procedure_not_created", params: { id: err.procedure_id } };
+    // BSM-037A — a group the wire settles holds a procedure that is not reconciled.
+    case "ProcedureStatusNotReconciled":
+      return { key: "bank:errors.procedure_not_reconciled", params: { id: err.procedure_id } };
 
     // --- shared infra catch-all (Bank/Fund/Procedure all emit this) ---
     case "DatabaseError":

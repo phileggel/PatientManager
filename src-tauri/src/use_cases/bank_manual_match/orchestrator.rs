@@ -180,7 +180,10 @@ impl BankManualMatchOrchestrator {
             group.confirm_bank_payment()?;
             for procedure in self.read_group_procedures(&group).await? {
                 let current = procedures.remove(&procedure.id).unwrap_or(procedure);
-                procedures.insert(current.id.clone(), settled_by_fund(current, confirmed_date));
+                procedures.insert(
+                    current.id.clone(),
+                    current.settle_by_fund_group(confirmed_date)?,
+                );
             }
             statuses.insert(group_id.clone(), group.status);
         }
@@ -901,20 +904,13 @@ impl BankManualMatchOrchestrator {
 // Pure conversion helpers (testable)
 // ======================================================================
 
-/// R7 — A procedure of a settled group: FundPaid/PartiallyFundPaid, paid_amount conserved.
-fn settled_by_fund(mut p: Procedure, confirmed_date: NaiveDate) -> Procedure {
-    p.payment_status = if p.payment_status == ProcedureStatus::PartiallyReconciled {
-        ProcedureStatus::PartiallyFundPaid
-    } else {
-        ProcedureStatus::FundPaid
-    };
-    let amount = p.paid_amount;
-    p.with_payment_info(PaymentMethod::BankTransfer, Some(confirmed_date), amount)
-}
-
 /// R8 — A procedure of a reverted group: Stage 2 (payment_method and
 /// confirmed_payment_date) cleared; fund_reconciliation_date and paid_amount stay.
+/// An `Overpaid` procedure is left as it is (owner, #602).
 fn reverted_from_fund(mut p: Procedure) -> Procedure {
+    if p.payment_status == ProcedureStatus::Overpaid {
+        return p;
+    }
     p.payment_status = match p.payment_status {
         ProcedureStatus::FundPaid => ProcedureStatus::Reconciled,
         ProcedureStatus::PartiallyFundPaid => ProcedureStatus::PartiallyReconciled,

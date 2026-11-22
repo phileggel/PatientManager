@@ -50,7 +50,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **R5 — Bank entry deletion (backend)**: A deletion is irreversible — the bank entry is permanently erased (hard delete) along with its links to the fund-payment groups or procedures it held.
 
-**BSM-020 — Creation refusals, all at once (backend)**: Creating a bank entry (a fund's wire or a direct payment) is refused when its account is missing (not for a direct payment, BSM-026), its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written.
+**BSM-020 — Creation refusals, all at once (backend)**: Creating a bank entry (a fund's wire or a direct payment) is refused when its account is missing (not for a direct payment, BSM-026), its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date (a month or day of one digit is accepted: `2026-3-5` is kept as `2026-03-05`), or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written.
 
 **BSM-021 — Field refusals come first (backend)**: The refusals of BSM-020 and BSM-030 are answered before any other check — an unknown bank entry, account (not for a direct payment, BSM-026) or group, a procedure of a direct selection (BSM-036), a wrong type (R4), or the refund-only type (REF-080): an entry with a refused field is refused for its fields alone.
 
@@ -64,7 +64,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **BSM-029 — An amount that is not positive (backend)**: Creating or editing a bank entry whose amount (R3) is not positive is rejected with a specific error, and nothing is written (BSM-034).
 
-**BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date, or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9).
+**BSM-030 — Edit refusals, all at once (backend)**: Editing a bank entry is refused when its date is missing (a blank date counts as missing), its date is not a valid `YYYY-MM-DD` date (read as BSM-020 says), or no group or procedure is selected. Every reason is given in one answer, each tied to its field, and nothing is written. The account is not part of an edit (R9).
 
 **BSM-031 — An unchanged edit (backend)**: An edit nothing refuses whose date and selection (as a set, order aside) equal the stored bank entry's is answered unchanged: nothing is written and none of `ProcedureUpdated`, `FundPaymentGroupUpdated`, `BankEntryUpdated` is published.
 
@@ -80,7 +80,7 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **R7 — Creation: status effects (backend)**: When the wire is recorded, the procedures of its groups move to their final status (`Reconciled` → `FundPaid`, `PartiallyReconciled` → `PartiallyFundPaid`) and the groups move to `BankPaid` status. See the "Affected fields — on wire creation" table.
 
-**R8 — Deletion: rollback (backend)**: Deleting a fund's wire reverts the procedures of its groups to their prior state (`FundPaid` → `Reconciled`, `PartiallyFundPaid` → `PartiallyReconciled`) and moves the groups back to `Active` status. The procedures' confirmed payment date is restored to the date of the fund-payment group.
+**R8 — Deletion: rollback (backend)**: Deleting a fund's wire reverts the procedures of its groups to their prior state (`FundPaid` → `Reconciled`, `PartiallyFundPaid` → `PartiallyReconciled`) and moves the groups back to `Active` status. The procedures' payment method and confirmed payment date are cleared; their fund reconciliation date and paid amount stay. An `Overpaid` procedure (REF-160) is left as it is (owner, 2026-11-22, #602).
 
 **R9 — Edit: editable fields (backend)**: The date of a fund's wire and the groups it holds can be edited, never its account. A group it adds is one of R12's (BSM-037). The amount is recomputed accordingly.
 
@@ -91,6 +91,8 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 **R11 — Edit: removing a group (backend)**: Removing a group has the same effects on procedure and group statuses as at deletion (see R8).
 
 **BSM-037 — A group is settled by one bank entry (backend)**: Creating a `FundWire` bank entry, or editing one, whose selection holds a group already settled at the bank level or locked is refused with a specific error naming the first such group in the selection's order, and nothing is written (BSM-034). A group the edited entry already holds is kept, settled on the new date (BSM-035). An unknown group is refused first (owner, 2026-11-07, #634).
+
+**BSM-037A — A wire settles reconciled procedures (backend)**: Creating a `FundWire` bank entry, or editing one, whose selection holds a group with a procedure in neither `Reconciled` nor `PartiallyReconciled` status is refused with a specific error naming one such procedure, and nothing is written (BSM-034). An `Overpaid` procedure is not refused and is left as it is (R8). Groups are judged in the selection's order, each by BSM-037 first, then its procedures; a group the edited entry already holds is judged as R8 would leave it, then kept (BSM-035) (owner, 2026-11-22, #602).
 
 **BSM-038 — One bank entry per group (backend)**: A fund-payment group is linked to at most one bank entry, whatever records it: this flow (BSM-037), the bank statement import (`bank-statement-auto-match` BAS-053 to BAS-053C) or a refund (`overpayment` REF-120).
 
@@ -119,14 +121,15 @@ A fund-payment group becomes locked as soon as one of its procedures reaches Sta
 
 **Affected fields — on wire deletion**
 
-| Entity    | Field                    | Value                                                                   |
-| --------- | ------------------------ | ----------------------------------------------------------------------- |
-| Procedure | `payment_status`         | `FundPaid` → `Reconciled` / `PartiallyFundPaid` → `PartiallyReconciled` |
-| Procedure | `payment_method`         | cleared                                                                 |
-| Procedure | `confirmed_payment_date` | = group date                                                            |
-| Procedure | `paid_amount`            | preserved                                                               |
-| Group     | `status`                 | `BankPaid` → `Active`                                                   |
-| Group     | `is_locked`              | → false                                                                 |
+| Entity    | Field                      | Value                                                                   |
+| --------- | -------------------------- | ----------------------------------------------------------------------- |
+| Procedure | `payment_status`           | `FundPaid` → `Reconciled` / `PartiallyFundPaid` → `PartiallyReconciled` |
+| Procedure | `payment_method`           | cleared                                                                 |
+| Procedure | `confirmed_payment_date`   | cleared                                                                 |
+| Procedure | `fund_reconciliation_date` | preserved                                                               |
+| Procedure | `paid_amount`              | preserved                                                               |
+| Group     | `status`                   | `BankPaid` → `Active`                                                   |
+| Group     | `is_locked`                | → false                                                                 |
 
 ### A fund's wire with no bordereau (050–059)
 
@@ -213,7 +216,7 @@ A refused creation, edit or deletion changes nothing (BSM-034, BSM-040).
 
 ## Open Questions
 
-- [ ] Where does BSM-029's refusal come among those of BSM-036, BSM-037 and BSM-039? Today after an unknown group or procedure.
+- [ ] Where does BSM-029's refusal come among those of BSM-036, BSM-037, BSM-037A and BSM-039? Today after an unknown group or procedure.
 - [ ] After BSM-038D a wire's amount stands above the sum of its groups (R3): should the repair lower it? Today it does not.
 - [ ] A group whose links all point to bank entries that no longer exist loses them all (BSM-038B) and stays `BankPaid` with no bank entry: should it go back to `Active` (R8)? Today it does not.
 - [ ] Is the user told which wires the repair unlinked? Today only the log names them; #733 asks for a view of the wires with no group.

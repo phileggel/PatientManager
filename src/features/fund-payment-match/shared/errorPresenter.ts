@@ -137,6 +137,7 @@ export function formatReconciliationError(err: FundPaymentReconciliationError): 
     case "ProcedureInvalid":
     case "ProcedureNotFound":
     case "ProcedureStatusNotCreated":
+    case "ProcedureStatusNotReconciled":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":
     case "ProcedureTypeNotFound":

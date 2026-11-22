@@ -2462,6 +2462,11 @@ export type ProcedureError =
  */
 { code: "ProcedureStatusNotCreated"; procedure_id: string } | 
 /**
+ * `Procedure::settle_by_fund_group`: the procedure is neither `Reconciled`
+ * nor `PartiallyReconciled` (BSM-037A).
+ */
+{ code: "ProcedureStatusNotReconciled"; procedure_id: string } | 
+/**
  * `Procedure::validate` or `Procedure::read_form` refused the procedure:
  * every reason at once, one per field (PRO-125).
  */

@@ -48,6 +48,7 @@ export function formatManualManagementError(err: FundPaymentManualManagementErro
     case "ProcedureInvalid":
     case "ProcedureNotFound":
     case "ProcedureStatusNotCreated":
+    case "ProcedureStatusNotReconciled":
     case "ProcedureTypeNameEmpty":
     case "DefaultAmountNegative":
     case "ProcedureTypeNotFound":

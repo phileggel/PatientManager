@@ -48,6 +48,7 @@ export function formatProcedureError(err: ProcedureError): {
       return { key: "procedure-type:errors.invalid_refund_date_format" };
     // Raised by a direct payment only (BSM-039).
     case "ProcedureStatusNotCreated":
+    case "ProcedureStatusNotReconciled":
     case "DatabaseError":
       return { key: "procedure-type:errors.database_error" };
   }
