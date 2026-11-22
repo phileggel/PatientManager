@@ -16,6 +16,8 @@ vi.mock("../gateway", () => ({
 import * as gateway from "../gateway";
 import { useEditBankTransferModal } from "./useEditBankTransferModal";
 
+const onCloseNoop = () => {};
+
 const makeFundTransfer = (overrides?: Partial<BankEntry>) =>
   makeBankEntry({
     id: "transfer-fund-1",
@@ -55,6 +57,35 @@ describe("useEditBankTransferModal", () => {
     vi.mocked(gateway.getTransferProcedureIds).mockResolvedValue({ success: true, data: [] });
     vi.mocked(gateway.getFundGroupsByIds).mockResolvedValue({ success: true, data: [] });
     vi.mocked(gateway.getProceduresByIds).mockResolvedValue({ success: true, data: [] });
+  });
+
+  // ===== A late answer (#742) =====
+
+  it("test_742_a_late_answer_for_the_entry_left_does_not_replace_the_selection", async () => {
+    let answerFirst: (value: Awaited<ReturnType<typeof gateway.getTransferFundGroupIds>>) => void =
+      () => {};
+    vi.mocked(gateway.getTransferFundGroupIds)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          answerFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce({ success: true, data: ["group-second"] });
+    const first = makeFundTransfer({ id: "transfer-first" });
+    const second = makeFundTransfer({ id: "transfer-second" });
+
+    const { result, rerender } = renderHook(
+      ({ transfer }) => useEditBankTransferModal(transfer, onCloseNoop),
+      { initialProps: { transfer: first } },
+    );
+    rerender({ transfer: second });
+    await waitFor(() => expect(result.current.selectedGroupIds).toEqual(["group-second"]));
+
+    await act(async () => {
+      answerFirst({ success: true, data: ["group-first"] });
+    });
+
+    expect(result.current.selectedGroupIds).toEqual(["group-second"]);
   });
 
   // ===== Initialization =====

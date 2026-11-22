@@ -56,9 +56,13 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
     setInitialIds([]);
     setTotalAmountMillis(transfer.amount);
 
+    // #742 — an answer for an entry no longer edited is dropped (F20).
+    let isCurrent = true;
+
     const loadLinks = async () => {
       if (transfer.transfer_type === "FUND_WIRE") {
         const idsResult = await getTransferFundGroupIds(transfer.id);
+        if (!isCurrent) return;
         if (!idsResult.success || !idsResult.data) {
           logger.error("[useEditBankTransferModal] Failed to load fund group ids", {
             error: idsResult.error,
@@ -73,6 +77,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
 
         if (ids.length > 0) {
           const groupsResult = await getFundGroupsByIds(ids);
+          if (!isCurrent) return;
           if (groupsResult.success && groupsResult.data) {
             setCurrentGroups(groupsResult.data);
           } else {
@@ -83,6 +88,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
         }
       } else {
         const idsResult = await getTransferProcedureIds(transfer.id);
+        if (!isCurrent) return;
         if (!idsResult.success || !idsResult.data) {
           logger.error("[useEditBankTransferModal] Failed to load procedure ids", {
             error: idsResult.error,
@@ -97,6 +103,7 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
 
         if (ids.length > 0) {
           const procsResult = await getProceduresByIds(ids);
+          if (!isCurrent) return;
           if (procsResult.success && procsResult.data) {
             setCurrentProcedures(procsResult.data);
           } else {
@@ -109,6 +116,9 @@ export function useEditBankTransferModal(transfer: BankEntry | null, onClose: ()
     };
 
     loadLinks();
+    return () => {
+      isCurrent = false;
+    };
   }, [transfer, t]);
 
   const setTransferDate = (value: string) => {
