@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { AutoCorrection, ReconciliationMatch } from "@/bindings";
 import type { CorrectionGroupsInput } from "./reportPresenter";
-import { buildCorrectionGroups, buildLeftOutSection } from "./reportPresenter";
+import {
+  buildCorrectionGroups,
+  buildLeftOutSection,
+  buildReadingWarningsSection,
+} from "./reportPresenter";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -413,5 +417,49 @@ describe("buildLeftOutSection (FPR-050, FPR-051)", () => {
 
   it("ticket #595: with no group left out, the section is omitted", () => {
     expect(buildLeftOutSection([], "fr", t)).toBeNull();
+  });
+});
+
+describe("buildReadingWarningsSection (FPR-060 to FPR-062)", () => {
+  const t = (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key;
+
+  it("test_662_lists_the_groups_then_the_count_then_the_samples", () => {
+    const section = buildReadingWarningsSection(
+      {
+        mismatched: [
+          {
+            fundLabel: "MGEN 075",
+            paymentDate: "2026-11-14",
+            statedTotal: 184500,
+            linesSum: 161500,
+          },
+        ],
+        unparsedCount: 2,
+        samples: ["14/11/26 931 ACTE\u0007", "x".repeat(2000), "NEL\u0085"],
+      },
+      "fr",
+      t,
+    );
+
+    expect(section?.heading).toBe("print.section4.heading");
+    expect(section?.note).toBe("print.section4.note");
+    expect(section?.rows[0]?.replace(/\s/g, " ")).toBe(
+      'print.section4.mismatched_row:{"fund":"MGEN 075","date":"14/11/2026","stated":"184,50 €","sum":"161,50 €"}',
+    );
+    expect(section?.rows[1]).toBe('print.section4.unparsed:{"count":2}');
+    expect(section?.rows[2]).toBe("14/11/26 931 ACTE ");
+    expect(section?.rows[3]?.length).toBe(90);
+    expect(section?.rows[4]).toBe("NEL ");
+  });
+
+  it("test_662_fpr_061_only_the_parts_with_something_to_list", () => {
+    const onlyUnparsed = buildReadingWarningsSection(
+      { mismatched: [], unparsedCount: 1, samples: ["l"] },
+      "fr",
+      t,
+    );
+    expect(onlyUnparsed?.rows).toEqual(['print.section4.unparsed:{"count":1}', "l"]);
+    expect(buildReadingWarningsSection(null, "fr", t)).toBeNull();
   });
 });

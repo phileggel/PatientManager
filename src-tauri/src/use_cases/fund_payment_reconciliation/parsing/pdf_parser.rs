@@ -227,6 +227,7 @@ pub fn parse_pdf_text(text: &str) -> PdfParseResult {
             payment_date: total.payment_date,
             total_amount: total.amount,
             is_total_valid,
+            lines_total: sum,
             lines: normalized_lines,
         });
     }
@@ -407,6 +408,11 @@ Total réglé le 02/05/2025 par la Caisse (n° 931) 50,00 €"#;
         let result = parse_pdf_text(text);
         assert_eq!(result.groups.len(), 1);
         assert!(!result.groups[0].is_total_valid);
+        assert_eq!(
+            result.groups[0].lines_total, 25_000,
+            "FPA-020: the sum of its lines"
+        );
+        assert_eq!(result.groups[0].total_amount, 50_000);
     }
 
     #[test]

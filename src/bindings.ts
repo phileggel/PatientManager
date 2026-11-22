@@ -2072,15 +2072,6 @@ fund_label: string; payment_date: string;
  */
 total_amount: number }
 /**
- * Section 3 — the groups left out for a stated total that is not positive (FPR-050,
- * FPA-070), in the order of the PDF. Each row is pre-joined by the frontend.
- */
-export type LeftOutSection = { heading: string; 
-/**
- * Their amounts are to be noted by hand: the import does not record them.
- */
-note: string; rows: string[] }
-/**
  * A normalized PDF procedure line — the ONE domain object for reconciliation.
  * 
  * All dates are NaiveDate (serialized as ISO YYYY-MM-DD via serde/specta).
@@ -2136,6 +2127,15 @@ amount: number }
  * A nearby unreconciled procedure candidate for manual linking
  */
 export type NotFoundCandidate = { procedure_id: string; patient_name: string; ssn: string; procedure_date: string; amount: number }
+/**
+ * A section of pre-joined rows under a heading, then a note: Section 3, the groups
+ * left out (FPR-050, FPA-070), and Section 4, the reading warnings (FPR-060 to FPR-062).
+ */
+export type NoteSection = { heading: string; 
+/**
+ * Section 3: their amounts are to be noted by hand; Section 4: to check on the statement.
+ */
+note: string; rows: string[] }
 /**
  * Composite error for the overpayment use case.
  * 
@@ -2341,6 +2341,10 @@ total_amount: number;
  * Whether the sum of line amounts matches the stated total
  */
 is_total_valid: boolean; 
+/**
+ * FPA-020 — the sum of the group's line amounts (thousandths of a euro).
+ */
+lines_total: number; 
 /**
  * Individual procedure lines in this group
  */
@@ -2746,7 +2750,11 @@ correction_groups: CorrectionGroup[];
 /**
  * Section 3 — the groups the import left out (FPR-050); `None` omits it (FPR-051).
  */
-left_out_section: LeftOutSection | null; 
+left_out_section: NoteSection | null; 
+/**
+ * Section 4 (FPR-060 to FPR-062): what of the fund's PDF statement could not be read; `None` omits it (FPR-061).
+ */
+reading_warnings_section: NoteSection | null; 
 /**
  * Footer page-number label, e.g. "Page" — rendered as `"{label} {n} / {total}"` (FPR-022).
  */

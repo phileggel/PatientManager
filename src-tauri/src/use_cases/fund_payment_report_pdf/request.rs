@@ -35,7 +35,9 @@ pub struct ReportGenerationRequest {
     /// An empty list omits the entire section (FPR-040).
     pub correction_groups: Vec<CorrectionGroup>,
     /// Section 3 — the groups the import left out (FPR-050); `None` omits it (FPR-051).
-    pub left_out_section: Option<LeftOutSection>,
+    pub left_out_section: Option<NoteSection>,
+    /// Section 4 (FPR-060 to FPR-062): what of the fund's PDF statement could not be read; `None` omits it (FPR-061).
+    pub reading_warnings_section: Option<NoteSection>,
     /// Footer page-number label, e.g. "Page" — rendered as `"{label} {n} / {total}"` (FPR-022).
     pub page_label: String,
 }
@@ -91,13 +93,13 @@ pub struct CorrectionGroup {
     pub rows: Vec<String>,
 }
 
-/// Section 3 — the groups left out for a stated total that is not positive (FPR-050,
-/// FPA-070), in the order of the PDF. Each row is pre-joined by the frontend.
+/// A section of pre-joined rows under a heading, then a note: Section 3, the groups
+/// left out (FPR-050, FPA-070), and Section 4, the reading warnings (FPR-060 to FPR-062).
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(deny_unknown_fields)]
-pub struct LeftOutSection {
+pub struct NoteSection {
     pub heading: String,
-    /// Their amounts are to be noted by hand: the import does not record them.
+    /// Section 3: their amounts are to be noted by hand; Section 4: to check on the statement.
     pub note: String,
     pub rows: Vec<String>,
 }
@@ -127,8 +129,8 @@ const MAX_CORRECTION_GROUPS: usize = 16;
 /// Rows in any single correction group.
 const MAX_CORRECTION_ROWS_PER_GROUP: usize = 10_000;
 
-/// Rows in Section 3: one per group of the statement.
-const MAX_LEFT_OUT_ROWS: usize = 1_000;
+/// Rows in Section 3 or 4: one per group of the statement, plus Section 4's unparsed lines.
+const MAX_NOTE_SECTION_ROWS: usize = 1_000;
 
 /// Build an `InvalidRequest` error carrying a field-qualified diagnostic. The
 /// detail is `#[serde(skip)]` on the wire — it stays for `Display`, `tracing`,
@@ -209,26 +211,30 @@ impl ReportGenerationRequest {
         }
 
         if let Some(section) = &self.left_out_section {
-            section.validate()?;
+            section.validate("left_out_section")?;
+        }
+        if let Some(section) = &self.reading_warnings_section {
+            section.validate("reading_warnings_section")?;
         }
 
         Ok(())
     }
 }
 
-impl LeftOutSection {
-    /// FPR-051 — a section with no row is no section: the frontend sends `None` instead.
-    fn validate(&self) -> Result<(), ReportPdfError> {
-        validate_safe_string(&self.heading, "left_out_section.heading")?;
-        validate_safe_string(&self.note, "left_out_section.note")?;
-        if self.rows.is_empty() || self.rows.len() > MAX_LEFT_OUT_ROWS {
+impl NoteSection {
+    /// FPR-051, FPR-061 — a section with no row is no section: the frontend sends
+    /// `None` instead. `field` names the section in the error.
+    fn validate(&self, field: &str) -> Result<(), ReportPdfError> {
+        validate_safe_string(&self.heading, &format!("{field}.heading"))?;
+        validate_safe_string(&self.note, &format!("{field}.note"))?;
+        if self.rows.is_empty() || self.rows.len() > MAX_NOTE_SECTION_ROWS {
             return Err(invalid_request(format!(
-                "left_out_section.rows contains {} entries; expected 1 to {MAX_LEFT_OUT_ROWS}",
+                "{field}.rows contains {} entries; expected 1 to {MAX_NOTE_SECTION_ROWS}",
                 self.rows.len()
             )));
         }
         for (i, row) in self.rows.iter().enumerate() {
-            validate_safe_string(row, &format!("left_out_section.rows[{i}]"))?;
+            validate_safe_string(row, &format!("{field}.rows[{i}]"))?;
         }
         Ok(())
     }
@@ -323,6 +329,7 @@ pub(crate) fn valid_request() -> ReportGenerationRequest {
         correction_section_heading: "Corrections appliquées".into(),
         correction_groups: vec![],
         left_out_section: None,
+        reading_warnings_section: None,
         page_label: "Page".into(),
     }
 }
@@ -511,7 +518,7 @@ mod tests {
     #[test]
     fn test_595_a_left_out_section_needs_safe_rows() {
         let section = |rows: Vec<String>| ReportGenerationRequest {
-            left_out_section: Some(LeftOutSection {
+            left_out_section: Some(NoteSection {
                 heading: "Paiements laissés de côté".into(),
                 note: "À noter à la main.".into(),
                 rows,
@@ -522,6 +529,22 @@ mod tests {
         assert!(section(vec!["CPAM 75 · 12/03/2026 · -76,80 €".into()])
             .validate()
             .is_ok());
+        assert!(section(vec![]).validate().is_err(), "no row: send None");
+        assert!(section(vec!["line\nbreak".into()]).validate().is_err());
+    }
+
+    #[test]
+    fn test_662_a_reading_warnings_section_needs_safe_rows() {
+        let section = |rows: Vec<String>| ReportGenerationRequest {
+            reading_warnings_section: Some(NoteSection {
+                heading: "Lecture incomplète".into(),
+                note: "À vérifier sur le bordereau.".into(),
+                rows,
+            }),
+            ..valid_request()
+        };
+
+        assert!(section(vec!["2 lignes non lues".into()]).validate().is_ok());
         assert!(section(vec![]).validate().is_err(), "no row: send None");
         assert!(section(vec!["line\nbreak".into()]).validate().is_err());
     }

@@ -412,6 +412,7 @@ async fn test_full_chain_via_reconciliation_service() {
                 payment_date,
                 total_amount: 90_400, // 38 400 + 52 000
                 is_total_valid: true,
+                lines_total: 90_400,
                 lines: vec![
                     NormalizedPdfLine {
                         line_index: 0,
@@ -447,6 +448,7 @@ async fn test_full_chain_via_reconciliation_service() {
                 payment_date,
                 total_amount: 28_500, // PDF says 28 500, DB has 25 000
                 is_total_valid: true,
+                lines_total: 28_500,
                 lines: vec![NormalizedPdfLine {
                     line_index: 2,
                     payment_date,
@@ -798,6 +800,7 @@ async fn test_fpa_070_a_group_taken_back_by_the_fund_is_left_out_and_named() {
         payment_date,
         total_amount,
         is_total_valid: true,
+        lines_total: total_amount,
         lines,
     };
 

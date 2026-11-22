@@ -5,7 +5,7 @@ use printpdf::{
 
 use super::error::ReportPdfError;
 use super::request::{
-    CorrectionGroup, LeftOutSection, ReportGenerationRequest, UnreconciledRow, UnreconciledSection,
+    CorrectionGroup, NoteSection, ReportGenerationRequest, UnreconciledRow, UnreconciledSection,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -86,8 +86,12 @@ fn build_document(
     renderer.render_header(req);
     renderer.render_section_unreconciled(&req.unreconciled);
     renderer.render_section_corrections(&req.correction_section_heading, &req.correction_groups);
-    if let Some(section) = &req.left_out_section {
-        renderer.render_section_left_out(section);
+    // Sections 3 and 4 (FPR-050, FPR-060): heading, rows, then the note.
+    for section in [&req.left_out_section, &req.reading_warnings_section]
+        .into_iter()
+        .flatten()
+    {
+        renderer.render_note_section(section);
     }
     let pages = renderer.finish_pages(&regular_id, &req.page_label);
 
@@ -259,9 +263,9 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    /// Section 3 — FPR-050: the groups left out, after the corrections. FPR-051 —
-    /// the caller renders nothing when there is no section.
-    fn render_section_left_out(&mut self, section: &LeftOutSection) {
+    /// Sections 3 and 4 (FPR-050, FPR-060): heading, rows, then the note. FPR-051,
+    /// FPR-061 — the caller renders nothing when there is no section.
+    fn render_note_section(&mut self, section: &NoteSection) {
         self.ensure_room(20.0);
         self.draw_text_bold(MARGIN_X, self.y, 12.0, &section.heading);
         self.y -= 8.0;
@@ -438,6 +442,7 @@ mod tests {
             correction_section_heading: "Corrections applied".into(),
             correction_groups: vec![],
             left_out_section: None,
+            reading_warnings_section: None,
             page_label: "Page".into(),
         };
         let bytes = render(&req).expect("render must succeed for the EN-resolved request");
@@ -609,6 +614,7 @@ mod tests {
                 rows: vec!["GROUPROWMARK".into()],
             }],
             left_out_section: None,
+            reading_warnings_section: None,
             page_label: "PAGELABELMARK".into(),
         };
 
@@ -714,11 +720,52 @@ mod tests {
         );
     }
 
+    // ── FPR-060, FPR-061 — Section 4, what the bordereau did not let read (#662) ──
+
+    fn reading_warnings_request() -> ReportGenerationRequest {
+        ReportGenerationRequest {
+            reading_warnings_section: Some(NoteSection {
+                heading: "READHEADMARK".into(),
+                note: "READNOTEMARK".into(),
+                rows: vec!["MGEN 075 · 14/11/2026 · 184,50 € · 161,50 €".into()],
+            }),
+            ..left_out_request()
+        }
+    }
+
+    #[test]
+    fn test_662_fpr_060_what_was_not_read_is_listed_after_section_3() {
+        let pages = build_pages_for_test(&reading_warnings_request()).expect("build must succeed");
+        let text: Vec<String> = collect_text_ops(&pages).into_iter().flatten().collect();
+        let at = |needle: &str| {
+            text.iter()
+                .position(|s| s == needle)
+                .unwrap_or_else(|| panic!("'{needle}' not emitted in {text:?}"))
+        };
+
+        let heading = at("READHEADMARK");
+        let row = at("MGEN 075 · 14/11/2026 · 184,50 € · 161,50 €");
+        let note = at("READNOTEMARK");
+        assert!(
+            at("LEFTOUTNOTEMARK") < heading,
+            "Section 4 follows Section 3"
+        );
+        assert!(heading < row && row < note, "{text:?}");
+    }
+
+    #[test]
+    fn test_662_fpr_061_everything_read_omits_section_4() {
+        let pages = build_pages_for_test(&left_out_request()).expect("build must succeed");
+        let text: Vec<String> = collect_text_ops(&pages).into_iter().flatten().collect();
+
+        assert!(!text.iter().any(|s| s.contains("READ")), "{text:?}");
+    }
+
     // ── FPR-050, FPR-051 — Section 3, the groups left out (#595) ────────────
 
     fn left_out_request() -> ReportGenerationRequest {
         ReportGenerationRequest {
-            left_out_section: Some(LeftOutSection {
+            left_out_section: Some(NoteSection {
                 heading: "LEFTOUTHEADMARK".into(),
                 note: "LEFTOUTNOTEMARK".into(),
                 rows: vec![

@@ -2,7 +2,7 @@
 
 ## Context
 
-After validating a fund-payment reconciliation (FPA workflow), the practitioner may produce a summary report of the session. This feature defines the structure, content, and generation mechanism of that report. The report covers three concerns: procedures that remain unreconciled in the reconciliation period, a log of all corrections that were applied during the session, and the groups of the statement the import left out (FPA-070).
+After validating a fund-payment reconciliation (FPA workflow), the practitioner may produce a summary report of the session. This feature defines the structure, content, and generation mechanism of that report. The report covers four concerns: procedures that remain unreconciled in the reconciliation period, a log of all corrections that were applied during the session, the groups of the statement the import left out (FPA-070), and what of the statement could not be read (FPA-020, FPA-030).
 
 The report is rendered as a PDF document by the backend from the session data, written to the user's Downloads directory under a locale-aware filename, then opened in the system default PDF viewer for inspection. The user retains the saved PDF for archival, sharing, or — if needed — printing through their preferred PDF viewer outside the application. In-app preview and in-app printing are intentionally out of scope.
 
@@ -18,16 +18,17 @@ The report is not a persisted entity. Generation is driven by a transient reques
 
 The payload sent from the frontend to the backend when the practitioner clicks Report. It carries every pre-resolved string the renderer will place: translations, formatted dates, formatted currency values, and per-correction joined row strings. The backend performs no translation and no formatting (FPR-013, FPR-021).
 
-| Field                        | Business meaning                                                                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `title`                      | Pre-translated bold heading for the top of page 1 (FPR-020).                                                                                                                                     |
-| `continuation_title`         | Pre-translated breadcrumb shown at the top of every continuation page, e.g. "Reconciliation Report (continued)" (FPR-022).                                                                       |
-| `header_lines`               | Ordered list of pre-formatted lines below the title (period, generation date, source-PDF file name) (FPR-020).                                                                                   |
-| `unreconciled`               | Section 1 content. Either the empty-state branch (heading + reassurance message) or the populated branch (heading + column headers + rows + total).                                              |
-| `correction_section_heading` | Pre-translated heading for Section 2 (FPR-040). Rendered only when `correction_groups` is non-empty.                                                                                             |
-| `correction_groups`          | Section 2 — list of correction groups in priority order (FPR-041). Each group has a pre-translated title and a list of pre-joined row strings. An empty list omits Section 2 entirely (FPR-040). |
-| `left_out_section`           | Section 3 (FPR-050): heading, note and one pre-formatted line per group left out; absent when none was (FPR-051).                                                                                |
-| `page_label`                 | Pre-translated footer label, e.g. "Page" — rendered as `"{label} {n} / {total}"` on each page (FPR-022).                                                                                         |
+| Field                        | Business meaning                                                                                                                                                                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `title`                      | Pre-translated bold heading for the top of page 1 (FPR-020).                                                                                                                                                                                                 |
+| `continuation_title`         | Pre-translated breadcrumb shown at the top of every continuation page, e.g. "Reconciliation Report (continued)" (FPR-022).                                                                                                                                   |
+| `header_lines`               | Ordered list of pre-formatted lines below the title (period, generation date, source-PDF file name) (FPR-020).                                                                                                                                               |
+| `unreconciled`               | Section 1 content. Either the empty-state branch (heading + reassurance message) or the populated branch (heading + column headers + rows + total).                                                                                                          |
+| `correction_section_heading` | Pre-translated heading for Section 2 (FPR-040). Rendered only when `correction_groups` is non-empty.                                                                                                                                                         |
+| `correction_groups`          | Section 2 — list of correction groups in priority order (FPR-041). Each group has a pre-translated title and a list of pre-joined row strings. An empty list omits Section 2 entirely (FPR-040).                                                             |
+| `left_out_section`           | Section 3 (FPR-050): heading, note and one pre-formatted line per group left out; absent when none was (FPR-051).                                                                                                                                            |
+| `reading_warnings_section`   | Section 4 (FPR-060 to FPR-062): heading, one line per group whose total does not match, a line giving the number of unparsed lines, one line per sample (five at most), the note; absent when every group's total matches and every line was read (FPR-061). |
+| `page_label`                 | Pre-translated footer label, e.g. "Page" — rendered as `"{label} {n} / {total}"` on each page (FPR-022).                                                                                                                                                     |
 
 > Field names use Rust `snake_case`. The frontend resolves every translation through its existing i18next pipeline and every date / currency value through the platform `Intl.*` formatters before assembling this payload — the backend has no language tables and no formatters (FPR-021).
 
@@ -45,7 +46,7 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 
 **FPR-013 — Session-only data flow (frontend + backend)**:
 
-- _(frontend)_: The `ReportGenerationRequest` payload is built exclusively from data already held in the active reconciliation session — the unreconciled-procedures list fetched after validation, the corrections applied during the session, and the groups left out that the reconciliation named (FPA-070). The frontend resolves every label through its i18next pipeline and every numeric/date value through `Intl.*` formatters before sending; no additional fetch is performed.
+- _(frontend)_: The `ReportGenerationRequest` payload is built exclusively from data already held in the active reconciliation session — the unreconciled-procedures list fetched after validation, the corrections applied during the session, the groups left out that the reconciliation named (FPA-070), and the groups whose total does not match and the unparsed lines of the parsed statement (FPA-020, FPA-030). The frontend resolves every label through its i18next pipeline and every numeric/date value through `Intl.*` formatters before sending; no additional fetch is performed.
 - _(backend)_: PDF generation reads the pre-resolved strings from the request and places them on the page. No translation, no formatting, no database lookup, and no external call is performed during rendering.
 
 **FPR-014 — Export failure (frontend)**: If the backend returns an error for the export command — rendering, write, or launcher failure — an error toast is displayed, the Report button returns to its idle state, and no further state changes occur. The user may click Report again to retry.
@@ -103,6 +104,14 @@ The payload sent from the frontend to the backend when the practitioner clicks R
 **FPR-050 — The groups left out are listed (backend)**: After the corrections — or after Section 1 when Section 2 is omitted (FPR-040) — the report lists each group the reconciliation left out (FPA-070), in the order it named them, with its fund label, payment date and stated total, with a note that their amounts are to be noted by hand, since the import does not record them (owner, 2026-11-01, #595).
 
 **FPR-051 — Section 3 omission (backend)**: When no group was left out, Section 3 is omitted entirely: no heading, no note.
+
+### Section 4 — Reading Warnings (060–069)
+
+**FPR-060 — The groups whose total does not match are listed (backend)**: After Section 3 — or after the last section printed before it — Section 4 lists each group of the fund's PDF statement whose stated total does not match the sum of its lines (`fund-payment-auto-match` FPA-020), in the order of the PDF, with its fund label, payment date, stated total and sum of lines (owner, 2026-11-22, #662).
+
+**FPR-062 — The unparsed lines are listed (backend)**: Section 4 then gives the number of unparsed lines and the samples FPA-030 names, each on one line (owner, 2026-11-22, #662).
+
+**FPR-061 — Section 4 omission (backend)**: Each part of Section 4 is printed only when it has something to list, and a printed Section 4 ends with a note that its amounts are to be checked on the fund's PDF statement, since the import records only what it read; when every group's total matches and every line was read, Section 4 is omitted entirely: no heading, no note.
 
 ---
 

@@ -12,9 +12,11 @@ import { toastService } from "@/ui/components/snackbar";
 import { exportAndOpenReportPdf } from "../gateway";
 import { formatReportPdfError } from "../shared/errorPresenter";
 import { formatLongDateTime, formatShortDate } from "../shared/formatters";
+import type { ReadingWarnings } from "../shared/readingWarningsPresenter";
 import {
   buildCorrectionGroups,
   buildLeftOutSection,
+  buildReadingWarningsSection,
   buildUnreconciledSection,
 } from "../shared/reportPresenter";
 
@@ -25,6 +27,8 @@ interface UseReportGenerationArgs {
   autoCorrections: Map<string, AutoCorrection>;
   reconciliationData: ReconcileAndCandidatesResponse | null;
   fundIdToLabel: Map<string, string>;
+  /** FPR-060 to FPR-062 — what of the statement could not be read. */
+  readingWarnings: ReadingWarnings | null;
 }
 
 interface UseReportGenerationReturn {
@@ -55,6 +59,7 @@ export function useReportGeneration({
   autoCorrections,
   reconciliationData,
   fundIdToLabel,
+  readingWarnings,
 }: UseReportGenerationArgs): UseReportGenerationReturn {
   const { t } = useTranslation("fund-payment-match");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -67,7 +72,7 @@ export function useReportGeneration({
 
     const locale = i18n.language;
     const now = new Date();
-    const tStr = (key: string): string => String(t(key));
+    const tStr = (key: string, params?: Record<string, unknown>): string => String(t(key, params));
 
     const headerLines = [
       `${tStr("print.header.period")} : ${formatShortDate(reportDateRange.start, locale)} – ${formatShortDate(reportDateRange.end, locale)}`,
@@ -95,6 +100,7 @@ export function useReportGeneration({
         locale,
         tStr,
       ),
+      reading_warnings_section: buildReadingWarningsSection(readingWarnings, locale, tStr),
       page_label: tStr("print.page"),
     };
 
@@ -122,6 +128,7 @@ export function useReportGeneration({
     autoCorrections,
     reconciliationData,
     fundIdToLabel,
+    readingWarnings,
     filePath,
     t,
   ]);

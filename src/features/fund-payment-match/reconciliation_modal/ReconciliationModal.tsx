@@ -22,6 +22,7 @@ import {
 import { buildFundIdToLabel } from "../shared/reportPresenter";
 import { UnreconciledReportView } from "../unreconciled_report/UnreconciledReport";
 import { LeftOutGroupsNotice } from "./LeftOutGroupsNotice";
+import { ReadingWarningsNotice } from "./ReadingWarningsNotice";
 import { useReconciliationModal } from "./useReconciliationModal";
 import { useReportGeneration } from "./useReportGeneration";
 
@@ -39,6 +40,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
 
   const {
     reconciliationData,
+    readingWarnings,
     alreadyImported,
     isLoading,
     error,
@@ -82,6 +84,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
     autoCorrections,
     reconciliationData,
     fundIdToLabel,
+    readingWarnings,
   });
 
   return (
@@ -161,6 +164,7 @@ export function ReconciliationModal({ filePath, onClose }: ReconciliationModalPr
               </output>
             ) : reconciliationData ? (
               <>
+                <ReadingWarningsNotice warnings={readingWarnings} />
                 <LeftOutGroupsNotice groups={reconciliationData.left_out_groups} />
                 {/* FPA-070 — with every group left out there is nothing to review or validate. */}
                 {reconciliationData.candidates.length > 0 && (

@@ -26,6 +26,7 @@ const PDF_WITH_LINE = {
       payment_date: "2026-03-10",
       total_amount: 50000,
       is_total_valid: true,
+      lines_total: 50000,
       lines: [
         {
           line_index: 0,

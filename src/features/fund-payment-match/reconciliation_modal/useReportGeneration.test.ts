@@ -100,6 +100,7 @@ const baseArgs = {
   autoCorrections: new Map<string, AutoCorrection>(),
   reconciliationData: mockReconciliationData,
   fundIdToLabel: new Map<string, string>(),
+  readingWarnings: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -221,6 +222,27 @@ describe("useReportGeneration", () => {
     expect(request.left_out_section?.rows[0]).toContain("CPAM 75");
     const [requestWithout] = mockExportAndOpen.mock.calls[1]!;
     expect(requestWithout.left_out_section).toBeNull();
+  });
+
+  it("test_662_fpr_060_the_reading_warnings_reach_the_request_as_section_4", async () => {
+    mockExportAndOpen.mockResolvedValue({ success: true, data: "/home/phil/Downloads/x.pdf" });
+    const readingWarnings = {
+      mismatched: [
+        { fundLabel: "MGEN 075", paymentDate: "2026-04-14", statedTotal: 184500, linesSum: 161500 },
+      ],
+      unparsedCount: 1,
+      samples: ["??? 931"],
+    };
+
+    const { result } = renderHook(() => useReportGeneration({ ...baseArgs, readingWarnings }));
+    await act(async () => {
+      await result.current.handleReport();
+    });
+
+    const [request] = mockExportAndOpen.mock.calls[0]!;
+    expect(request.reading_warnings_section?.rows).toHaveLength(3);
+    expect(request.reading_warnings_section?.rows[0]).toBe("print.section4.mismatched_row");
+    expect(request.reading_warnings_section?.rows[2]).toBe("??? 931");
   });
 
   // ── Locale-aware filename construction ───────────────────────────────────

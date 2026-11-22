@@ -49,6 +49,7 @@ pub fn happy_path_multi_fund() -> PdfParseResult {
         payment_date: date(2025, 5, 2),
         total_amount: 75_000,
         is_total_valid: true,
+        lines_total: 75_000,
         lines: vec![
             NormalizedPdfLine {
                 line_index: 2,
@@ -85,6 +86,7 @@ pub fn happy_path_multi_fund() -> PdfParseResult {
         payment_date: date(2025, 5, 3),
         total_amount: 30_000,
         is_total_valid: true,
+        lines_total: 30_000,
         lines: vec![NormalizedPdfLine {
             line_index: 8,
             payment_date: date(2025, 5, 3),
@@ -133,6 +135,7 @@ pub fn unparsed_line_present() -> PdfParseResult {
         payment_date: date(2025, 5, 2),
         total_amount: 25_000,
         is_total_valid: true,
+        lines_total: 25_000,
         lines: vec![NormalizedPdfLine {
             line_index: 2,
             payment_date: date(2025, 5, 2),
