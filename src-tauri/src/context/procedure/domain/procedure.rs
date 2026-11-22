@@ -404,6 +404,24 @@ impl Procedure {
     /// `FundPaid` in one step, paid by bank transfer on the wire's date for its
     /// billed amount, its fund reconciliation dated the same day. Only a
     /// `Created` procedure is settled so.
+    /// R7 — Settled by the fund's wire that settles its group: `Reconciled` →
+    /// `FundPaid`, `PartiallyReconciled` → `PartiallyFundPaid`, the wire's method and
+    /// date set, the paid amount kept. An `Overpaid` procedure is left as it is
+    /// (owner, #602). Any other status is not settled so (BSM-037A): `None`, the
+    /// caller names the refusal.
+    pub fn settle_by_fund_group(mut self, wire_date: NaiveDate) -> Option<Self> {
+        if self.payment_status == ProcedureStatus::Overpaid {
+            return Some(self);
+        }
+        self.payment_status = match self.payment_status {
+            ProcedureStatus::Reconciled => ProcedureStatus::FundPaid,
+            ProcedureStatus::PartiallyReconciled => ProcedureStatus::PartiallyFundPaid,
+            _ => return None,
+        };
+        let amount = self.paid_amount;
+        Some(self.with_payment_info(PaymentMethod::BankTransfer, Some(wire_date), amount))
+    }
+
     pub fn settle_by_fund_wire(mut self, wire_date: NaiveDate) -> Result<Self, ProcedureError> {
         if self.payment_status != ProcedureStatus::Created {
             return Err(ProcedureError::ProcedureStatusNotCreated {
@@ -827,6 +845,45 @@ mod tests {
             paid.pay_directly(PaymentMethod::Check, date),
             Err(ProcedureError::ProcedureStatusNotCreated { procedure_id }) if procedure_id == id
         ));
+    }
+
+    #[test]
+    fn test_602_r7_bsm_037a_a_group_settles_reconciled_procedures_only() {
+        let date = NaiveDate::from_ymd_opt(2026, 3, 20).unwrap();
+        let with = |status: ProcedureStatus| {
+            let mut p = make_new("p", "t").unwrap();
+            p.payment_status = status;
+            p.paid_amount = Some(80_000);
+            p
+        };
+
+        let full = with(ProcedureStatus::Reconciled)
+            .settle_by_fund_group(date)
+            .expect("reconciled");
+        let partial = with(ProcedureStatus::PartiallyReconciled)
+            .settle_by_fund_group(date)
+            .expect("partially reconciled");
+
+        assert_eq!(full.payment_status, ProcedureStatus::FundPaid);
+        assert_eq!(full.payment_method, PaymentMethod::BankTransfer);
+        assert_eq!(full.confirmed_payment_date, Some(date));
+        assert_eq!(full.paid_amount, Some(80_000), "the paid amount is kept");
+        assert_eq!(partial.payment_status, ProcedureStatus::PartiallyFundPaid);
+        let overpaid = with(ProcedureStatus::Overpaid)
+            .settle_by_fund_group(date)
+            .expect("an overpaid procedure is kept");
+        assert_eq!(overpaid.payment_status, ProcedureStatus::Overpaid);
+        assert_eq!(overpaid.confirmed_payment_date, None, "left as it is");
+        for refused in [
+            ProcedureStatus::Created,
+            ProcedureStatus::DirectlyPaid,
+            ProcedureStatus::FundPaid,
+        ] {
+            assert!(
+                with(refused).settle_by_fund_group(date).is_none(),
+                "{refused:?}"
+            );
+        }
     }
 
     #[test]

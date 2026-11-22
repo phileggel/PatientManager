@@ -295,6 +295,7 @@
     "payment_group_already_settled": "Ce groupe de paiement de caisse est déjà rapproché d'un virement (id : {{id}})",
     "procedure_not_created": "Cet acte n'est plus à l'état créé (id : {{id}})",
     "procedure_not_open": "Cet acte n'est plus un acte ouvert de cette caisse (id : {{id}})",
+    "procedure_not_reconciled": "Un groupe contient un acte qui n'est pas rapproché : le virement ne peut pas le régler (id : {{id}})",
     "unexpected": "Une erreur inattendue est survenue",
     "database_error": "Une erreur de base de données est survenue"
   },

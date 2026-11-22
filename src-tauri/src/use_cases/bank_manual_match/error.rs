@@ -27,6 +27,11 @@ pub enum BankManualMatchTask {
     /// not an open procedure of the given fund (BAS-112).
     #[error("Procedure is not an open procedure of the fund: {procedure_id}")]
     ProcedureNotOpen { procedure_id: String },
+
+    /// BSM-037A — a group a fund's wire settles holds a procedure neither
+    /// `Reconciled` nor `PartiallyReconciled`.
+    #[error("Procedure of a settled group is not reconciled: {procedure_id}")]
+    ProcedureNotReconciled { procedure_id: String },
 }
 
 /// Composite error for the manual bank-transfer matching use case.

@@ -49,6 +49,15 @@ describe("formatBankManualMatchError", () => {
     ).toEqual({ key: "bank:errors.procedure_not_created", params: { id: "p-1" } });
   });
 
+  it("test_602_bsm_037a_a_procedure_not_reconciled_is_named", () => {
+    expect(
+      formatBankManualMatchError({ code: "ProcedureNotReconciled", procedure_id: "p-9" }),
+    ).toEqual({
+      key: "bank:errors.procedure_not_reconciled",
+      params: { id: "p-9" },
+    });
+  });
+
   it("#712 BSM-053: a procedure that is not open for the wire's fund is named", () => {
     expect(formatBankManualMatchError({ code: "ProcedureNotOpen", procedure_id: "p-9" })).toEqual({
       key: "bank:errors.procedure_not_open",

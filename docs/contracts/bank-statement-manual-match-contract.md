@@ -1,7 +1,7 @@
 # Contract — Bank Statement Manual Match
 
 > Domain: bank-statement-manual-match
-> Last updated by: `bank-statement-manual-match` spec (BSM-050 to BSM-055, ticket #712)
+> Last updated by: `bank-statement-manual-match` spec (BSM-037A, R8, BSM-020, ticket #602)
 
 > Wire errors are the composite `BankManualMatchError` (untagged union of `BankError`, `FundError`, `ProcedureError`, and the use-case `BankManualMatchTask`). Each variant serializes as `{ "code": "<Variant>", ... }`; the rows below list the codes reachable per command. `DatabaseError` is the shared infra catch-all and may surface on any command that touches a repository.
 
@@ -37,29 +37,29 @@ Returns `FundGroupCandidate` details for a given set of IDs. Used in the fund wi
 
 ---
 
-### `create_fund_transfer` — R6, R7, BSM-020, BSM-021, BSM-028, BSM-029, BSM-034, BSM-037, BSM-038
+### `create_fund_transfer` — R6, R7, BSM-020, BSM-021, BSM-028, BSM-029, BSM-034, BSM-037, BSM-037A, BSM-038
 
 Creates a `FundWire` bank entry linked to the given group IDs. On success: procedures move `Reconciled` → `FundPaid` / `PartiallyReconciled` → `PartiallyFundPaid`; groups move to `BankPaid` and become locked; procedures' `confirmed_payment_date` is set to the transfer date and `payment_method` to `BankTransfer`.
 
 - **Args:** `bank_account_id: String, transfer_date: String, group_ids: Vec<String>`
 - **Returns:** `BankManualMatchResult`
-- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound` (a technical account included, BAC-055A), `BankPaymentAlreadyConfirmed { fund_payment_group_id }` (BSM-037), `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-020, answered first, nothing read), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound` (a technical account included, BAC-055A), `BankPaymentAlreadyConfirmed { fund_payment_group_id }` (BSM-037), `ProcedureNotReconciled { procedure_id }` (BSM-037A), `DatabaseError`
 
 ---
 
-### `update_fund_transfer` — R9, R10, R11, BSM-028, BSM-029, BSM-030, BSM-031, BSM-034, BSM-035, BSM-037, BSM-038
+### `update_fund_transfer` — R9, R10, R11, BSM-028, BSM-029, BSM-030, BSM-031, BSM-034, BSM-035, BSM-037, BSM-037A, BSM-038
 
 Updates the date and/or group composition of an existing fund wire. Newly added groups receive the same status effects as creation (R10 → R7); removed groups are rolled back as in deletion (R11 → R8). Amount recomputed from the final group set.
 
 - **Args:** `transfer_id: String, new_transfer_date: String, new_group_ids: Vec<String>`
 - **Returns:** `BankEntryEdit` — `Unchanged` when the date and the groups (as a set, order aside) equal the stored ones (BSM-031), decided after `TransferNotFound` and `WrongTransferType`, before any write
-- **Errors:** `BankEntryInvalid { reasons }` (BSM-030, answered first, nothing read), `TransferNotFound`, `WrongTransferType` (R4), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `BankPaymentAlreadyConfirmed { fund_payment_group_id }` (BSM-037), `DatabaseError`
+- **Errors:** `BankEntryInvalid { reasons }` (BSM-030, answered first, nothing read), `TransferNotFound`, `WrongTransferType` (R4), `PaymentGroupNotFound`, `AmountNotPositive`, `BankAccountNotFound`, `BankPaymentAlreadyConfirmed { fund_payment_group_id }` (BSM-037), `ProcedureNotReconciled { procedure_id }` (BSM-037A), `DatabaseError`
 
 ---
 
 ### `delete_fund_transfer` — R5, R8, BSM-040
 
-Hard-deletes a fund wire and rolls back all linked groups: procedures revert `FundPaid` → `Reconciled` / `PartiallyFundPaid` → `PartiallyReconciled`; groups return to `Active` and unlock; procedures' `confirmed_payment_date` is restored to the group payment date and `payment_method` is cleared. The deletion, its links and the rollback are one unit of work (BSM-040).
+Hard-deletes a fund wire and rolls back all linked groups: procedures revert `FundPaid` → `Reconciled` / `PartiallyFundPaid` → `PartiallyReconciled`; groups return to `Active` and unlock; procedures' `payment_method` and `confirmed_payment_date` are cleared, their `fund_reconciliation_date` and `paid_amount` stay. The deletion, its links and the rollback are one unit of work (BSM-040).
 
 - **Args:** `transfer_id: String`
 - **Returns:** `()`
@@ -224,7 +224,7 @@ enum BankEntryEdit {
 enum BankEntryInvalidReason {
     AccountMissing,   // empty or blank; creation only, not for a direct payment (R13: the backend sets its account)
     DateMissing,      // empty or blank
-    DateInvalid,      // not a valid YYYY-MM-DD date
+    DateInvalid,      // not a valid YYYY-MM-DD date (a one-digit month or day is accepted, BSM-020)
     NothingSelected,  // no group or procedure
 }
 ```
@@ -241,6 +241,7 @@ An edit answered `Unchanged` (BSM-031), or a creation or edit refused or failed 
 
 ## Changelog
 
+- 2026-11-22 — #602: `create_fund_transfer` and `update_fund_transfer` answer `ProcedureNotReconciled { procedure_id }` for a group holding a procedure neither reconciled nor partially reconciled (BSM-037A); `delete_fund_transfer` clears the confirmed payment date (R8). No signature change.
 - 2026-11-21 — #712: added `get_open_procedures_of_fund` (BSM-050) and `create_fund_wire_from_procedures` (BSM-051 to BSM-054), with `FundWireProcedureCandidate` and the `ProcedureNotOpen` code.
 - 2026-11-21 — #644: status, field and bank entry names as the glossary spells them; R12, R20 and R21 are now backend rules of the spec; `AmountNotPositive` is BSM-029; no signature change.
 - 2026-11-14 — #640: `create_fund_transfer` and `update_fund_transfer` refuse a group already settled or locked (`BankPaymentAlreadyConfirmed`, BSM-037); `create_direct_transfer` refuses `FundWire` (`WrongTransferType`, BSM-027); both direct commands refuse a procedure not `Created` (`ProcedureStatusNotCreated`, BSM-039); the four create and update commands take a repeated id once (BSM-028); storage keeps one bank entry per group (BSM-038), and an upgrade over a double link stops (BSM-038A).

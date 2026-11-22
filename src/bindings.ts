@@ -1225,7 +1225,12 @@ export type BankManualMatchTask =
  * BSM-053 — a procedure selected for a fund's wire with no bordereau is
  * not an open procedure of the given fund (BAS-112).
  */
-{ code: "ProcedureNotOpen"; procedure_id: string }
+{ code: "ProcedureNotOpen"; procedure_id: string } | 
+/**
+ * BSM-037A — a group a fund's wire settles holds a procedure neither
+ * `Reconciled` nor `PartiallyReconciled`.
+ */
+{ code: "ProcedureNotReconciled"; procedure_id: string }
 /**
  * BAS-068 — one ranked candidate group for an unresolved or partial line.
  */

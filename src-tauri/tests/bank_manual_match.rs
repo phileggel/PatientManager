@@ -1074,3 +1074,160 @@ async fn test_712_bsm_055_the_wire_is_edited_as_any_fund_wire() {
         ("FUND_PAYED", Some("2026-03-25"))
     );
 }
+
+/// Groups 1 and 2 of `seed_account_and_two_groups`, each holding one procedure:
+/// `p-reconciled` (reconciled on 2026-03-09, paid 50000) and `p-in-group-2` in `status`.
+async fn seed_group_procedures(pool: &SqlitePool, status: &str) {
+    seed_account_and_two_groups(pool).await;
+    for statement in [
+        "INSERT INTO patient (id, is_anonymous) VALUES ('patient-602', 0)",
+        "INSERT INTO procedure_type (id, name, default_amount) VALUES ('type-602', 'Consultation', 50000)",
+        r#"INSERT INTO "procedure" (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount,
+                                    payment_status, fund_reconciliation_date, paid_amount)
+           VALUES ('p-reconciled', 'patient-602', 'fund-640', 'type-602', '2026-03-01', 50000,
+                   'RECONCILIATED', '2026-03-09', 50000)"#,
+    ] {
+        sqlx::query(statement).execute(pool).await.expect("seed");
+    }
+    sqlx::query(
+        r#"INSERT INTO "procedure" (id, patient_id, fund_id, procedure_type_id, procedure_date, billed_amount, payment_status)
+           VALUES ('p-in-group-2', 'patient-602', 'fund-640', 'type-602', '2026-03-02', 30000, ?)"#,
+    )
+    .bind(status)
+    .execute(pool)
+    .await
+    .expect("seed");
+    sqlx::query(
+        "INSERT INTO fund_payment_line (id, fund_payment_group_id, procedure_id)
+         VALUES ('line-1', 'group-1', 'p-reconciled'), ('line-2', 'group-2', 'p-in-group-2')",
+    )
+    .execute(pool)
+    .await
+    .expect("seed");
+}
+
+fn procedure_not_reconciled(err: BankManualMatchError) -> String {
+    match err {
+        BankManualMatchError::Task(BankManualMatchTask::ProcedureNotReconciled {
+            procedure_id,
+        }) => procedure_id,
+        other => panic!("expected ProcedureNotReconciled, got {other:?}"),
+    }
+}
+
+/// BSM-037A (#602): a group holding a procedure neither reconciled nor partially
+/// reconciled is refused by a creation and by an edit, named, and nothing is written.
+#[tokio::test]
+async fn test_602_bsm_037a_a_group_with_a_procedure_not_reconciled_is_refused() {
+    let (orchestrator, pool) = setup().await;
+    seed_group_procedures(&pool, "DIRECTLY_PAYED").await;
+
+    let created = orchestrator
+        .create_fund_transfer(
+            "bank-acc".to_string(),
+            "2026-03-10".to_string(),
+            vec!["group-1".to_string(), "group-2".to_string()],
+        )
+        .await
+        .expect_err("group-2 holds a procedure paid directly");
+    let entry = orchestrator
+        .create_fund_transfer(
+            "bank-acc".to_string(),
+            "2026-03-10".to_string(),
+            vec!["group-1".to_string()],
+        )
+        .await
+        .expect("group-1 alone is settled");
+    let edited = orchestrator
+        .update_fund_transfer(
+            entry.transfer_id,
+            "2026-03-10".to_string(),
+            vec!["group-1".to_string(), "group-2".to_string()],
+        )
+        .await
+        .expect_err("the edit adds group-2");
+
+    assert_eq!(procedure_not_reconciled(created), "p-in-group-2");
+    assert_eq!(procedure_not_reconciled(edited), "p-in-group-2");
+    assert_eq!(bank_entry_count(&pool).await, 1);
+    assert_eq!(fund_link_count(&pool).await, 1);
+    let untouched: String =
+        sqlx::query_scalar(r#"SELECT payment_status FROM "procedure" WHERE id = 'p-in-group-2'"#)
+            .fetch_one(&pool)
+            .await
+            .expect("status");
+    assert_eq!(untouched, "DIRECTLY_PAYED");
+}
+
+/// R8 (#602): deleting a fund's wire clears its procedures' payment method and
+/// confirmed payment date; the fund reconciliation date and the paid amount stay.
+#[tokio::test]
+async fn test_602_r8_deleting_a_wire_clears_the_confirmed_payment_date() {
+    let (orchestrator, pool) = setup().await;
+    seed_group_procedures(&pool, "RECONCILIATED").await;
+    let entry = orchestrator
+        .create_fund_transfer(
+            "bank-acc".to_string(),
+            "2026-03-10".to_string(),
+            vec!["group-1".to_string()],
+        )
+        .await
+        .expect("group-1 settled");
+
+    orchestrator
+        .delete_fund_transfer(entry.transfer_id)
+        .await
+        .expect("the wire is deleted");
+
+    let row: SettledProcedureRow = sqlx::query_as(
+        r#"SELECT id, payment_status, COALESCE(payment_method, 'NONE'), confirmed_payment_date,
+                  fund_reconciliation_date, paid_amount
+           FROM "procedure" WHERE id = 'p-reconciled'"#,
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("procedure");
+    assert_eq!(row.1, "RECONCILIATED");
+    assert_eq!(row.2, "NONE");
+    assert_eq!(row.3, None, "the confirmed payment date is cleared");
+    assert_eq!(row.4.as_deref(), Some("2026-03-09"));
+    assert_eq!(row.5, Some(50000));
+}
+
+/// R8, BSM-037A (#602, owner): an edit that keeps a group holding an `Overpaid`
+/// procedure passes, and the procedure is left as it is.
+#[tokio::test]
+async fn test_602_an_overpaid_procedure_is_left_as_it_is_by_an_edit() {
+    let (orchestrator, pool) = setup().await;
+    seed_group_procedures(&pool, "RECONCILIATED").await;
+    let entry = orchestrator
+        .create_fund_transfer(
+            "bank-acc".to_string(),
+            "2026-03-10".to_string(),
+            vec!["group-2".to_string()],
+        )
+        .await
+        .expect("group-2 settled");
+    sqlx::query(r#"UPDATE "procedure" SET payment_status = 'OVERPAID' WHERE id = 'p-in-group-2'"#)
+        .execute(&pool)
+        .await
+        .expect("overpaid after the wire");
+
+    orchestrator
+        .update_fund_transfer(
+            entry.transfer_id,
+            "2026-03-11".to_string(),
+            vec!["group-2".to_string()],
+        )
+        .await
+        .expect("the group is kept");
+
+    let (status, confirmed): (String, Option<String>) = sqlx::query_as(
+        r#"SELECT payment_status, confirmed_payment_date FROM "procedure" WHERE id = 'p-in-group-2'"#,
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("procedure");
+    assert_eq!(status, "OVERPAID");
+    assert_eq!(confirmed.as_deref(), Some("2026-03-10"), "left as it is");
+}
