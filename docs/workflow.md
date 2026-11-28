@@ -13,8 +13,11 @@ what is this project's; where it and they disagree on what they state, they are 
   ([`spec/README.md`](spec/README.md)).
 - **Its own labels**, beside a kind, never in its place (owner, 2026-10-18): `spec`, a spec,
   contract, glossary, ADR or `ARCHITECTURE.md` drifting from right code, a `task` queued on
-  its own; `priority`, the owner wants it in the next batch, and it comes first in the
-  order `/flow:plan-batch` proposes; `mock`, a Design needing a mock.
+  its own; `mock`, a Design needing a mock.
+- **Priority**, one label each when filed or refined (owner, 2026-11-22, #750): `P1` a bug, checked
+  against the code before it keeps the label; `P2` a feature; `P3` a task where something can go wrong
+  (security, data, robustness, decided tooling); `P4` refactoring, drift and cleanup. The bugs first:
+  a `P1` counts as what the owner asked to have next, the first rule of `method.md` § 2; `P2` to `P4` leave its order as it is.
 - **No expiry** (owner, 2026-11-07, ticket #575): an open issue is never closed for its age.
 
 ## Design
