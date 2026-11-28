@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Procedure, ProcedureStatus } from "@/bindings";
 import { PageContent } from "@/features/shell";
 import { logger } from "@/infra/logger";
-import { CompactSelectField, ConfirmationDialog, FAB, SearchField } from "@/ui/components";
+import { ConfirmationDialog, FAB } from "@/ui/components";
 import { toastService } from "@/ui/components/snackbar";
 import * as gateway from "../api/gateway";
 import { useProcedureData } from "../hooks/useProcedureData";
@@ -16,10 +16,9 @@ import {
 } from "../model";
 import { toProcedureRow } from "../model/procedure-row.mapper";
 import type { ProcedureRow } from "../model/procedure-row.types";
-import { PeriodSelector } from "./PeriodSelector";
+import { ProcedurePageHeader } from "./ProcedurePageHeader";
 import { ProcedureFormModal } from "./procedure_form_modal/ProcedureFormModal";
 import { ProcedureList } from "./procedure_list/ProcedureList";
-import { SummaryStats } from "./SummaryStats";
 
 const TAG = "[ProcedurePage]";
 
@@ -215,51 +214,18 @@ export default function ProcedurePage() {
   return (
     <>
       {/* Header with period selector, search and stats (PRO-010, PRO-060, PRO-100) */}
-      <div className="bg-m3-surface-container-low p-4 shrink-0">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <PeriodSelector
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
-              yearRange={yearRange}
-              onMonthChange={setSelectedMonth}
-              onYearChange={setSelectedYear}
-            />
-            <CompactSelectField
-              id="status-filter"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-            >
-              <option value="">{t("filter.all_statuses")}</option>
-              <option value="NONE">{t("status.none")}</option>
-              <option value="CREATED">{t("status.created")}</option>
-              <option value="RECONCILED">{t("status.reconciled")}</option>
-              <option value="PARTIALLY_RECONCILED">{t("status.partially_reconciled")}</option>
-              <option value="DIRECTLY_PAID">{t("status.directly_paid")}</option>
-              <option value="FUND_PAID">{t("status.fund_paid")}</option>
-              <option value="PARTIALLY_FUND_PAID">{t("status.partially_fund_paid")}</option>
-              <option value="IMPORT_DIRECTLY_PAID">{t("status.import_directly_paid")}</option>
-              <option value="IMPORT_FUND_PAID">{t("status.import_fund_paid")}</option>
-              <option value="OVERPAID">{t("status.overpaid")}</option>
-              <option value="OVERPAYMENT_REFUND">{t("status.overpayment_refund")}</option>
-            </CompactSelectField>
-            <div className="flex items-center gap-3">
-              <label htmlFor="procedure-search" className="sr-only">
-                {t("filter.placeholder")}
-              </label>
-              <div className="w-56">
-                <SearchField
-                  id="procedure-search"
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                  placeholder={t("filter.placeholder")}
-                />
-              </div>
-            </div>
-          </div>
-          <SummaryStats rows={filteredRows} />
-        </div>
-      </div>
+      <ProcedurePageHeader
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        yearRange={yearRange}
+        onMonthChange={setSelectedMonth}
+        onYearChange={setSelectedYear}
+        selectedStatus={selectedStatus}
+        onStatusChange={setSelectedStatus}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        rows={filteredRows}
+      />
 
       {/* Full-width procedure list (PRO-110) */}
       <PageContent>

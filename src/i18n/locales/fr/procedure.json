@@ -85,9 +85,7 @@
   },
   "period": {
     "month": "Mois :",
-    "year": "Année :",
-    "prev_month": "Mois précédent",
-    "next_month": "Mois suivant"
+    "year": "Année :"
   },
   "summary": {
     "patients_tooltip": "Nombre de patients dans cette période",
