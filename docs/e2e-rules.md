@@ -131,3 +131,8 @@ A test cannot drive a native dialog, so a gateway answers in its place.
 - The override lives only in the modes `e2eOverride` lists (`development`, `test`, `e2e`): an
   allowlist, never "not production". A new mode is added there by name.
 - E11's switch stays a separate global: the helpers replace `window.__e2e` whole.
+
+## E13 — An E2E run never shares the real application's folders
+
+The E2E build MUST keep an `identifier` of its own in `src-tauri/tauri.e2e.conf.json`, so its
+data and log folders never overlap the real application's: `PATIENT_MANAGER_E2E_DB` moves the database only.
