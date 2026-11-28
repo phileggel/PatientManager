@@ -58,9 +58,11 @@ function PreviewModalPanel({ title, children, footer }) {
 }
 ```
 
-**Fidelity**: tokens, fonts, Tailwind, the component and i18n are the app's own; dark
-mode is the `dark` class the preview sets from `?theme=dark`. Two cosmetic gaps: no modal backdrop or app shell (the
-panel-only pattern), and Chromium instead of the platform WebView (subpixel differences).
+**Fidelity**: tokens, fonts, Tailwind, the component and i18n are the app's own; dark mode is
+the `dark` class the preview sets from `?theme=dark`. Two gaps: no modal backdrop or app shell (the
+panel-only pattern), and Chromium instead of the platform WebView, so the captures stand for the
+Windows build only. A layout fault of the Linux WebView does not show in them; only an E2E
+assertion catches it, as `e2e/shell/form-windows.test.ts` does for the form windows' height.
 A change to modal chrome or backdrop blur says so in the PR body.
 
 ## Never do
