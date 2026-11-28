@@ -29,7 +29,7 @@ pub(super) fn restore_row(
 #[async_trait::async_trait]
 impl BankAccountRepository for SqliteBankAccountRepository {
     async fn create_account(&self, account: BankAccount) -> anyhow::Result<BankAccount> {
-        tracing::trace!(target: BACKEND, account_id = %account.id, name = ?account.name, "Inserting bank account into database");
+        tracing::trace!(target: BACKEND, account_id = %account.id, "Inserting bank account into database");
 
         sqlx::query!(
             r#"
@@ -106,7 +106,7 @@ impl BankAccountRepository for SqliteBankAccountRepository {
     }
 
     async fn update_account(&self, account: BankAccount) -> anyhow::Result<BankAccount> {
-        tracing::trace!(target: BACKEND, account_id = %account.id, name = ?account.name, "Updating bank account in database");
+        tracing::trace!(target: BACKEND, account_id = %account.id, "Updating bank account in database");
 
         sqlx::query!(
             r#"

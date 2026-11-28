@@ -200,7 +200,7 @@ pub const BACKEND: &str = "backend";
 tracing::info!(target: BACKEND, field = value, "message");
 ```
 
-**B44** — No patient data as a field value in a log call: SSN, IBAN, patient full name. Naming the field in the message (`"Fetching patient by SSN"`) is fine; log a presence boolean (`has_ssn = ssn.is_some()`), the last four characters of an IBAN, or nothing. Nor a parsed document line or row, Debug-formatted: its text can name the payer; the script checks this in Rust, for values named `l`, `line(s)`, `row(s)`, `*_line(s)`, `*_row(s)`. `scripts/privacy-check.py` enforces it for `tracing::*!`, `logger.*` and `console.*` in the hooks and CI. The same script already rejects an SSN or IBAN with valid check digits anywhere in the tree.
+**B44** — A log call's field values hold nothing DGR-032 forbids: no name, no SSN, no IBAN beyond its last four, no amount. Naming the field in the message (`"Fetching patient by SSN"`) is fine; log a presence boolean (`has_ssn = ssn.is_some()`), the last four characters of an IBAN, an id, a count, or nothing. Nor a parsed document line or row, Debug-formatted: its text can name the payer. `scripts/privacy-check.py` checks `tracing::*!`, `logger.*` and `console.*` in the hooks and CI for an SSN, an IBAN, a patient's name and (in Rust) a line or row named `l`, `line(s)`, `row(s)`, `*_line(s)`, `*_row(s)`; it also rejects an SSN or IBAN with valid check digits anywhere in the tree. An amount, a balance or any other name in a log call is the backend reviewer lane's to find: no pattern tells it from a count or a column index.
 
 ## General
 

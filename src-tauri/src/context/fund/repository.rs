@@ -405,7 +405,6 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             target: BACKEND,
             group_id = %group.id,
             fund_id = %fund_id,
-            total_amount = total_amount,
             line_count = group.lines.len(),
             "Creating fund payment group with lines (atomic)"
         );
@@ -698,7 +697,6 @@ impl FundPaymentRepository for SqliteFundPaymentRepository {
             target: BACKEND,
             group_id = %group.id,
             fund_id = %group.fund_id,
-            total_amount = group.total_amount,
             status = %status_str,
             line_count = group.lines.len(),
             "Persisting fund payment group (bypass validation)"

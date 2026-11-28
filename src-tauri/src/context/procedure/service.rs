@@ -47,7 +47,7 @@ impl ProcedureTypeService {
         default_amount: i64,
         category: Option<String>,
     ) -> Result<ProcedureType, ProcedureError> {
-        tracing::info!(target: BACKEND, default_amount, "Adding procedure type");
+        tracing::info!(target: BACKEND, "Adding procedure type");
         let candidate = ProcedureType::new(name, default_amount, category)?;
         let existing = self.repository.find_by_name(&candidate.name).await.map_err(|e| {
             tracing::error!(target: BACKEND, err = ?e, "add_procedure_type: find_by_name failed");

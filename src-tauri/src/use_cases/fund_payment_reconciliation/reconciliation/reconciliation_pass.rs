@@ -213,8 +213,6 @@ impl ReconciliationPass {
             tracing::warn!(
                 target: BACKEND,
                 line_index = normalized.line_index,
-                pdf_amount = InternalAmount(normalized.amount).to_f64(),
-                db_sum = sum.to_f64(),
                 "Amount mismatch detected in period match"
             );
         }
@@ -275,8 +273,6 @@ impl ReconciliationPass {
                 target: BACKEND,
                 line_index = normalized.line_index,
                 procedure_id = %proc.id,
-                pdf_amount = InternalAmount(normalized.amount).to_f64(),
-                db_amount = db_amount,
                 "Amount mismatch detected in single match"
             );
         }

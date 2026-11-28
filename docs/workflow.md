@@ -54,8 +54,8 @@ tests never run in a hook (hooks export `GIT_DIR`). Beside the loop's checks:
 - **Coverage floors** — a gap is closed with tests on real branches; an honest lower figure
   on untested pass-through code is accepted. A log call is no logic, so not counted (owner, 2026-11-14, #674).
 - **Patient data** — `scripts/privacy-check.py`: no SSN or IBAN with valid check digits,
-  no private value in a log call, no real data file; in the hooks, on the tree, and on
-  the PR description (`pr-description.yml`).
+  no private value in a log call (amounts and other names: B44, the backend reviewer lane), no real data file; in the
+  hooks, on the tree, and on the PR description (`pr-description.yml`).
 - **Codec round-trip** — `codec-gate.yml`, when import codecs or fixtures change.
 
 ## The golds

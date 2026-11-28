@@ -525,7 +525,6 @@ impl FundPaymentReconciliationOrchestrator {
     /// data is NOT rolled back.
     async fn verify_group_integrity(&self, group: &FundPaymentGroup) -> anyhow::Result<()> {
         let mut payments_total: i64 = 0;
-        let mut payment_amounts = Vec::new();
 
         // Fetch all persisted procedures in the group and sum their paid_amount
         for line in &group.lines {
@@ -534,9 +533,7 @@ impl FundPaymentReconciliationOrchestrator {
                 .read_procedure(&line.procedure_id)
                 .await?
             {
-                let amount = procedure.paid_amount.unwrap_or(0);
-                payments_total += amount;
-                payment_amounts.push((line.procedure_id.clone(), amount));
+                payments_total += procedure.paid_amount.unwrap_or(0);
             } else {
                 tracing::warn!(
                     target: BACKEND,
@@ -550,43 +547,24 @@ impl FundPaymentReconciliationOrchestrator {
             }
         }
 
-        // Verify the sum of paid_amount matches the group total
+        // Verify the sum of paid_amount matches the group total. No amount is
+        // written: the log and its copies in the reports hold none (B44).
         if payments_total != group.total_amount {
-            let amounts_str = payment_amounts
-                .iter()
-                .map(|(id, amt)| {
-                    format!(
-                        "{}={:.2}€",
-                        id.chars().take(8).collect::<String>(),
-                        *amt as f64 / 1000.0
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-
             tracing::warn!(
                 target: BACKEND,
                 group_id = %group.id,
-                expected_total = group.total_amount,
-                actual_total = payments_total,
-                difference = payments_total - group.total_amount,
                 procedure_count = group.lines.len(),
-                payment_breakdown = %amounts_str,
                 "Post-persistence integrity check: sum of paid_amount does not match group total"
             );
             anyhow::bail!(
-                "Integrity mismatch in group {}: expected {:.2}€, got {:.2}€. Breakdown: {}.",
-                group.id,
-                group.total_amount as f64 / 1000.0,
-                payments_total as f64 / 1000.0,
-                amounts_str
+                "Integrity mismatch in group {}: the sum of paid_amount does not match the group total",
+                group.id
             );
         }
 
         tracing::info!(
             target: BACKEND,
             group_id = %group.id,
-            total_amount = group.total_amount,
             procedure_count = group.lines.len(),
             "Post-persistence integrity check passed: sum of paid_amount matches group total"
         );

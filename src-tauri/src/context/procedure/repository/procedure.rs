@@ -634,7 +634,6 @@ impl ProcedureRepository for SqliteProcedureRepository {
             target: BACKEND, patient_id = %patient_id,
             fund_id = ?fund_id,
             procedure_date = %procedure_date,
-            billed_amount = %billed_amount,
             "Querying for exact procedure match"
         );
 
