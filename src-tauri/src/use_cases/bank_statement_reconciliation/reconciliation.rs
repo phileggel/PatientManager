@@ -426,6 +426,9 @@ fn auto_match(
 
             if let (Some(group_id), Some(line)) = (matched, lines.get_mut(idx)) {
                 line.assigned_group_ids.push(group_id.clone());
+                // BAS-066D — the match replaces a remainder acknowledged alone,
+                // as an assignment does (BAS-064A, BAS-113).
+                line.remainder_acknowledged = false;
                 consumed.insert(group_id);
             }
         }
@@ -1401,6 +1404,83 @@ mod tests {
             line_id: "line-0".to_string(),
         }]);
         assert_eq!(line.assigned_group_ids, vec!["grp-93".to_string()]);
+    }
+
+    /// BAS-066D (#741) — a line acknowledged alone, then auto-matched by a later link,
+    /// drops its acknowledgment, as an assignment does (BAS-066A, BAS-113).
+    #[test]
+    fn bas_066d_an_auto_match_clears_a_lone_acknowledgment() {
+        let parse_result = BankStatementParseResult {
+            iban: None,
+            period: None,
+            credit_lines: vec![
+                BankStatementCreditLine {
+                    date: "2026-01-16".to_string(),
+                    label: "CPAM93".to_string(),
+                    amount: 100_000,
+                },
+                // One day from the group, against two, so the auto-match gives
+                // it the group first (offsets nearest first, BAS-052).
+                BankStatementCreditLine {
+                    date: "2026-01-15".to_string(),
+                    label: "MGEN".to_string(),
+                    amount: 100_000,
+                },
+            ],
+            total_credits: 200_000,
+            unparsed_count: 0,
+        };
+        let mappings: Vec<BankFundLabelMapping> = ["CPAM93", "MGEN"]
+            .iter()
+            .enumerate()
+            .map(|(i, label)| BankFundLabelMapping {
+                id: format!("map-{i}"),
+                bank_account_id: "acc-1".to_string(),
+                bank_label: (*label).to_string(),
+                fund_id: Some("fund-93".to_string()),
+            })
+            .collect();
+        let funds = vec![fund("fund-93", "93", "CPAM Seine-Saint-Denis")];
+        let groups = vec![group("grp-93", "fund-93", "2026-01-14", 100_000)];
+        let repos = BankStatementReconciliationRepos {
+            mappings: &mappings,
+            groups: &groups,
+            funds: &funds,
+            open_procedures: no_open_procedures(),
+        };
+        let corrections = [
+            BankStatementCorrection::AcknowledgeRemainder {
+                line_id: "line-0".to_string(),
+            },
+            // Rejecting MGEN frees grp-93; the re-run auto-match gives it to line-0.
+            BankStatementCorrection::LinkFund {
+                bank_label: "MGEN".to_string(),
+                assignment: FundAssignment::Rejected,
+            },
+        ];
+
+        let line = compute_reconciliation(&parse_result, &repos, &corrections)
+            .unwrap()
+            .lines
+            .remove(0);
+
+        assert_eq!(line.assigned_group_ids, vec!["grp-93".to_string()]);
+        assert!(!line.remainder_acknowledged);
+    }
+
+    #[test]
+    fn bas_064a_a_group_assignment_replaces_an_acknowledged_remainder() {
+        let line = after_corrections(&[
+            BankStatementCorrection::AcknowledgeRemainder {
+                line_id: "line-0".to_string(),
+            },
+            BankStatementCorrection::AssignGroups {
+                line_id: "line-0".to_string(),
+                group_ids: vec!["grp-93".to_string()],
+            },
+        ]);
+        assert_eq!(line.assigned_group_ids, vec!["grp-93".to_string()]);
+        assert!(!line.remainder_acknowledged);
     }
 
     #[test]
