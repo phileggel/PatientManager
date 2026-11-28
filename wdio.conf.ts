@@ -35,8 +35,9 @@ const BINARY_PATH = resolve(__dirname, "src-tauri", "target", "debug", BINARY_NA
 
 // Ephemeral database used exclusively by the E2E test suite.
 // The binary reads PATIENT_MANAGER_E2E_DB and, when set, uses that path instead
-// of the normal app-data-dir location. This keeps test data fully isolated from
-// the developer's real application data and guarantees a clean state each run.
+// of the normal app-data-dir location, which guarantees a clean state each run.
+// The E2E build's own identifier (`tauri.e2e.conf.json`, E13) keeps its data and
+// log folders apart from the real application's.
 const E2E_DB_PATH = resolve(os.tmpdir(), "patient_manager_e2e.db");
 
 // Failure-screenshot output. The `afterTest` hook below writes a PNG for every

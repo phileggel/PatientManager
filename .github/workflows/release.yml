@@ -191,7 +191,8 @@ jobs:
         if: failure()
         shell: pwsh
         run: |
-          $log = Join-Path $env:LOCALAPPDATA "com.projectsf.patient-manager\logs\app.log"
+          # The E2E build's own identifier (tauri.e2e.conf.json, E13).
+          $log = Join-Path $env:LOCALAPPDATA "com.projectsf.patient-manager.e2e\logs\app.log"
           if (Test-Path $log) { Get-Content $log -Tail 80 } else { Write-Output "no log at $log" }
 
       - name: Upload E2E failure screenshots
