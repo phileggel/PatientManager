@@ -1,6 +1,5 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CompactSelectField, IconButton } from "@/ui/components";
+import { CompactSelectField } from "@/ui/components";
 import { useFormatters } from "@/ui/format/formatters";
 import { getMonthName } from "../model/date.logic";
 
@@ -26,24 +25,6 @@ export function PeriodSelector({
     { length: yearRange.max - yearRange.min + 1 },
     (_, i) => yearRange.min + i,
   );
-
-  function navigateMonth(direction: -1 | 1) {
-    let newMonth = selectedMonth + direction;
-    let newYear = selectedYear;
-    if (newMonth < 1) {
-      newMonth = 12;
-      newYear -= 1;
-    } else if (newMonth > 12) {
-      newMonth = 1;
-      newYear += 1;
-    }
-    if (newYear < yearRange.min || newYear > yearRange.max) return;
-    onMonthChange(newMonth);
-    onYearChange(newYear);
-  }
-
-  const canGoPrev = !(selectedMonth === 1 && selectedYear <= yearRange.min);
-  const canGoNext = !(selectedMonth === 12 && selectedYear >= yearRange.max);
 
   return (
     <div className="flex items-center gap-4">
@@ -85,27 +66,6 @@ export function PeriodSelector({
             </option>
           ))}
         </CompactSelectField>
-      </div>
-
-      <div className="flex items-center gap-1">
-        <IconButton
-          variant="ghost"
-          shape="round"
-          size="sm"
-          aria-label={t("period.prev_month")}
-          icon={<ChevronLeft size={18} />}
-          onClick={() => navigateMonth(-1)}
-          disabled={!canGoPrev}
-        />
-        <IconButton
-          variant="ghost"
-          shape="round"
-          size="sm"
-          aria-label={t("period.next_month")}
-          icon={<ChevronRight size={18} />}
-          onClick={() => navigateMonth(1)}
-          disabled={!canGoNext}
-        />
       </div>
     </div>
   );
