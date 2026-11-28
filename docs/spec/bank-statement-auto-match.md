@@ -116,15 +116,17 @@ A line counts as **resolved** when its status is **matched** or **rejected**. `n
 
 **BAS-064 — Draft computed by recompute (backend)**: The reconciliation draft (the full line list with per-line status and candidate proposals) is a pure function of the parsed statement plus the ordered list of applied corrections. The draft is **ephemeral** — no draft state is persisted; closing the flow discards it. Each correction triggers a recompute that replays all corrections in order and answers the complete recomputed draft synchronously. A correction that cannot be honored is rejected with a specific error and the draft is unchanged: a correction on an unknown line; a link to an unknown fund; a non-empty assignment on a line not linked to a fund (unlinked or rejected); an unknown group, one of another fund (BAS-090A), or one already settled (BAS-053, BAS-090) or already consumed by another line (BAS-067); an assignment that would overflow the line amount (BAS-094).
 
-**BAS-064A — Corrections replace, in order (backend)**: The draft replays the corrections in the order they were made. An assignment of groups or procedures replaces the line's earlier assignment of either kind and its acknowledged remainder (BAS-113, BAS-092); an acknowledgment adds to the line's current assignment; a link that changes its label's assignment replaces what its lines had (BAS-066B), and one that does not drops nothing (BAS-066C). A replaced correction never comes back, and no correction is refused for what it replaces.
+**BAS-064A — Corrections replace, in order (backend)**: The draft replays the corrections in the order they were made. An assignment of groups or procedures replaces the line's earlier assignment of either kind and its acknowledged remainder (BAS-113, BAS-092); an acknowledgment adds to the line's current assignment; a link that changes its label's assignment replaces what its lines had (BAS-066B), and one that does not drops nothing (BAS-066C); either also drops as BAS-066D says. A replaced correction never comes back, and no correction is refused for what it replaces.
 
 **BAS-066 — Link-fund correction and cascade (backend)**: A link that changes a label's assignment — to a fund, or marking it rejected (BAS-030) — decides the status of **all** lines sharing that label in one action (BAS-066B). On a link to a fund, lines that match an eligible group (BAS-050–054) auto-resolve to **matched** and the rest are flagged **needs-group** or **unresolved**; on a rejection, they are **rejected** (BAS-061).
 
 **BAS-066A — Every link re-attempts the auto-match (backend)**: After a link or a rejection, the auto-match (BAS-050–054) is re-attempted on every line, whatever its label, that has no settlement item and no hold (BAS-062A). An existing auto-match is kept, but on the lines BAS-066B starts again.
 
-**BAS-066B — A changed link starts its lines again (backend)**: Linking a label to another fund than the one it has — a label that had none or was rejected included — or marking it rejected starts its lines again (owner, 2026-11-15, #692): their auto-match and every correction made on them before — an assignment of groups or procedures, an empty one included, an acknowledged remainder — are dropped, and their groups and procedures return to their pools. On a link to a fund, the auto-match is then re-attempted under that fund; a rejected line is never matched (BAS-030). Such a link is never refused for what it drops. The lines of the other labels keep what they have.
+**BAS-066B — A changed link starts its lines again (backend)**: Linking a label to another fund than the one it has — a label that had none or was rejected included — or marking it rejected starts its lines again (owner, 2026-11-15, #692): their auto-match and every correction made on them before — an assignment of groups or procedures, an empty one included, an acknowledged remainder — are dropped, and their groups and procedures return to their pools. On a link to a fund, the auto-match is then re-attempted under that fund; a rejected line is never matched (BAS-030). Such a link is never refused for what it drops. The lines of the other labels keep what they have, except as BAS-066D says.
 
-**BAS-066C — Linking to the same assignment drops nothing (backend)**: Linking a label to the fund it already has, or marking a rejected label rejected again, keeps what its lines have — no settlement item or correction is dropped. BAS-066A's re-attempt still runs, the label's own lines with no settlement item and no hold included when it is linked to a fund (owner, 2026-11-21, #632).
+**BAS-066C — Linking to the same assignment drops nothing (backend)**: Linking a label to the fund it already has, or marking a rejected label rejected again, keeps what its lines have — no settlement item or correction is dropped, except as BAS-066D says. BAS-066A's re-attempt still runs, the label's own lines with no settlement item and no hold included when it is linked to a fund (owner, 2026-11-21, #632).
+
+**BAS-066D — A re-attempt match drops a lone acknowledgment (backend)**: A line BAS-066A's re-attempt matches drops the remainder acknowledged on it with no assignment (BAS-123B), as an assignment does (BAS-064A, BAS-113) (owner, 2026-11-22, #741).
 
 **BAS-067 — Group consumption (backend)**: Assigning a group to a line removes that group from every other line's candidate proposals (a group settles at most one line; BAS-054). Replacing or emptying the assignment, or dropping it (BAS-066B), returns the group to the candidate pool.
 
@@ -202,7 +204,7 @@ One bank transfer is created and linked as for any group (BAS-070/093). A failed
 
 ### Leaving a line aside (120–129)
 
-**BAS-123B — Zero-item acknowledgment resolves (backend)**: A line with a known fund, **zero** assigned settlement items, and an acknowledged remainder is **matched** even when candidates exist. A line is **left aside** by an empty assignment followed by the acknowledgment of its whole amount: the empty assignment holds it (BAS-062A), so no later link brings an auto-match back unless it links the line's own label to another fund (BAS-066B); an acknowledgment alone holds nothing (BAS-066A). Defensive invariant: an acknowledgment never resolves a line whose label is unlinked.
+**BAS-123B — Zero-item acknowledgment resolves (backend)**: A line with a known fund, **zero** assigned settlement items, and an acknowledged remainder is **matched** even when candidates exist. A line is **left aside** by an empty assignment followed by the acknowledgment of its whole amount: the empty assignment holds it (BAS-062A), so no later link brings an auto-match back unless it links the line's own label to another fund (BAS-066B); an acknowledgment alone holds nothing (BAS-066A), and a later re-attempt match drops it (BAS-066D). Defensive invariant: an acknowledgment never resolves a line whose label is unlinked.
 
 ---
 
@@ -224,7 +226,7 @@ One bank transfer is created and linked as for any group (BAS-070/093). A failed
           │
           ▼
 [Corrections, in any order] — each recomputes the draft (BAS-064)
-  → link a label to a fund or reject it (BAS-066–066C); a changed link starts its
+  → link a label to a fund or reject it (BAS-066–066D); a changed link starts its
     lines again (BAS-066B)
   → assign groups of the line's fund (BAS-090) or procedures (BAS-113)
   → acknowledge a remainder / leave a line aside (BAS-092, BAS-123B)
@@ -249,6 +251,6 @@ One bank transfer is created and linked as for any group (BAS-070/093). A failed
 ## Open questions
 
 - [ ] BAS-032's whitespace handling and tie suppression, in the code, not in this spec — #551.
-- [ ] At validate, may a line whose auto-matched group was settled since the draft be matched to another eligible group (BAS-053A)? Today the recompute decides, as for any line.
+- [ ] At validate, may a line whose auto-matched group was settled since the draft be matched to another eligible group (BAS-053A)? Today the recompute decides, as for any line; it replays a lone acknowledgment a re-attempt match had dropped (BAS-066D), so the line comes back left aside.
 - [ ] What does validate answer for an assigned group deleted, or changed in amount, since the draft (BAS-053B)? Today the recompute's own refusals apply (BAS-064, BAS-094).
 - [ ] A remainder acknowledged on a line not covered below its amount is not refused (BAS-092) — #358.
