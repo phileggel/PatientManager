@@ -28,7 +28,7 @@ A question only the human can answer is never guessed: headless, it goes on the 
 3. **Boyscout** — small mechanical fixes inside the files already edited ship in the same PR. Known dead code is removed in the same commit.
 4. **Coverage when a real gap surfaces** — add a focused test; the floors in `coverage-gates.json` only rise.
 5. **Challenge reviewer returns** — every finding graded (a)/(b)/(c) and recorded in the PR body, or after the push in a PR comment (`loop.md` § 5).
-6. **PR size** — one story per pull request; about 400 hand-written lines per reviewer lane, a split above about 800 (`loop.md` § 7).
+6. **One story per PR** — whatever its size (`loop.md` § 7).
 
 ## Opening and closing a piece of work
 
