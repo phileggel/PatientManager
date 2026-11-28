@@ -25,7 +25,9 @@ Mocks live in `phileggel/PatientManager-design` (`design-proposal.repo` of
 
 ## Ending a batch
 
-`/app:run-batch` ends it.
+`/app:run-batch` ends it. Before a release, the previous batch end must have its audit. The owner
+may declare an emergency release in chat; it goes out without one, and the next batch's audit
+covers it and says so (owner, 2026-11-22, #749).
 
 ## The harness
 
