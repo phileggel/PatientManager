@@ -7,8 +7,8 @@ The authoritative dictionary of domain terms for this project.
 - All terms MUST be agreed with the user before use in code, tests, or docs.
 - The agent MUST NOT invent or assume domain terms — propose and wait for confirmation.
 - Terms marked `pending` are proposals awaiting user validation.
-- Once confirmed, the term MUST be used consistently everywhere (code, comments, specs, UI).
-- A term is a name the specs' rules and the code share. A name no spec rule uses — one screen's view of the data, as the bank import's recap — is not a term (owner, 2026-11-15).
+- Once confirmed, the term MUST be used consistently everywhere (code, comments, specs, logs).
+- An entry is a domain term of the code, named as the code names it; a screen label is not one, and the screens' wording is the mocks' (owner, 2026-11-22, #753). A term is a name the specs' rules and the code share. A name no spec rule uses — one screen's view of the data, as the bank import's recap — is not a term (owner, 2026-11-15).
 
 ---
 
@@ -18,35 +18,27 @@ The authoritative dictionary of domain terms for this project.
 
 The aggregate root of the patient context. Represents an individual receiving healthcare
 procedures. May be anonymous (no name/SSN) or identified. Tracks the most recent procedure
-defaults (type, fund, date, amount) to pre-populate new procedure forms. The SSN is shown on
-screen as « INS ».
+defaults (type, fund, date, amount) to pre-populate new procedure forms.
 
 > Status: confirmed
 
 ---
 
-### Record (« Fiche »)
-
-The screen word for one patient where two are shown side by side: « Fiche 1 », « Fiche 2 » on the
-patient duplicates page. A word of the interface only; code and specs say patient.
-
-> Status: confirmed
-
-### Candidate pair (« Doublon »)
+### Candidate pair
 
 Two patients, neither of them anonymous, that carry the same name once spaces, case and
 accents are ignored, and that the user has not dismissed. Proposed on the patient duplicates page.
 
 > Status: confirmed
 
-### Merge (« Fusionner »)
+### Merge
 
 Making one patient of a candidate pair: the **kept patient** receives every procedure of the
 other, which is deleted. Not reversible from the app.
 
 > Status: confirmed
 
-### Duplicate dismissal (« Pas un doublon »)
+### Duplicate dismissal
 
 The user's statement that the two patients of a pair are different people. The pair is not
 proposed again. Owned by the patient context; removed only with one of its patients.
@@ -157,8 +149,7 @@ import has no precise type for it: an unmatched fund statement line, or the Exce
 
 ### Default type
 
-The choice « Importé depuis Excel » on the Excel import's mapping screen, sent as
-`imported-from-excel`. It has no `ProcedureType` row of its own: a mapping keeps it as such,
+The choice on the Excel import's mapping screen sent as `imported-from-excel`. It has no `ProcedureType` row of its own: a mapping keeps it as such,
 and a procedure mapped to it is stored with the reserved type (EXI-131).
 
 > Status: confirmed (2026-11-07)
@@ -223,7 +214,7 @@ identified by a name and an optional IBAN; it has an account type (below).
 
 > Status: confirmed
 
-### Account type (« Type de compte »)
+### Account type
 
 What a `BankAccount` is (BAC-050A): `bank`, one of the user's accounts, the only ones shown or
 chosen; or `cash`, `check`, `card`, the technical account a direct payment of that type is
@@ -233,8 +224,8 @@ recorded on, never shown. Replaces the former "cash account".
 
 ### BankEntry
 
-An aggregate root in the bank context. A payment received — a fund's wire (« Virement de
-caisse ») or a patient's direct payment by check, card or cash (« Paiement direct ») — or
+An aggregate root in the bank context. A payment received — a fund's wire or a
+patient's direct payment by check, card or cash — or
 an overpayment refund paid out (REF-110).
 
 > Status: confirmed (owner, 2026-11-21, #642)
@@ -254,32 +245,32 @@ The nature of a `BankEntry`. Encodes both the payment instrument and its source/
   > ⚠️ Code discrepancy: currently named `BankTransferType` with variants `Fund`, `Check`,
   > `CreditCard`, `Cash`, `OutgoingWire` — to be renamed.
 
-### Left-aside line (« Laissée de côté »)
+### Left-aside line
 
 A bank-statement line consciously excluded from settlement during reconciliation: fund known, zero settlement items assigned, whole amount acknowledged as untracked remainder (BAS-092, BAS-123B). Resolved (engine status `matched`) with a distinct badge; session-only — nothing is persisted for it at validate, and re-importing would surface it again. Not a stored concept.
 
 > Status: confirmed (2026-08-03)
 
-### Group left out of the import (« Groupe non importé »)
+### Group left out of the import
 
 A group of a fund's PDF statement whose stated total is zero or negative — the fund takes money back — and which the statement import therefore leaves out before matching (FPA-070): none of its lines is matched, nothing is created for it, and it is named to the user. Not a stored concept. Distinct from a left-aside line, which the user sets aside on purpose during a bank reconciliation.
 
 > Status: confirmed (2026-10-11)
 
-### Split into procedures (« Répartir en plusieurs actes »)
+### Split into procedures
 
 The correction of a fund PDF line with no matching procedure that creates one procedure per part instead of one for the whole line (FPA-255 to FPA-258): `SplitIntoProcedures` in code. A part (`SplitPart`) is one procedure's date and amount; the parts add up to the line's amount and their dates fall within the line's period. Not a stored concept: the procedures it creates are.
 
 > Status: confirmed (2026-10-18)
 
-### Bank statement label (« Libellé de relevé »)
+### Bank statement label
 
-The label of a bank statement line, remembered per bank account together with its assignment: a fund, or rejected (`Rejected`; the screen says « Ignoré »; owner, 2026-11-21, #706). Saved by the import flow at validate (BAS-035) and reviewed from the management screen (BAS-041–046). Deleting the bank account deletes its labels.
+The label of a bank statement line, remembered per bank account together with its assignment: a fund, or rejected (`Rejected`; owner, 2026-11-21, #706). Saved by the import flow at validate (BAS-035) and reviewed from the management screen (BAS-041–046). Deleting the bank account deletes its labels.
 
 > ⚠️ Code discrepancy: `BankFundLabelMapping` (table `bank_fund_label_mapping`) — keep the code name; use this term in specs, screens and new prose.
 > Status: confirmed (2026-09-29; reworded 2026-11-21, #706)
 
-### Diagnostic report (« Rapport de diagnostic »)
+### Diagnostic report
 
 A text file the user saves from the database backup dialog and sends to support: the state of the installation (version, migrations, database checks, row counts, backend log lines) and no practice data (DGR-020 to DGR-026).
 
@@ -291,7 +282,7 @@ What failed when the application started: the database or the application's fold
 
 > Status: confirmed (owner, 2026-11-22, #730)
 
-### Support code (« Code support »)
+### Support code
 
 The eight-character code (`XXXX-XXXX`) written in a diagnostic report and shown to the user once it is saved, so a report can be matched to the person quoting it (DGR-020).
 
