@@ -22,6 +22,8 @@ what is this project's; where it and they disagree on what they state, they are 
 Mocks live in `phileggel/PatientManager-design` (`design-proposal.repo` of
 `.claude/daneel.json`). The validated mocks are the only description of the screens (owner,
 2026-11-07, #638); a screen's mock is found through its issue, which links it.
+A design proposal names the existing screens that do the same thing and takes their pattern
+(controls, wording, list behaviour); it asks the owner only where it chooses to differ (owner, 2026-11-21, #724).
 
 ## Ending a batch
 
