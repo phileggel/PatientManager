@@ -19,6 +19,8 @@ const MAX_XLSX_BYTES: u64 = 50 * 1024 * 1024;
 struct RowLookups<'a> {
     patient_by_ssn: &'a HashMap<String, String>,
     patient_by_name: &'a HashMap<String, String>,
+    /// EXI-032 — the patients without an SSN, by lowercased name.
+    patient_without_ssn_by_name: &'a HashMap<String, String>,
     fund_by_identifier: &'a HashMap<String, String>,
 }
 
@@ -106,19 +108,21 @@ impl ExcelParserService {
         trimmed.starts_with('#') && (trimmed.ends_with('!') || trimmed == "#N/A")
     }
 
-    /// EXI-030 — an SSN is exactly 13 ASCII digits.
-    fn is_valid_ssn(ssn: &str) -> bool {
-        ssn.len() == 13 && ssn.chars().all(|c| c.is_ascii_digit())
+    /// EXI-030 — the SSN a cell holds: its 13 ASCII digits once every space
+    /// inside it is removed, non-breaking ones included; `None` otherwise.
+    fn valid_ssn(cell: &str) -> Option<String> {
+        let digits: String = cell.chars().filter(|c| !c.is_whitespace()).collect();
+        (digits.len() == 13 && digits.chars().all(|c| c.is_ascii_digit())).then_some(digits)
     }
 
     /// EXI-030, EXI-080 — a patient's name and SSN as stored, and the key that
     /// deduplicates it: the SSN when valid; otherwise the lowercased name, which
     /// carries a code that is not an SSN as `"{name} (code: {ssn})"`.
     fn patient_identity(name: String, ssn: &str) -> (String, String, String) {
-        let ssn = ssn.trim();
-        if Self::is_valid_ssn(ssn) {
-            return (name, ssn.to_string(), ssn.to_string());
+        if let Some(ssn) = Self::valid_ssn(ssn) {
+            return (name, ssn.clone(), ssn);
         }
+        let ssn = ssn.trim();
         let name = if ssn.is_empty() || Self::is_excel_error(ssn) {
             name
         } else {
@@ -205,6 +209,11 @@ impl ExcelParserService {
             .iter()
             .map(|p| (p.name.to_lowercase(), p.temp_id.clone()))
             .collect();
+        let patient_without_ssn_name_to_temp_id: HashMap<String, String> = patients
+            .iter()
+            .filter(|p| p.ssn.is_empty())
+            .map(|p| (p.name.to_lowercase(), p.temp_id.clone()))
+            .collect();
         let fund_identifier_to_temp_id: HashMap<String, String> = funds
             .iter()
             .map(|f| (f.fund_identifier.clone(), f.temp_id.clone()))
@@ -216,6 +225,7 @@ impl ExcelParserService {
             &mut parsing_issues,
             &patient_ssn_to_temp_id,
             &patient_name_to_temp_id,
+            &patient_without_ssn_name_to_temp_id,
             &fund_identifier_to_temp_id,
         )
         .map_err(|e| {
@@ -504,12 +514,14 @@ impl ExcelParserService {
         parsing_issues: &mut ParsingIssues,
         patient_ssn_to_temp_id: &HashMap<String, String>,
         patient_name_to_temp_id: &HashMap<String, String>,
+        patient_without_ssn_name_to_temp_id: &HashMap<String, String>,
         fund_identifier_to_temp_id: &HashMap<String, String>,
     ) -> anyhow::Result<Vec<ExcelProcedure>> {
         let mut procedures = Vec::new();
         let lookups = RowLookups {
             patient_by_ssn: patient_ssn_to_temp_id,
             patient_by_name: patient_name_to_temp_id,
+            patient_without_ssn_by_name: patient_without_ssn_name_to_temp_id,
             fund_by_identifier: fund_identifier_to_temp_id,
         };
 
@@ -711,9 +723,19 @@ impl ExcelParserService {
         // 2. By name (case-insensitive) — fallback for patients without valid SSN
         // 3. By name + "(code: SSN)" — fallback for invalid-SSN patients
         let row_ssn = row.first().map(|c| c.to_string()).unwrap_or_default();
+        // Trimmed, inner spaces kept: the `(code: …)` key below is the cell as
+        // typed (EXI-030); `valid_ssn` removes every space itself.
         let row_ssn = row_ssn.trim();
-        let patient_temp_id = if Self::is_valid_ssn(row_ssn) {
-            lookups.patient_by_ssn.get(row_ssn).cloned()
+        let patient_temp_id = if let Some(ssn) = Self::valid_ssn(row_ssn) {
+            // EXI-032 — an SSN no patient holds falls back to the name, for a
+            // patient without an SSN only: one of the same name holding
+            // another SSN never takes it.
+            lookups.patient_by_ssn.get(&ssn).cloned().or_else(|| {
+                lookups
+                    .patient_without_ssn_by_name
+                    .get(&patient_name.to_lowercase())
+                    .cloned()
+            })
         } else {
             lookups
                 .patient_by_name
@@ -862,6 +884,56 @@ mod tests {
     }
 
     #[test]
+    fn exi_030_a_patient_sheet_ssn_typed_with_spaces_is_valid() {
+        let rows = [
+            patient_row("Patient A", "1 23 45 67 890 123"),
+            patient_row("Patient B", "2\u{a0}23\u{202f}45 67\t890 123"),
+        ];
+
+        let patients =
+            ExcelParserService::patients_from_rows(rows.iter().map(Vec::as_slice), &mut issues());
+
+        let kept: Vec<(&str, &str)> = patients
+            .iter()
+            .map(|p| (p.name.as_str(), p.ssn.as_str()))
+            .collect();
+        assert_eq!(
+            kept,
+            vec![
+                ("Patient A", "1234567890123"),
+                ("Patient B", "2234567890123")
+            ]
+        );
+    }
+
+    #[test]
+    fn exi_030_a_code_not_13_digits_once_its_spaces_removed_stays_a_code() {
+        let rows = [patient_row("Patient A", "12 345")];
+
+        let patients =
+            ExcelParserService::patients_from_rows(rows.iter().map(Vec::as_slice), &mut issues());
+
+        assert_eq!(
+            (patients[0].name.as_str(), patients[0].ssn.as_str()),
+            ("Patient A (code: 12 345)", "")
+        );
+    }
+
+    #[test]
+    fn exi_080_an_ssn_with_and_without_spaces_is_one_patient() {
+        let rows = [
+            patient_row("Patient A", "1 23 45 67 890 123"),
+            patient_row("Patient A bis", "1234567890123"),
+        ];
+
+        let patients =
+            ExcelParserService::patients_from_rows(rows.iter().map(Vec::as_slice), &mut issues());
+
+        let names: Vec<&str> = patients.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["Patient A"]);
+    }
+
+    #[test]
     fn exi_080_two_patient_sheet_rows_with_the_same_key_are_one_patient() {
         let rows = [
             patient_row("Patient A", "1234567890123"),
@@ -950,6 +1022,18 @@ mod tests {
 
     /// Parses one row against Marie Dupont's patient sheet; returns it and the report.
     fn parse_row(row: &[calamine::Data]) -> (Option<ExcelProcedure>, Vec<SkippedRow>) {
+        let by_ssn = HashMap::from([("1234567890123".to_string(), "p-1".to_string())]);
+        let by_name = HashMap::from([("marie dupont".to_string(), "p-1".to_string())]);
+        parse_row_full(row, &by_ssn, &by_name, &HashMap::new())
+    }
+
+    /// Parses one row against the given lookups.
+    fn parse_row_full(
+        row: &[calamine::Data],
+        by_ssn: &HashMap<String, String>,
+        by_name: &HashMap<String, String>,
+        without_ssn: &HashMap<String, String>,
+    ) -> (Option<ExcelProcedure>, Vec<SkippedRow>) {
         let header: Vec<calamine::Data> = [
             "CODE", "NOM", "NOM SECU", "CAISSE", "ADRESSE", "TARIF", "DATE", "ENVOI", "T", "REMBSE",
         ]
@@ -957,12 +1041,11 @@ mod tests {
         .map(|h| s(h))
         .collect();
         let idx = ColIdx::from_header_row(&header).expect("header");
-        let by_ssn = HashMap::from([("1234567890123".to_string(), "p-1".to_string())]);
-        let by_name = HashMap::from([("marie dupont".to_string(), "p-1".to_string())]);
         let funds = HashMap::new();
         let lookups = RowLookups {
-            patient_by_ssn: &by_ssn,
-            patient_by_name: &by_name,
+            patient_by_ssn: by_ssn,
+            patient_by_name: by_name,
+            patient_without_ssn_by_name: without_ssn,
             fund_by_identifier: &funds,
         };
         let mut issues = ParsingIssues {
@@ -1005,6 +1088,52 @@ mod tests {
         assert!(missing.contains(&"Fév".to_string()));
     }
 
+    /// EXI-030, EXI-080 (#751): with no `Patiente` sheet, the monthly rows'
+    /// patients are read with their SSN's spaces removed, one patient per SSN.
+    #[cfg(feature = "dev-fixtures")]
+    #[tokio::test]
+    async fn exi_030_monthly_sheet_patients_read_an_ssn_typed_with_spaces() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("no_patient_sheet.xlsx");
+        let mut workbook = rust_xlsxwriter::Workbook::new();
+        let sheet = workbook.add_worksheet();
+        sheet.set_name("Jan").expect("name");
+        let rows = [
+            [
+                "CODE", "NOM", "NOM SECU", "CAISSE", "ADRESSE", "TARIF", "DATE",
+            ],
+            [
+                "1 23 45 67 890 123",
+                "Patient A",
+                "",
+                "",
+                "",
+                "50",
+                "15/01/2026",
+            ],
+            ["1234567890123", "Patient A", "", "", "", "50", "16/01/2026"],
+        ];
+        for (r, row) in rows.iter().enumerate() {
+            for (c, value) in row.iter().enumerate() {
+                sheet
+                    .write_string(r as u32, c as u16, *value)
+                    .expect("cell");
+            }
+        }
+        workbook.save(&path).expect("save");
+
+        let parsed = ExcelParserService::parse_excel(&path)
+            .await
+            .expect("parses");
+
+        let patients: Vec<(&str, &str)> = parsed
+            .patients
+            .iter()
+            .map(|p| (p.name.as_str(), p.ssn.as_str()))
+            .collect();
+        assert_eq!(patients, vec![("Patient A", "1234567890123")]);
+    }
+
     #[test]
     fn test_621_exi_020_a_row_with_an_empty_date_is_reported() {
         let (procedure, skipped) = parse_row(&monthly_row("Marie Dupont", "50", "", ""));
@@ -1017,6 +1146,66 @@ mod tests {
                 row_number: 4,
                 reason: SkipReason::MissingDate,
             }]
+        );
+    }
+
+    #[test]
+    fn exi_030_a_procedure_row_ssn_typed_with_spaces_finds_its_patient() {
+        // A name the patient sheet does not hold, so only the SSN can match.
+        let mut row = monthly_row("Paul Inconnu", "50", "15/01/2026", "");
+        row[0] = s("1 23\u{a0}45 67 890 123");
+
+        let (procedure, skipped) = parse_row(&row);
+
+        assert_eq!(skipped, vec![]);
+        assert_eq!(procedure.expect("parsed").patient_temp_id, "p-1");
+    }
+
+    #[test]
+    fn exi_032_a_row_ssn_no_patient_holds_goes_to_a_patient_without_ssn_by_name() {
+        let by_ssn = HashMap::new();
+        let by_name = HashMap::from([("marie dupont".to_string(), "p-2".to_string())]);
+        for code in ["9876543210987", "9 87 65 43 210 987"] {
+            let mut row = monthly_row("Marie Dupont", "50", "15/01/2026", "");
+            row[0] = s(code);
+
+            let (procedure, skipped) = parse_row_full(&row, &by_ssn, &by_name, &by_name);
+
+            assert_eq!(skipped, vec![], "{code}");
+            assert_eq!(procedure.expect("parsed").patient_temp_id, "p-2");
+        }
+    }
+
+    #[test]
+    fn exi_032_a_patient_of_the_same_name_with_an_ssn_does_not_hide_the_one_without() {
+        // Two parsed "Marie Dupont": p-1 holds an SSN and was read last, so the
+        // name map names it; p-2 has none.
+        let by_ssn = HashMap::from([("1234567890123".to_string(), "p-1".to_string())]);
+        let by_name = HashMap::from([("marie dupont".to_string(), "p-1".to_string())]);
+        let without_ssn = HashMap::from([("marie dupont".to_string(), "p-2".to_string())]);
+        let mut row = monthly_row("Marie Dupont", "50", "15/01/2026", "");
+        row[0] = s("9876543210987");
+
+        let (procedure, skipped) = parse_row_full(&row, &by_ssn, &by_name, &without_ssn);
+
+        assert_eq!(skipped, vec![]);
+        assert_eq!(procedure.expect("parsed").patient_temp_id, "p-2");
+    }
+
+    #[test]
+    fn exi_032_a_row_ssn_no_patient_holds_never_goes_to_one_of_the_same_name_with_another_ssn() {
+        // Marie Dupont holds 1234567890123; the row names her with another SSN.
+        let mut row = monthly_row("Marie Dupont", "50", "15/01/2026", "");
+        row[0] = s("9 87 65 43 210 987");
+
+        let (procedure, skipped) = parse_row(&row);
+
+        assert!(procedure.is_none());
+        assert_eq!(
+            skipped[0].reason,
+            SkipReason::PatientNotFound {
+                name: "Marie Dupont".to_string()
+            }
         );
     }
 

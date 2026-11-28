@@ -14,11 +14,11 @@ A practitioner has a historical Excel file containing their patients, funds, and
 
 - **`Patiente` sheet** (optional): list of patients with name (col A), SSN (col C). Column D (latest fund identifier) is read but not persisted at import time. If the sheet is absent, patients are inferred from the monthly sheets.
 - **`Secu` sheet** (optional): list of funds with identifier (col A), name (col B). The address (col C) is read but not persisted — only the identifier and the name are stored.
-- **Monthly sheets** (optional): named `Jan`, `Fév`, `Mars`, `Avr`, `Mai`, `Juin`, `Juil`, `Août`, `Sep`, `Oct`, `Nov`, `Déc` (or full names — these abbreviations match the user's actual French Excel file). Each sheet represents one month. Columns are detected dynamically from a header row (row 2): `CAISSE`, `TARIF`, `DATE` are mandatory; `T` (payment method), `REMBSE` (confirmed payment date), `Versé` (actual amount paid), and `En attente` are optional.
+- **Monthly sheets** (optional): named `Jan`, `Fév`, `Mars`, `Avr`, `Mai`, `Juin`, `Juil`, `Août`, `Sep`, `Oct`, `Nov`, `Déc` (or full names — these abbreviations match the user's actual French Excel file). Each sheet represents one month. Column A (`CODE`) holds the patient's code, optional: an SSN or another code; column B the patient's name. The other columns are detected dynamically from a header row (row 2): `CAISSE`, `TARIF`, `DATE` are mandatory; `T` (payment method), `REMBSE` (confirmed payment date), `Versé` (actual amount paid), and `En attente` are optional.
 
 **EXI-020 (R2) — Lines skipped during parsing (backend)**: A line on a monthly sheet is skipped (without a blocking error) in the following cases:
 
-- Patient name empty, `#N/A`, or not found in the parsed patient list
+- Patient name empty or `#N/A`, or no patient found for the row (EXI-031, EXI-032)
 - Amount missing, non-numeric, or ≤ 0
 - Date missing or in an unrecognized format (`DD/MM/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, or Excel serial number)
 - Fund referenced but not found in the parsed fund list
@@ -28,11 +28,15 @@ All skipped lines are collected in a parsing report displayed to the user at the
 
 ### Data validation
 
-**EXI-030 (R3) — Patient SSN validation (backend)**: The SSN is optional. If provided, it must contain exactly 13 ASCII digits. Three cases:
+**EXI-030 (R3) — Patient SSN validation (backend)**: The SSN is optional. If provided, it must contain exactly 13 ASCII digits once every whitespace character of the cell is removed, such as spaces, non-breaking spaces (narrow ones included) and tabs; the SSN kept is those 13 digits. This holds for the `Patiente` sheet and the monthly sheets' `CODE` column alike (#751). Three cases:
 
 - Valid SSN (13 digits): primary deduplication key.
-- Missing or empty SSN: deduplicate by lowercased name.
-- SSN provided but invalid: stored in the name as `"{name} (code: {ssn})"` for traceability, and deduplication is by name.
+- Missing or empty SSN, or an Excel error value (`#N/A`, or a value starting with `#` and ending with `!`): deduplicate by lowercased name.
+- SSN provided but invalid: the cell trimmed of whitespace at its ends, every inner whitespace character kept, is stored in the name as `"{name} (code: {ssn})"` for traceability, and deduplication is by name.
+
+**EXI-031 — A procedure row's patient (backend)**: A monthly sheet's row finds its patient among the parsed ones by its `CODE` (EXI-010). For a row whose name EXI-020 does not skip (empty, `#N/A`), a valid SSN (EXI-030) finds the patient holding it, whatever the row's name, else EXI-032 applies. A `CODE` EXI-030 treats as missing finds the patient by lowercased name. Any other `CODE` finds the patient by lowercased name, else by `"{name} (code: …)"` lowercased, with the `CODE` in EXI-030's invalid-case form.
+
+**EXI-032 — An SSN no patient holds (backend)**: A row whose valid SSN no parsed patient holds finds, by its lowercased name, a patient that has no SSN, never one holding another SSN (owner, 2026-11-28, #751). That patient takes no SSN from the row.
 
 **EXI-040 (R4) — Fund validation (backend)**: The fund's identifier and name are required (non-empty). The address is optional. The parser skips a fund missing either and reports it. The deduplication key is the exact fund identifier.
 
