@@ -29,7 +29,6 @@ impl SqliteBankEntryRepository {
             target: BACKEND,
             id = %transfer.id,
             transfer_date = %transfer_date_str,
-            amount = transfer.amount,
             transfer_type = %type_str,
             account_id = %transfer.bank_account.id,
             "Persisting bank transfer"
@@ -76,7 +75,6 @@ impl SqliteBankEntryRepository {
             target: BACKEND,
             transfer_id = %transfer.id,
             transfer_date = %transfer.transfer_date,
-            amount = transfer.amount,
             account_id = %transfer.bank_account.id,
             "Updating bank transfer"
         );

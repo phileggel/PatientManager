@@ -6,7 +6,6 @@ use chrono::NaiveDate;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use super::core::InternalAmount;
 use super::data::{FundCache, ProcedurePoolBuilder};
 use super::dto::{
     LeftOutPdfGroup, NormalizedPdfLine, PdfParseResult, PdfProcedureGroup,
@@ -161,7 +160,6 @@ impl ReconciliationService {
                         target: BACKEND,
                         line_index = line_index,
                         fund_identifier = loggable_fund_identifier(&normalized_line.fund_name),
-                        pdf_amount = InternalAmount(normalized_line.amount).to_f64(),
                         "Procedure not found in database"
                     );
                     not_found_count += 1;

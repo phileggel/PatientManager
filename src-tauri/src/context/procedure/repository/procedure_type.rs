@@ -69,7 +69,7 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
         // Domain layer creates and validates the procedure type
         let procedure_type = ProcedureType::new(name, default_amount, category)?;
 
-        tracing::trace!(target: BACKEND, procedure_type_id = %procedure_type.id, name = ?procedure_type.name, "Inserting procedure type into database");
+        tracing::trace!(target: BACKEND, procedure_type_id = %procedure_type.id, "Inserting procedure type into database");
 
         sqlx::query!(
             r#"
@@ -148,7 +148,7 @@ impl ProcedureTypeRepository for SqliteProcedureTypeRepository {
     }
 
     async fn find_by_name(&self, name: &str) -> anyhow::Result<Option<ProcedureType>> {
-        tracing::trace!(target: BACKEND, name = %name, "Fetching procedure type by name from database");
+        tracing::trace!(target: BACKEND, "Fetching procedure type by name from database");
 
         // R4 — SQLite's LOWER() folds ASCII only ("Échographie" stays apart from
         // "échographie"); Rust's to_lowercase() is Unicode-aware, as for patients.

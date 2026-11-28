@@ -13,8 +13,4 @@ impl InternalAmount {
     pub fn from_f64(amount: f64) -> Self {
         Self((amount * 1000.0_f64).round() as i64)
     }
-
-    pub fn to_f64(self) -> f64 {
-        self.0 as f64 / 1000.0
-    }
 }

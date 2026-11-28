@@ -201,13 +201,6 @@ mod tests {
         assert_eq!(InternalAmount::from_f64(100.00).0, 100000);
     }
 
-    #[test]
-    fn internal_amount_to_f64_converts_correctly() {
-        assert_eq!(InternalAmount(10500).to_f64(), 10.5);
-        assert_eq!(InternalAmount(10).to_f64(), 0.01);
-        assert_eq!(InternalAmount(100000).to_f64(), 100.0);
-    }
-
     // --- find_exact_combination ---
 
     #[test]

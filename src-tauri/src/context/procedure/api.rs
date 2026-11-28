@@ -20,7 +20,7 @@ pub async fn add_procedure_type(
     category: Option<String>,
     service: State<'_, Arc<ProcedureTypeService>>,
 ) -> Result<ProcedureType, ProcedureError> {
-    tracing::info!(target: BACKEND, name = %name, default_amount = %default_amount, "Processing add procedure type request");
+    tracing::info!(target: BACKEND, "Processing add procedure type request");
 
     service
         .add_procedure_type(name, default_amount, category)

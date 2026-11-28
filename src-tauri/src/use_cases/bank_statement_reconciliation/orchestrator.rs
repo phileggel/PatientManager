@@ -108,7 +108,6 @@ impl BankStatementOrchestrator {
         tracing::info!(
             target: BACKEND,
             credit_lines = result.credit_lines.len(),
-            total_credits = result.total_credits,
             "Bank statement parsed successfully"
         );
         Ok(result)
@@ -163,7 +162,6 @@ impl BankStatementOrchestrator {
                 target: BACKEND,
                 group_id = %m.group_id,
                 transfer_date = %m.date,
-                amount = m.amount,
                 "Bank transfer created"
             );
 

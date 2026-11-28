@@ -83,7 +83,7 @@ impl FundPaymentManualManagementOrchestrator {
             )
             .await?;
 
-        tracing::info!(target: BACKEND, group_id = %group.id, total_amount, "Manual fund payment group created");
+        tracing::info!(target: BACKEND, group_id = %group.id, "Manual fund payment group created");
 
         // Step 3: Update procedures — Reconciled + fund_reconciliation_date + paid_amount (FPM-320)
         let updated_procedures: Vec<_> = procedures
@@ -250,7 +250,6 @@ impl FundPaymentManualManagementOrchestrator {
         tracing::info!(
             target: BACKEND,
             group_id = %group_id,
-            total_amount,
             removed = removed_ids.len(),
             added = added_ids.len(),
             "Manual fund payment group updated"
